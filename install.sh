@@ -17,20 +17,27 @@ brew bundle
 
 
 
-# Install global NPM packages
-npm install --global yarn npx typescript create-react-app react-native-cli
 
-
-# TODO: ZSH Is it the same as oh-my-zsh in setup????
 # Make ZSH the default shell environment
 if grep -q "zsh" /etc/shells
 then 
     echo "ZSH shell already in allowed shells"
 else 
-    # chsh -s /bin/zsh
+    chsh -s $(which zsh)
     rm -rf $HOME/.zshrc
     ln -s $HOME/.dotfiles/.zshrc $HOME/.zshrc
 fi
+
+# GEMS
+rm -rf $HOME/.gemrc
+ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
+
+
+# Install global NPM packages
+npm install --global yarn npx typescript create-react-app react-native-cli
+
+
+gem install cocoapods
 
 # Removes .zshrc from $HOME (if it exists) and symlinks the .zshrc file from the .dotfiles
 

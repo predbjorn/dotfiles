@@ -10,55 +10,22 @@ export ZSH=$HOME/.oh-my-zsh
 #export ZSH="/Users/predbjorn/.oh-my-zsh"
 
 
-# Set name of the theme to load --- if set to "random", it will
-# load a random theme each time oh-my-zsh is loaded, in which case,
-# to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
 ZSH_THEME="agnoster"
 
-# Set list of themes to pick from when loading at random
-# Setting this variable when ZSH_THEME=random will cause zsh to load
-# a theme from this variable instead of looking in ~/.oh-my-zsh/themes/
-# If set to an empty array, this variable will have no effect.
-# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
-
-# Uncomment the following line to use case-sensitive completion.
-# CASE_SENSITIVE="true"
-
-# Uncomment the following line to use hyphen-insensitive completion.
-# Case-sensitive completion must be off. _ and - will be interchangeable.
-# HYPHEN_INSENSITIVE="true"
-
-# Uncomment the following line to disable bi-weekly auto-update checks.
-# DISABLE_AUTO_UPDATE="true"
+# Uncomment following line if you want red dots to be displayed while waiting for completion
+COMPLETION_WAITING_DOTS="true"
 
 # Uncomment the following line to change how often to auto-update (in days).
 # export UPDATE_ZSH_DAYS=13
 
-# Uncomment the following line to disable colors in ls.
-# DISABLE_LS_COLORS="true"
-
-# Uncomment the following line to disable auto-setting terminal title.
-# DISABLE_AUTO_TITLE="true"
-
 # Uncomment the following line to enable command auto-correction.
 # ENABLE_CORRECTION="true"
-
-# Uncomment the following line to display red dots whilst waiting for completion.
-# COMPLETION_WAITING_DOTS="true"
 
 # Uncomment the following line if you want to disable marking untracked files
 # under VCS as dirty. This makes repository status check for large repositories
 # much, much faster.
 # DISABLE_UNTRACKED_FILES_DIRTY="true"
-
-# Uncomment the following line if you want to change the command execution time
-# stamp shown in the history command output.
-# You can set one of the optional three formats:
-# "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
-# or set a custom format using the strftime function format specifications,
-# see 'man strftime' for details.
-# HIST_STAMPS="mm/dd/yyyy"
 
 # Would you like to use another custom folder than $ZSH/custom?
 # ZSH_CUSTOM=/path/to/new-custom-folder
@@ -69,27 +36,24 @@ ZSH_THEME="agnoster"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
-  git,
-  zsh-completions
+  git
 )
 
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
 
-export HOMEBREW="$HOME/.homebrew"
-if [ ! -d "$HOMEBREW" ]; then
-  # fallback
-  export HOMEBREW=/usr/local
-fi
-
-PATH="$HOMEBREW/bin:$HOMEBREW/sbin:$PATH"
-
-# Add zsh completion scripts installed via Homebrew
-fpath=("$HOMEBREW/share/zsh/site-functions" $fpath)
-
+# Something installed with homebrew
+# export HOMEBREW="$HOME/.homebrew"
+# if [ ! -d "$HOMEBREW" ]; then
+#   # fallback
+#   export HOMEBREW=/usr/local
+# fi
+# PATH="$HOMEBREW/bin:$HOMEBREW/sbin:$PATH"
+# # Add zsh completion scripts installed via Homebrew
+# fpath=("$HOMEBREW/share/zsh/site-functions" $fpath)
 # Reload the zsh-completions
-autoload -U compinit && compinit
+# autoload -U compinit && compinit
 
 # export MANPATH="/usr/local/man:$MANPATH"
 
@@ -103,9 +67,6 @@ autoload -U compinit && compinit
 #   export EDITOR='mvim'
 # fi
 
-# Compilation flags
-# export ARCHFLAGS="-arch x86_64"
-
 # ssh
 # export SSH_KEY_PATH="~/.ssh/rsa_id"
 
@@ -118,6 +79,35 @@ autoload -U compinit && compinit
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
+
+# ------------ PATH ------------
+# Load Node global installed binaries
+export PATH="$HOME/.node/bin:$PATH"
+
+# Use project specific binaries before global ones
+export PATH="node_modules/.bin:vendor/bin:$PATH"
+
+# Make sure coreutils are loaded before system commands
+# I've disabled this for now because I only use "ls" which is
+# referenced in my aliases.zsh file directly.
+#export PATH="$(brew --prefix coreutils)/libexec/gnubin:$PATH"
+
+# Local bin directories before anything else
+export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+
+# Load custom commands
+# export PATH="$DOTFILES/bin/:$PATH"
+
+
+
+# ALIASES
+source $DOTFILES/zsh/aliases.zsh
+
+# PATHS
+source $DOTFILES/zsh/path.zsh
+
+# FUNCTIONS
+source $DOTFILES/zsh/functions.zsh
 
 prompt_context() { #Removes Username and client name
   if [[ "$USER" != "$DEFAULT_USER" || -n "$SSH_CLIENT" ]]; then
