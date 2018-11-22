@@ -34,7 +34,15 @@ ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
 
 
 # Install global NPM packages
-npm install --global yarn npx typescript create-react-app react-native-cli
+npm install --global 
+yarn 
+npx 
+typescript 
+create-react-app 
+react-native-cli 
+react-native-rename
+react-native-git-upgrade
+@sanity/cli
 
 
 gem install cocoapods

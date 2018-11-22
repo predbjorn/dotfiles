@@ -2,11 +2,10 @@
 
 # # Git
 alias commit="git add . && git commit -m"
-alias gcommit="git add . && git commit"
-alias gst="git status"
-alias gc="git checkout"
 alias gd="git diff"
-alias gl="git log --oneline --decorate --color"
+# alias gst="git status"
+# alias gc="git checkout"
+# alias gl="git log --oneline --decorate --color"
 
 # Brew
 alias cask="brew cask"
@@ -17,5 +16,12 @@ alias cask="brew cask"
 # alias ios="open /Applications/Xcode.app/Contents/Developer/Applications/iOS\ Simulator.app"
 
 # cd 
-alias hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
+alias _hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
+alias _gaffa="cd ~/Hacking/ReactNative/react-native-gaffa-components-wrapper/"
+alias _dot="ccd ~/.dotfiles"
 
+
+alias _e="emulator -avd Pixel_XL"
+alias devmenu="adb shell input keyevent 82"
+
+alias npmrs="npm start -- --reset-cache"

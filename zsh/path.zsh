@@ -2,15 +2,15 @@
 export BREW_HOME="/usr/local/opt/"
 export CASK_HOME="/usr/local/share/"
 export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
+export JAVA_HOME="`jenv javahome`"
 
 export ANT_HOME="/usr/local/opt/ant"
 # export ANT_HOME=/usr/local/opt/ant/libexec
 export MAVEN_HOME="/usr/local/opt/maven"
 export GRADLE_HOME="/usr/local/opt/gradle"
 # export ANDROID_NDK_HOME="/usr/local/share/android-ndk"
-export ANDROID_HOME="~/Library/Android/sdk"
-export ANDROI="/Library/"
-# export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
 # /Users/predbjorn/Library/Android/sdk
 
 # GEMS
@@ -25,8 +25,9 @@ eval "$(jenv init -)"
 export PATH="$ANT_HOME/bin:$PATH"
 export PATH="$MAVEN_HOME/bin:$PATH"
 export PATH="$GRADLE_HOME/bin:$PATH"
-export PATH="$ANDROID_HOME/tools/bin:$PATH"
 export PATH="$ANDROID_HOME/tools:$PATH"
+export PATH="$ANDROID_HOME/tools/bin:$PATH"
+export PATH="$ANDROID_HOME/emulator:$PATH"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
 export PATH="$ANDROID_HOME/build-tools/28.0.3:$PATH"
 # If you want the latest version of the build-tools and not the most recently installed try this

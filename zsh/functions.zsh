@@ -30,8 +30,21 @@ hacktime (){
   open -a /Applications/Visual\ Studio\ Code.app
   open -a /Applications/Slack.app
   open -a /Applications/Spotify.app
-  open -a /Applications/React Native Debugger.app
-  open -a /Applications/Reactotron.app
-  open -a /Applications/Dash.app
+  open -a /Applications/React\ Native\ Debugger.app
   open -a /Applications/Evernote.app
+}
+
+hrn (){
+  cd ~/Hacking/ReactNative/helseoversikt_rn
+  code ~/Hacking/ReactNative/helseoversikt_rn
+}
+
+gaffa(){
+  cd ~/Hacking/ReactNative/
+  code ~/Hacking/ReactNative/
+}
+
+dot(){
+  cd ~/.dotfiles
+  code ~/.dotfiles
 }

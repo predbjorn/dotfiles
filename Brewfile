@@ -31,28 +31,23 @@ cask 'android-ndk'
 cask 'intel-haxm'
 
 
+
 # Apps
 cask 'google-backup-and-sync'
 cask 'google-chrome'
-cask 'phpstorm'
-cask 'webstorm'
 cask 'skype'
 cask 'slack'
 cask 'iterm2'
 cask 'spotify'
 cask 'TouchSwitcher'
-cask 'dash'
 cask 'hyperswitch' 
 cask 'google-drive-file-stream' 
 cask 'react-native-debugger'
-cask 'reactotron'
-cask 'intellij'
 cask 'apptivate'
 cask 'android-studio'
 cask 'ProPresenter'
-
-
-
+cask 'jetbrains-toolbox'
+cask 'haptic-touch-bar'
 
 
 # Fonts
