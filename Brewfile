@@ -48,6 +48,8 @@ cask 'android-studio'
 cask 'ProPresenter'
 cask 'jetbrains-toolbox'
 cask 'haptic-touch-bar'
+cask 'steam'
+cask 'postman'
 
 
 # Fonts

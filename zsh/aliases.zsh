@@ -22,6 +22,7 @@ alias _dot="ccd ~/.dotfiles"
 
 
 alias _e="emulator -avd Pixel_XL"
+alias _e6="emulator -avd Nexus6"
 alias devmenu="adb shell input keyevent 82"
 
 alias npmrs="npm start -- --reset-cache"
