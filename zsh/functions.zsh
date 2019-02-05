@@ -26,12 +26,23 @@ update () {
 
 hacktime (){
   # open -a /Applications/Google\ Chrome.app
+  open -a /Applications/Code.app
   open -a /Applications/Xcode.app
   open -a /Applications/Visual\ Studio\ Code.app
   open -a /Applications/Slack.app
   open -a /Applications/Spotify.app
   open -a /Applications/React\ Native\ Debugger.app
-  open -a /Applications/Evernote.app
+#   open -a /Applications/Evernote.app
+}
+
+hacktime2 (){
+  # open -a /Applications/Google\ Chrome.app
+  open -a /Applications/Xcode.app
+  open -a /Applications/Visual\ Studio\ Code.app
+  open -a /Applications/Slack.app
+  open -a /Applications/Spotify.app
+  open -a /Applications/React\ Native\ Debugger.app
+#   open -a /Applications/Evernote.app
 }
 
 hrn (){

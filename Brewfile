@@ -13,6 +13,7 @@ brew 'trash'
 brew 'mas'
 brew 'zsh'
 brew 'zsh-completions'
+brew 'python'
 
 
 # Development
@@ -50,6 +51,7 @@ cask 'jetbrains-toolbox'
 cask 'haptic-touch-bar'
 cask 'steam'
 cask 'postman'
+cask 'toggl'
 
 
 # Fonts
