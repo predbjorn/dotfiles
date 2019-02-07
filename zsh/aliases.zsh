@@ -21,8 +21,9 @@ alias _gaffa="cd ~/Hacking/ReactNative/react-native-gaffa-components-wrapper/"
 alias _dot="ccd ~/.dotfiles"
 
 
-alias _e="emulator -avd Pixel_XL"
-alias _e6="emulator -avd Nexus6"
+alias _e_xl="emulator -avd Pixel_XL"
+alias _e="emulator -avd Pixel2"
+alias _e_6="emulator -avd Nexus6"
 alias devmenu="adb shell input keyevent 82"
 
 alias npmrs="npm start -- --reset-cache"
