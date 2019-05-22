@@ -34,8 +34,10 @@ hacktime (){
   open -a /Applications/Safari.app
   open -a /Applications/TogglDesktop.app
   open -a /Applications/Mail.app
-#   open -a /Applications/Evernote.app
-	osascript hacktime.applescript
+  open -a /Applications/Zeplin.app
+  open -a /Applications/GitKraken.app
+  open -a /Applications/Evernote.app
+	osascript ~/.dotfiles/AppleScripts/hacktime.applescript
 }
 
 hacktime2 (){

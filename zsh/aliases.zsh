@@ -18,7 +18,7 @@ alias cask="brew cask"
 # cd 
 alias _hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
 alias _gaffa="cd ~/Hacking/ReactNative/react-native-gaffa-components-wrapper/"
-alias _dot="ccd ~/.dotfiles"
+alias _dot="cd ~/.dotfiles"
 
 
 alias _e_xl="emulator -avd Pixel_XL"
