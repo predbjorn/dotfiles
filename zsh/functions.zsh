@@ -21,7 +21,7 @@ update () {
   gem update —system
   gem update
   # Update android
-  sdkmanager update sdk --no-ui
+#   sdkmanager update sdk --no-ui
 }
 
 hacktime (){

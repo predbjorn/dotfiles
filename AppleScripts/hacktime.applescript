@@ -86,6 +86,11 @@ tell application "System Events"
 		set position of frontWindow to TogglPosition
 		set size of frontWindow to TogglSize
 	end tell
+	tell process "GitKraken"
+		set frontWindow to first window
+		set position of frontWindow to iTermPosition
+		set size of frontWindow to iTermSize
+	end tell
 	tell process "iTerm2"
 		set frontWindow to first window
 		set position of frontWindow to iTermPosition
@@ -107,6 +112,11 @@ tell application "System Events"
 		set size of frontWindow to ReactSize
 	end tell
 	tell process "Safari"
+		set frontWindow to first window
+		set position of frontWindow to SafariPosition
+		set size of frontWindow to SafariSize
+	end tell
+	tell process "Zeplin"
 		set frontWindow to first window
 		set position of frontWindow to SafariPosition
 		set size of frontWindow to SafariSize
