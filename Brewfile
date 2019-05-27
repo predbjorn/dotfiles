@@ -53,7 +53,7 @@ cask 'steam'
 cask 'postman'
 cask 'toggl'
 cask 'vlc'
-cask 'gitkraken'
+cask 'sourcetree'
 cask 'zeplin'
 
 
