@@ -86,7 +86,7 @@ tell application "System Events"
 		set position of frontWindow to TogglPosition
 		set size of frontWindow to TogglSize
 	end tell
-	tell process "sourcetree"
+	tell process "Sourcetree"
 		set frontWindow to first window
 		set position of frontWindow to iTermPosition
 		set size of frontWindow to iTermSize

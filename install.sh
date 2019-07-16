@@ -43,6 +43,7 @@ react-native-cli
 react-native-rename
 react-native-git-upgrade
 @sanity/cli
+firebase-tools
 
 
 gem install cocoapods

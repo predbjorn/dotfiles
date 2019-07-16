@@ -22,7 +22,7 @@ alias _dot="cd ~/.dotfiles"
 
 
 alias _e_xl="emulator -avd Pixel_XL"
-alias _e="emulator -avd Pixel2"
+alias _e="emulator -avd Pixel"
 alias _e_6="emulator -avd Nexus6"
 alias devmenu="adb shell input keyevent 82"
 
