@@ -4,6 +4,7 @@ tap 'caskroom/eid'
 tap 'caskroom/fonts'
 tap 'caskroom/versions'
 tap 'homebrew/bundle'
+tap 'AdoptOpenJDK/openjdk'
 
 
 # Binaries
@@ -55,6 +56,8 @@ cask 'toggl'
 cask 'vlc'
 cask 'sourcetree'
 cask 'zeplin'
+cask 'rcdefaultapp'
+# cask 'adoptopenjdk8'
 
 
 # Fonts

@@ -1,4 +1,5 @@
 
+export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktdev.json"
 export BREW_HOME="/usr/local/opt/"
 export CASK_HOME="/usr/local/share/"
 export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
