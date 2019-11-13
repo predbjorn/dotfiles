@@ -32,11 +32,10 @@ hacktime (){
   open -a /Applications/Spotify.app
   open -a /Applications/React\ Native\ Debugger.app
   open -a /Applications/Safari.app
-  open -a /Applications/TogglDesktop.app
-  open -a /Applications/Mail.app
-  open -a /Applications/Zeplin.app
-  open -a /Applications/GitKraken.app
-  open -a /Applications/Evernote.app
+  open -a /Applications/SourceTree.app
+#   open -a /Applications/TogglDesktop.app
+#   open -a /Applications/Mail.app
+#   open -a /Applications/Evernote.app
 	osascript ~/.dotfiles/AppleScripts/hacktime.applescript
 }
 

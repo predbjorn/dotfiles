@@ -57,6 +57,7 @@ cask 'vlc'
 cask 'sourcetree'
 cask 'zeplin'
 cask 'rcdefaultapp'
+cask 'dash'
 # cask 'adoptopenjdk8'
 
 

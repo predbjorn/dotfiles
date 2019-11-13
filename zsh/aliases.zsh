@@ -27,3 +27,7 @@ alias _e_6="emulator -avd Nexus6"
 alias devmenu="adb shell input keyevent 82"
 
 alias npmrs="npm start -- --reset-cache"
+
+alias openr="open ./app/build/outputs/apk/release"
+
+alias gitclear="git branch | grep -v "master" | xargs git branch -D"

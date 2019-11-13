@@ -35,10 +35,10 @@ set SpotifySize to mbFull
 set SpotifyPosition to mbscreen
 set SafariSize to mbFull
 set SafariPosition to mbscreen
-set MailSize to mbFull
-set MailPosition to mbscreen
-set TogglSize to {400, 600}
-set TogglPosition to {1280, 0}
+-- set MailSize to mbFull
+-- set MailPosition to mbscreen
+-- set TogglSize to {400, 600}
+-- set TogglPosition to {1280, 0}
 
 if viewSonic then --{3840x1600} + {2880, 1800 (1680, 1030)}
 	set vsleft to {0, 0}
@@ -81,11 +81,11 @@ tell application "System Events"
 		set position of frontWindow to XcodePosition
 		set size of frontWindow to XcodeSize
 	end tell
-	tell process "TogglDesktop"
-		set frontWindow to first window
-		set position of frontWindow to TogglPosition
-		set size of frontWindow to TogglSize
-	end tell
+	-- tell process "TogglDesktop"
+	-- 	set frontWindow to first window
+	-- 	set position of frontWindow to TogglPosition
+	-- 	set size of frontWindow to TogglSize
+	-- end tell
 	tell process "Sourcetree"
 		set frontWindow to first window
 		set position of frontWindow to iTermPosition
@@ -96,11 +96,11 @@ tell application "System Events"
 		set position of frontWindow to iTermPosition
 		set size of frontWindow to iTermSize
 	end tell
-	-- tell process "Visual Studio Code"
-	-- set frontWindow to first window
-	-- 	set position of frontWindow to CodePosition
-	-- 	set size of frontWindow to CodeSize
-	-- end tell
+	tell process "Visual Studio Code"
+	set frontWindow to first window
+		set position of frontWindow to CodePosition
+		set size of frontWindow to CodeSize
+	end tell
 	tell process "Spotify"
 		set frontWindow to first window
 		set position of frontWindow to SpotifyPosition
@@ -116,23 +116,23 @@ tell application "System Events"
 		set position of frontWindow to SafariPosition
 		set size of frontWindow to SafariSize
 	end tell
-	tell process "Zeplin"
-		set frontWindow to first window
-		set position of frontWindow to SafariPosition
-		set size of frontWindow to SafariSize
-	end tell
-	tell process "Mail"
-		set frontWindow to first window
-		set position of frontWindow to MailPosition
-		set size of frontWindow to MailSize
-	end tell
+	-- tell process "Zeplin"
+	-- 	set frontWindow to first window
+	-- 	set position of frontWindow to SafariPosition
+	-- 	set size of frontWindow to SafariSize
+	-- end tell
+	-- tell process "Mail"
+	-- 	set frontWindow to first window
+	-- 	set position of frontWindow to MailPosition
+	-- 	set size of frontWindow to MailSize
+	-- end tell
 end tell
 
 
-tell application "System Events" to tell process "Mail" to set visible to false
-tell application "System Events" to tell process "Slack" to set visible to false
+-- tell application "System Events" to tell process "Mail" to set visible to false
+-- tell application "System Events" to tell process "Slack" to set visible to false
 
-tell application "Visual Studio Code" to activate
-tell application "System Events"
-	keystroke "f" using {command down, control down}
-end tell
+-- tell application "Visual Studio Code" to activate
+-- tell application "System Events"
+-- 	keystroke "f" using {command down, control down}
+-- end tell
