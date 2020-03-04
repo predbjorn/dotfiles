@@ -58,12 +58,13 @@ cask 'sourcetree'
 cask 'zeplin'
 cask 'rcdefaultapp'
 cask 'dash'
+cask 'appcleaner'
 # cask 'adoptopenjdk8'
 
 
 # Fonts
 #cask 'font-inconsolata-for-powerline'
-#cask 'font-inconsolata'
+#cask 'font-inconsolata'	
 
 # Mac App Store
 #mas 'WhatsApp Desktop', id: 
@@ -79,3 +80,4 @@ mas 'Color Picker', id: 641027709
 mas 'Pixelmator', id: 407963104
 mas 'Amphetamine', id: 937984704
 mas 'Divvy', id: 413857545
+mas 'Tomato One - Free Focus Timer', id: 907364780

@@ -48,18 +48,3 @@ hacktime2 (){
   open -a /Applications/React\ Native\ Debugger.app
 #   open -a /Applications/Evernote.app
 }
-
-hrn (){
-  cd ~/Hacking/ReactNative/helseoversikt_rn
-  code ~/Hacking/ReactNative/helseoversikt_rn
-}
-
-gaffa(){
-  cd ~/Hacking/ReactNative/
-  code ~/Hacking/ReactNative/
-}
-
-dot(){
-  cd ~/.dotfiles
-  code ~/.dotfiles
-}

@@ -17,17 +17,19 @@ alias cask="brew cask"
 
 # cd 
 alias _hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
-alias _gaffa="cd ~/Hacking/ReactNative/react-native-gaffa-components-wrapper/"
+alias hrn="cd ~/Hacking/ReactNative/helseoversikt_rn && code ."
+alias _tren="cd ~/Hacking/ReactNative/tren"
+alias tren="cd ~/Hacking/ReactNative/tren && code ."
 alias _dot="cd ~/.dotfiles"
+alias dot="cd ~/.dotfiles && code ."
 
 
-alias _e_xl="emulator -avd Pixel_XL"
-alias _e="emulator -avd Pixel"
-alias _e_6="emulator -avd Nexus6"
+alias _e="emulator -avd s8"
+alias logcat="logcat-ui"
 alias devmenu="adb shell input keyevent 82"
 
 alias npmrs="npm start -- --reset-cache"
 
-alias openr="open ./app/build/outputs/apk/release"
+alias openr="open ./app/build/outputs/bundle/release/"
 
 alias gitclear="git branch | grep -v "master" | xargs git branch -D"

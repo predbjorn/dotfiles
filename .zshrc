@@ -114,3 +114,6 @@ prompt_context() { #Removes Username and client name
     # prompt_segment black default "%(!.%{%F{yellow}%}.)$USER" #removes username
   fi
 }
+
+export PATH="$HOME/.jenv/bin:$PATH"
+eval "$(jenv init -)"
