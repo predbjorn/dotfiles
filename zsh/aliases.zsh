@@ -30,6 +30,9 @@ alias devmenu="adb shell input keyevent 82"
 
 alias npmrs="npm start -- --reset-cache"
 
+alias podi="cd ios &&  pod install && cd .."
+alias build="cd android &&  ./gradlew bundleRelease && open ./app/build/outputs/bundle/release/ && cd .."
 alias openr="open ./app/build/outputs/bundle/release/"
+alias clean="rm -rf node_modules package-lock.lock && npm cache clean --force && npm install"
 
 alias gitclear="git branch | grep -v "master" | xargs git branch -D"

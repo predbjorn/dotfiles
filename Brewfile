@@ -5,7 +5,7 @@ tap 'caskroom/fonts'
 tap 'caskroom/versions'
 tap 'homebrew/bundle'
 tap 'AdoptOpenJDK/openjdk'
-
+tap 'mongodb/brew'
 
 # Binaries
 brew 'wget'
@@ -15,6 +15,7 @@ brew 'mas'
 brew 'zsh'
 brew 'zsh-completions'
 brew 'python'
+brew 'mongodb-community@4.2'
 
 
 # Development
@@ -31,6 +32,7 @@ cask 'java8'
 cask 'android-sdk'
 cask 'android-ndk'
 cask 'intel-haxm'
+cask 'mongodb-compass'
 
 
 
@@ -44,6 +46,7 @@ cask 'spotify'
 cask 'TouchSwitcher'
 cask 'hyperswitch' 
 cask 'google-drive-file-stream' 
+cask 'homebrew/cask-drivers/logitech-options'
 cask 'react-native-debugger'
 cask 'apptivate'
 cask 'android-studio'
@@ -59,6 +62,7 @@ cask 'zeplin'
 cask 'rcdefaultapp'
 cask 'dash'
 cask 'appcleaner'
+cask 'virtualbox'
 # cask 'adoptopenjdk8'
 
 

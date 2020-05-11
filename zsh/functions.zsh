@@ -14,6 +14,8 @@ update () {
   # Update Homebrew (Cask) & packages
   brew update
   brew upgrade
+  brew cask upgrade
+  mas upgrade
   # Update npm & packages
   npm install npm -g
   npm update -g
