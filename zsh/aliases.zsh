@@ -19,9 +19,11 @@ alias cask="brew cask"
 alias _hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
 alias hrn="cd ~/Hacking/ReactNative/helseoversikt_rn && code ."
 alias _tren="cd ~/Hacking/ReactNative/tren"
-alias tren="cd ~/Hacking/ReactNative/tren && code ."
+alias tren="cd ~/Hacking/projects/tren && code ."
 alias _dot="cd ~/.dotfiles"
 alias dot="cd ~/.dotfiles && code ."
+alias partner="cd ~/Hacking/React/partnerPortal/ && code."
+alias _partner="cd ~/Hacking/React/partnerPortal/"
 
 
 alias _e="emulator -avd s8"

@@ -54,3 +54,8 @@ export PATH="$ANDROID_HOME/build-tools/28.0.3:$PATH"
 # For compilers to find openssl you may need to set:
 #   export LDFLAGS="-L/usr/local/opt/openssl/lib"
 #   export CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+
+
+export NVM_DIR="~/.nvm"
+source $(brew --prefix nvm)/nvm.sh
