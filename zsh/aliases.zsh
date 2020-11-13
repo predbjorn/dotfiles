@@ -22,8 +22,9 @@ alias _tren="cd ~/Hacking/ReactNative/tren"
 alias tren="cd ~/Hacking/projects/tren && code ."
 alias _dot="cd ~/.dotfiles"
 alias dot="cd ~/.dotfiles && code ."
-alias partner="cd ~/Hacking/React/partnerPortal/ && code."
-alias _partner="cd ~/Hacking/React/partnerPortal/"
+alias portal="osascript ~/.dotfiles/AppleScripts/portal.applescript"
+alias _portal="cd ~/Hacking/React/partnerPortal/"
+alias tren="osascript ~/.dotfiles/AppleScripts/tren.applescript"
 
 
 alias _e="emulator -avd s8"

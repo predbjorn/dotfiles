@@ -17,6 +17,7 @@ brew 'zsh'
 brew 'zsh-completions'
 brew 'python'
 brew 'mongodb-community@4.2'
+brew 'namp'
 
 
 # Development
@@ -35,6 +36,7 @@ cask 'android-sdk'
 cask 'android-ndk'
 cask 'intel-haxm'
 cask 'mongodb-compass'
+cask 'wireshark'
 
 
 
