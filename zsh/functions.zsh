@@ -50,3 +50,9 @@ hacktime2 (){
   open -a /Applications/React\ Native\ Debugger.app
 #   open -a /Applications/Evernote.app
 }
+
+rn (){
+  	open -a /Applications/React\ Native\ Debugger.app
+  	open -a /Applications/Xcode.app
+#   open -a /Applications/Evernote.app
+}

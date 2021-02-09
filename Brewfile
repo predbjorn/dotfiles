@@ -54,9 +54,8 @@ cask 'homebrew/cask-drivers/logitech-options'
 cask 'react-native-debugger'
 cask 'apptivate'
 cask 'android-studio'
-cask 'ProPresenter'
+# cask 'ProPresenter'
 cask 'jetbrains-toolbox'
-cask 'haptic-touch-bar'
 cask 'steam'
 cask 'postman'
 cask 'toggl'
@@ -73,7 +72,8 @@ cask 'anaconda'
 cask 'telegram-desktop'
 cask 'beyond-compare'
 cask 'discord'
-# cask 'adoptopenjdk8'
+cask 'notion'
+cask 'messenger'
 
 
 # Fonts
@@ -81,17 +81,17 @@ cask 'discord'
 #cask 'font-inconsolata'	
 
 # Mac App Store
-#mas 'WhatsApp Desktop', id: 
 mas 'Giphy Capture', id: 668208984
 mas 'Xcode', id: 497799835
-mas 'Trello', id: 1278508951 
 mas 'Keynote', id: 409183694
 mas 'Evernote', id: 406056744
-mas 'HyperDock', id: 449830122
-mas 'Remote for HEOS', id: 1382572478
+# mas 'HyperDock', id: 449830122
+# mas 'Remote for HEOS', id: 1382572478
 mas 'Slack', id: 803453959
 mas 'Color Picker', id: 641027709
 mas 'Pixelmator', id: 407963104
 mas 'Amphetamine', id: 937984704
 mas 'Divvy', id: 413857545
 mas 'Tomato One - Free Focus Timer', id: 907364780
+#mas 'WhatsApp Desktop', id: 
+# mas 'Trello', id: 1278508951 
