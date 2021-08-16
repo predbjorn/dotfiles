@@ -117,3 +117,6 @@ prompt_context() { #Removes Username and client name
 
 export PATH="$HOME/.jenv/bin:$PATH"
 eval "$(jenv init -)"
+
+
+# defaults write com.google.android.studio AppleWindowTabbingMode manual
