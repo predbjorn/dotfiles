@@ -31,7 +31,16 @@ fi
 # GEMS
 rm -rf $HOME/.gemrc
 ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
-
+# # # list all available versions:
+# rbenv install -l
+# # install a Ruby version:
+# rbenv install 2.4.1
+# set ruby version for a specific dir
+# rbenv local 2.4.1
+# # set ruby version globally
+# rbenv global 2.4.1
+# # rbenv rehash
+# gem update --system
 
 # Install global NPM packages
 npm install --global 

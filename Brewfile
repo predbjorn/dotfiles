@@ -16,8 +16,10 @@ brew 'mas'
 brew 'zsh'
 brew 'zsh-completions'
 brew 'python'
-brew 'mongodb-community@4.2'
+brew 'mongodb-community'
 brew 'namp'
+brew 'rbenv'
+brew 'ruby-build'
 
 
 # Development

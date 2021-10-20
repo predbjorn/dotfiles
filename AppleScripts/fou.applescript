@@ -14,5 +14,9 @@ tell application "iTerm"
             write text "code ."
             write text "npm start"
         end tell
+		 tell last session of last tab
+            write text "cd ~/Hacking/projects/foundation/found_sanity/"
+            write text "code ."
+        end tell
 	end tell
 end tell

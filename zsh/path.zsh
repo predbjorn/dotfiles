@@ -16,9 +16,10 @@ export ANDROID_SDK_ROOT="$ANDROID_HOME"
 
 # GEMS
 export GEM_HOME="$HOME/.gem"
-# export PATH="$GEM_HOME/bin:$PATH"
-export PATH="$GEM_HOME/ruby/2.3.0/bin:$PATH"
-
+export PATH="$GEM_HOME/bin:$PATH"
+export PATH="$HOME/.rbenv/bin:$PATH"
+eval "$(rbenv init -)"
+# export PATH="$GEM_HOME/ruby/2.6.0/bin:$PATH"
 # Jenv
 export PATH="$HOME/.jenv/bin:$PATH"
 eval "$(jenv init -)"

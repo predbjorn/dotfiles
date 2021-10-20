@@ -3,6 +3,7 @@
 # # Git
 alias commit="git add . && git commit -m"
 alias gd="git diff"
+alias gitclear="git branch | grep -v "master" | xargs git branch -D"
 # alias gst="git status"
 # alias gc="git checkout"
 # alias gl="git log --oneline --decorate --color"
@@ -39,6 +40,8 @@ alias build="cd android &&  ./gradlew bundleRelease && open ./app/build/outputs/
 alias openr="open ./app/build/outputs/bundle/release/"
 alias clean="rm -rf node_modules package-lock.lock && npm cache clean --force && npm install"
 
-alias gitclear="git branch | grep -v "master" | xargs git branch -D"
 
 alias _done="afplay /System/Library/Sounds/Basso.aiff"
+
+alias hrn_dsym="~/Hacking/ReactNative/helseoversikt_rn/ios/Pods/FirebaseCrashlytics/upload-symbols -gsp /Users/predbjorn/Hacking/ReactNative/helseoversikt_rn/ios/AppConfig/Firebase/GoogleService-Info-prod.plist -p ios " 
+# add dsym file after this :)  

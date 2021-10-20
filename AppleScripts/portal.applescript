@@ -20,6 +20,5 @@ tell application "iTerm"
             write text "code ."
             write text "npm start"
         end tell
-
 	end tell
 end tell
