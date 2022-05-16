@@ -1,5 +1,7 @@
 
 export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktdev.json"
+# export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktprod.json:$GOOGLE_APPLICATION_CREDENTIALS"
+# export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktprod.json"
 export BREW_HOME="/usr/local/opt/"
 export CASK_HOME="/usr/local/share/"
 export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
@@ -20,6 +22,7 @@ export PATH="$GEM_HOME/bin:$PATH"
 export PATH="$HOME/.rbenv/bin:$PATH"
 eval "$(rbenv init -)"
 # export PATH="$GEM_HOME/ruby/2.6.0/bin:$PATH"
+# export PATH="$GEM_HOME/ruby/3.0.0/bin:$PATH"
 # Jenv
 export PATH="$HOME/.jenv/bin:$PATH"
 eval "$(jenv init -)"
@@ -35,7 +38,8 @@ export PATH="$ANDROID_HOME/build-tools/28.0.3:$PATH"
 # If you want the latest version of the build-tools and not the most recently installed try this
 # export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort | tail -1):$PATH
 
-
+source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'
+source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc'
 
 # wget
 # A CA file has been bootstrapped using certificates from the SystemRoots
@@ -50,12 +54,17 @@ export PATH="$ANDROID_HOME/build-tools/28.0.3:$PATH"
 # because Apple has deprecated use of OpenSSL in favor of its own TLS and crypto libraries.
 
 # If you need to have openssl first in your PATH run:
-#   echo 'export PATH="/usr/local/opt/openssl/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="/usr/local/opt/openssl/bin:$PATH"' >> ~/.zshrc
 
 # For compilers to find openssl you may need to set:
 #   export LDFLAGS="-L/usr/local/opt/openssl/lib"
 #   export CPPFLAGS="-I/usr/local/opt/openssl/include"
 
+
+# Fastlane setup
+
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
 
 
 export NVM_DIR="~/.nvm"

@@ -16,8 +16,6 @@ brew bundle
 
 
 
-
-
 # Make ZSH the default shell environment
 if grep -q "zsh" /etc/shells
 then 
@@ -46,17 +44,15 @@ ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
 npm install --global 
 yarn 
 npx 
-typescript 
+# typescript 
+# react-native-git-upgrade
 create-react-app 
 react-native-cli 
 react-native-rename
-react-native-git-upgrade
 @sanity/cli
 firebase-tools
 logcat-viewer
 
-
-gem install cocoapods
 
 # Removes .zshrc from $HOME (if it exists) and symlinks the .zshrc file from the .dotfiles
 

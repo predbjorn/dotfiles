@@ -5,22 +5,34 @@ tap 'caskroom/fonts'
 tap 'caskroom/versions'
 tap 'homebrew/bundle'
 tap 'AdoptOpenJDK/openjdk'
-tap 'mongodb/brew'
 tap 'heroku/brew'
 
 # Binaries
 brew 'wget'
 brew 'git'
 brew 'trash'
+
+# A command to download mac store app
+# http://www.softantenna.com/wp/mac/mas-cli/
 brew 'mas'
+
+# zsh
 brew 'zsh'
 brew 'zsh-completions'
+
+# python
 brew 'python'
-brew 'mongodb-community'
-brew 'namp'
+
+# brew 'namp'
 brew 'rbenv'
 brew 'ruby-build'
+brew 'cocoapods'
+brew 'fastlane'
 
+#mongoDB
+tap 'mongodb/brew'
+cask 'mongodb-compass'
+brew 'mongodb-community'
 
 # Development
 #brew 'php'
@@ -37,46 +49,48 @@ cask 'java8'
 cask 'android-sdk'
 cask 'android-ndk'
 cask 'intel-haxm'
-cask 'mongodb-compass'
-cask 'wireshark'
+cask 'google-cloud-sdk'
+# cask 'wireshark'
 
 
 
 # Apps
+cask 'google-chrome'
+cask 'firefox'
+cask 'skype'
+cask 'slack'
+cask 'iterm2'
+cask 'spotify'
+cask 'react-native-debugger'
+cask 'flipper'
+cask 'apptivate'
+cask 'jetbrains-toolbox'
+cask 'android-studio'
+cask 'steam'
+cask 'postman'
+cask 'toggl'
+cask 'sourcetree'
+cask 'rcdefaultapp' 
+cask 'finicky'
+cask 'messenger'
+# cask 'anaconda'
+
+# Other:
+# cask 'homebrew/cask-drivers/logitech-options'
+# cask 'hyperswitch' 
+# cask 'appcleaner'
+# cask 'virtualbox'
+# cask 'telegram-desktop'
+# cask 'discord'
+# cask 'notion'
+# cask 'zwift'
+# cask 'beyond-compare'
+
 # cask 'google-backup-and-sync'
 # cask 'google-drive-file-stream' 
 # cask 'vlc'
 # cask 'zeplin'
 # cask 'ProPresenter'
-cask 'google-chrome'
-cask 'skype'
-cask 'slack'
-cask 'iterm2'
-cask 'spotify'
-cask 'TouchSwitcher'
-cask 'hyperswitch' 
-cask 'homebrew/cask-drivers/logitech-options'
-cask 'react-native-debugger'
-cask 'flipper'
-cask 'apptivate'
-cask 'android-studio'
-cask 'jetbrains-toolbox'
-cask 'steam'
-cask 'postman'
-cask 'toggl'
-cask 'sourcetree'
-cask 'rcdefaultapp'
-cask 'dash'
-cask 'appcleaner'
-cask 'virtualbox'
-cask 'finicky'
-cask 'zwift'
-cask 'anaconda'
-cask 'telegram-desktop'
-cask 'beyond-compare'
-cask 'discord'
-cask 'notion'
-cask 'messenger'
 
 
 # Fonts
@@ -84,17 +98,17 @@ cask 'messenger'
 #cask 'font-inconsolata'	
 
 # Mac App Store
-mas 'Giphy Capture', id: 668208984
 mas 'Xcode', id: 497799835
 mas 'Keynote', id: 409183694
 mas 'Evernote', id: 406056744
-# mas 'HyperDock', id: 449830122
-# mas 'Remote for HEOS', id: 1382572478
 mas 'Slack', id: 803453959
 mas 'Color Picker', id: 641027709
 mas 'Pixelmator', id: 407963104
 mas 'Amphetamine', id: 937984704
 mas 'Divvy', id: 413857545
-mas 'Tomato One - Free Focus Timer', id: 907364780
+# mas 'Giphy Capture', id: 668208984
+# mas 'Tomato One - Free Focus Timer', id: 907364780
+# mas 'HyperDock', id: 449830122
+# mas 'Remote for HEOS', id: 1382572478
 #mas 'WhatsApp Desktop', id: 
 # mas 'Trello', id: 1278508951 
