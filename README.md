@@ -31,3 +31,5 @@ cd ~/dotfiles
 chmod +x install.sh
 ./install.sh
 ```
+
+5. install "code" command https://www.freecodecamp.org/news/how-to-open-visual-studio-code-from-your-terminal/
