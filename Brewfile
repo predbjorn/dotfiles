@@ -55,6 +55,7 @@ cask 'google-cloud-sdk'
 
 
 # Apps
+cask 'visual-studio-code'
 cask 'google-chrome'
 cask 'firefox'
 cask 'skype'
