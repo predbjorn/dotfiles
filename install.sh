@@ -40,19 +40,13 @@ ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
 # # rbenv rehash
 # gem update --system
 
-# Install global NPM packages
-npm install --global 
-yarn 
-npx 
-# typescript 
-# react-native-git-upgrade
-create-react-app 
-react-native-cli 
-react-native-rename
-@sanity/cli
-firebase-tools
-logcat-viewer
 
+
+chmod a+x npm.sh;
+source npm.sh;
+
+chmod a+x hackingfolder.sh;
+source hackingfolder.sh;
 
 # Removes .zshrc from $HOME (if it exists) and symlinks the .zshrc file from the .dotfiles
 

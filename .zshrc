@@ -120,4 +120,6 @@ eval "$(jenv init -)"
 
 
 # defaults write com.google.android.studio AppleWindowTabbingMode manualexport PATH="/usr/local/opt/openssl/bin:$PATH"
+export PATH="/usr/local/opt/openssl/bin:$PATH"export PATH="/usr/local/opt/openssl/bin:$PATH"
+export PATH="/usr/local/opt/openssl/bin:$PATH"
 export PATH="/usr/local/opt/openssl/bin:$PATH"
