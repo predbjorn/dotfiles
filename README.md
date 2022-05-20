@@ -33,3 +33,15 @@ chmod +x install.sh
 ```
 
 5. install "code" command https://www.freecodecamp.org/news/how-to-open-visual-studio-code-from-your-terminal/
+
+## Other apps
+
+### vscode
+
+Add git to sync
+
+### iTerm2
+
+```
+p10k configure
+```

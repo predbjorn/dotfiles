@@ -17,13 +17,24 @@ brew bundle
 
 
 # Make ZSH the default shell environment
-if grep -q "zsh" /etc/shells
-then 
+if grep -q "zsh" /etc/shells; then 
     echo "ZSH shell already in allowed shells"
 else 
     chsh -s $(which zsh)
     rm -rf $HOME/.zshrc
     ln -s $HOME/.dotfiles/.zshrc $HOME/.zshrc
+fi
+
+if [ -d ~/.oh-my-zsh ]; then
+	echo "oh-my-zsh is installed"
+ else
+ 	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+fi
+
+if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k ]; then
+	echo "oh-my-zsh is installed"
+ else
+ 	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 fi
 
 # GEMS

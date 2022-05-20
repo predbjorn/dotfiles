@@ -54,7 +54,7 @@ source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.
 # because Apple has deprecated use of OpenSSL in favor of its own TLS and crypto libraries.
 
 # If you need to have openssl first in your PATH run:
-echo 'export PATH="/usr/local/opt/openssl/bin:$PATH"' >> ~/.zshrc
+# echo 'export PATH="/usr/local/opt/openssl/bin:$PATH"' >> ~/.zshrc
 
 # For compilers to find openssl you may need to set:
 #   export LDFLAGS="-L/usr/local/opt/openssl/lib"
@@ -67,5 +67,5 @@ export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 
 
-export NVM_DIR="~/.nvm"
-source $(brew --prefix nvm)/nvm.sh
+# export NVM_DIR="~/.nvm"
+# source $(brew --prefix nvm)/nvm.sh
