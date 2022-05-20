@@ -10,6 +10,7 @@ tap 'heroku/brew'
 # Binaries
 brew 'wget'
 brew 'git'
+brew 'gh'
 brew 'trash'
 
 # A command to download mac store app
