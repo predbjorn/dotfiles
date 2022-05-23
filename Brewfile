@@ -1,9 +1,9 @@
 # Taps
-# tap 'homebrew/cask'
-# tap 'homebrew/eid'
-# tap 'homebrew/fonts'
-# tap 'homebrew/versions'
-# tap 'homebrew/bundle'
+tap 'homebrew/cask'
+tap 'homebrew/eid'
+tap 'homebrew/fonts'
+tap 'homebrew/versions'
+tap 'homebrew/bundle'
 tap 'AdoptOpenJDK/openjdk'
 tap 'heroku/brew'
 

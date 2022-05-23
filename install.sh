@@ -26,7 +26,8 @@ fi
 if [ -d ~/.oh-my-zsh ]; then
 	echo "oh-my-zsh is installed"
  else
- 	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+ 	sh -c
+	  "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 fi
 
 if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k ]; then
@@ -69,3 +70,6 @@ source npm.sh;
 
 chmod a+x hackingfolder.sh;
 source hackingfolder.sh;
+
+chmod a+x macos.sh;
+source macos.sh;
