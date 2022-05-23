@@ -29,6 +29,7 @@ brew 'rbenv'
 brew 'ruby-build'
 brew 'cocoapods'
 brew 'fastlane'
+brew 'zsh-syntax-highlighting'
 
 #mongoDB
 tap 'mongodb/brew'

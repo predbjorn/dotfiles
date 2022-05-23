@@ -1,7 +1,7 @@
 #!/bin/bash
 
-mkdir -p Hacking 
-cd Hacking
+mkdir -p ~/Hacking 
+cd ~/Hacking
 if [ ! -d ReactNative/helseoversikt_rn ]; then
 	mkdir -p ReactNative
 	cd ReactNative

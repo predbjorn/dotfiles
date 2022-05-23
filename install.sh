@@ -21,8 +21,6 @@ if grep -q "zsh" /etc/shells; then
     echo "ZSH shell already in allowed shells"
 else 
     chsh -s $(which zsh)
-    rm -rf $HOME/.zshrc
-    ln -s $HOME/.dotfiles/.zshrc $HOME/.zshrc
 fi
 
 if [ -d ~/.oh-my-zsh ]; then
@@ -37,9 +35,14 @@ if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k ]; then
  	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 fi
 
+## Sync and symlink files:
+# zshrc
+rm -rf $HOME/.zshrc
+ln -s $HOME/.dotfiles/.zshrc $HOME/.zshrc
 # GEMS
 rm -rf $HOME/.gemrc
 ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
+
 # # # list all available versions:
 # rbenv install -l
 # # install a Ruby version:
