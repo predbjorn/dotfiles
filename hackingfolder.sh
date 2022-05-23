@@ -33,5 +33,3 @@ if [ ! -d projects/foundation ]; then
 	gh repo clone git@github.com:predbjorn/tren-web-server.git tren_server;
 	cd ../..;
 fi
-
-

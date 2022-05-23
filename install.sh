@@ -30,7 +30,7 @@ if [ -d ~/.oh-my-zsh ]; then
 fi
 
 if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k ]; then
-	echo "oh-my-zsh is installed"
+	echo "powerlevel10k is installed"
  else
  	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 fi
@@ -56,17 +56,16 @@ ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
 
 
 
-chmod a+x npm.sh;
-source npm.sh;
-
-chmod a+x hackingfolder.sh;
-source hackingfolder.sh;
-
-# Removes .zshrc from $HOME (if it exists) and symlinks the .zshrc file from the .dotfiles
-
 # Symlink the Mackup config file to the home directory
 # ln -s $HOME/.dotfiles/.mackup.cfg $HOME/.mackup.cfg
 
 # Set macOS preferences
 # We will run this last because this will reload the shell
 # source .macos
+
+
+chmod a+x npm.sh;
+source npm.sh;
+
+chmod a+x hackingfolder.sh;
+source hackingfolder.sh;

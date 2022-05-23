@@ -45,7 +45,7 @@ alias clean="rm -rf node_modules package-lock.lock && npm cache clean --force &&
 
 
 # alias _done="afplay /System/Library/Sounds/Basso.aiff"
-alias _done="afplay /Users/predbjorn/.dotfiles/resources/Zelda_puzzle_OOT.aiff"
+alias _done="afplay $DOTFILES/resources/Zelda_puzzle_OOT.aiff"
 
-alias hrn_dsym="~/Hacking/ReactNative/helseoversikt_rn/ios/Pods/FirebaseCrashlytics/upload-symbols -gsp /Users/predbjorn/Hacking/ReactNative/helseoversikt_rn/ios/AppConfig/Firebase/GoogleService-Info-prod.plist -p ios " 
+# alias hrn_dsym="~/Hacking/ReactNative/helseoversikt_rn/ios/Pods/FirebaseCrashlytics/upload-symbols -gsp /Users/predbjorn/Hacking/ReactNative/helseoversikt_rn/ios/AppConfig/Firebase/GoogleService-Info-prod.plist -p ios " 
 # add dsym file after this :)  
