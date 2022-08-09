@@ -28,13 +28,13 @@ update () {
 
 hacktime (){
   # open -a /Applications/Google\ Chrome.app
-  open -a /Applications/Xcode.app
-  open -a /Applications/Visual\ Studio\ Code.app
-  open -a /Applications/Slack.app
-  open -a /Applications/Spotify.app
-  open -a /Applications/React\ Native\ Debugger.app
-  open -a /Applications/Safari.app
-  open -a /Applications/SourceTree.app
+	open -a /Applications/Xcode.app
+	open -a /Applications/Visual\ Studio\ Code.app
+	open -a /Applications/Slack.app
+	open -a /Applications/Spotify.app
+	open -a /Applications/React\ Native\ Debugger.app
+	open -a /Applications/Safari.app
+	open -a /Applications/SourceTree.app
 #   open -a /Applications/TogglDesktop.app
 #   open -a /Applications/Mail.app
 #   open -a /Applications/Evernote.app
@@ -55,4 +55,8 @@ rn (){
   	open -a /Applications/React\ Native\ Debugger.app
   	open -a /Applications/Xcode.app
 #   open -a /Applications/Evernote.app
+}
+
+_done (){
+	afplay $DOTFILES/resources/pokemon_melodies/$(jot -r 1 1 6).wav
 }
