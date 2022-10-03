@@ -47,12 +47,10 @@ alias clean="rm -rf node_modules package-lock.lock && npm cache clean --force &&
 
 alias emu="lsof -ti tcp:9000 | xargs kill -9 && lsof -ti tcp:3000 | xargs kill -9 && lsof -ti tcp:8080 | xargs kill -9 && lsof -ti tcp:8085 | xargs kill -9 | firebase emulators:start"
 
+alias trenpg="psql $TREN_POSTGRESQL_STRING"
 
 
-# alias _done="afplay /System/Library/Sounds/Basso.aiff"
-# alias _done="afplay $DOTFILES/resources/Zelda_puzzle_LOZ.aiff"
-# alias _done="afplay $DOTFILES/resources/SFX_BALL_TOSS.wav"
-# alias _done="jot -r 1 1 5"
+
 
 # alias hrn_dsym="~/Hacking/ReactNative/helseoversikt_rn/ios/Pods/FirebaseCrashlytics/upload-symbols -gsp /Users/predbjorn/Hacking/ReactNative/helseoversikt_rn/ios/AppConfig/Firebase/GoogleService-Info-prod.plist -p ios " 
 # add dsym file after this :)  

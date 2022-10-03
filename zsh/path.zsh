@@ -41,6 +41,8 @@ export PATH="$ANDROID_HOME/build-tools/28.0.3:$PATH"
 source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'
 source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc'
 
+# export DEBUG=app:*
+
 # wget
 # A CA file has been bootstrapped using certificates from the SystemRoots
 # keychain. To add additional certificates (e.g. the certificates added in
@@ -67,5 +69,14 @@ export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 
 
+export NVM_DIR="$HOME/.nvm"
+    [ -s "$(brew --prefix)/opt/nvm/nvm.sh" ] && \. "$(brew --prefix)/opt/nvm/nvm.sh" # This loads nvm
+    [ -s "$(brew --prefix)/opt/nvm/etc/bash_completion.d/nvm" ] && \. "$(brew --prefix)/opt/nvm/etc/bash_completion.d/nvm" # This loads nvm bash_completion
 # export NVM_DIR="~/.nvm"
 # source $(brew --prefix nvm)/nvm.sh
+
+
+
+## Commands for postgres
+# sudo mkdir -p /etc/paths.d &&
+# echo /Applications/Postgres.app/Contents/Versions/latest/bin | sudo tee /etc/paths.d/postgresapp

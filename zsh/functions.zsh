@@ -58,5 +58,5 @@ rn (){
 }
 
 _done (){
-	afplay $DOTFILES/resources/pokemon_melodies/$(jot -r 1 1 6).wav
+	afplay $DOTFILES/resources/random/$(jot -r 1 1 10).wav
 }

@@ -52,6 +52,8 @@ cask 'android-sdk'
 cask 'android-ndk'
 cask 'intel-haxm'
 cask 'google-cloud-sdk'
+cask 'postgres-unofficial'
+cask 'pgadmin4'
 # cask 'wireshark'
 
 
