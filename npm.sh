@@ -11,12 +11,6 @@ create-react-native-app
 expo-cli
 express-generator
 firebase-tools
-gulp
-logcat-viewer
-n
 nodemon
 react-native-cli
-react-native-git-upgrade
-react-native-rename
 typescript
-yarn

@@ -24,6 +24,8 @@ eval "$(rbenv init -)"
 # export PATH="$GEM_HOME/ruby/2.6.0/bin:$PATH"
 # export PATH="$GEM_HOME/ruby/3.0.0/bin:$PATH"
 # Jenv
+# Run brew info java
+# Then jenv add PATH_TO_JAVA_VERSION
 export PATH="$HOME/.jenv/bin:$PATH"
 eval "$(jenv init -)"
 #Java & Android
@@ -34,13 +36,14 @@ export PATH="$ANDROID_HOME/tools:$PATH"
 export PATH="$ANDROID_HOME/tools/bin:$PATH"
 export PATH="$ANDROID_HOME/emulator:$PATH"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
-export PATH="$ANDROID_HOME/build-tools/28.0.3:$PATH"
+# export PATH="$ANDROID_HOME/build-tools/30.0.3:$PATH"
 # If you want the latest version of the build-tools and not the most recently installed try this
-# export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort | tail -1):$PATH
+export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort | tail -1):$PATH
 
-source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'
-source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc'
+source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
+source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
 
+export TREN_POSTGRESQL_STRING="postgres://iuzlyhwhwyrrin:75ac98c9c9f48b1b0173c2b0b2f785fdf3df93c643f083df93a9b781d97c6156@ec2-52-50-161-219.eu-west-1.compute.amazonaws.com:5432/d8adj60pvvngoe"
 # export DEBUG=app:*
 
 # wget

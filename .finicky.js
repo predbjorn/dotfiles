@@ -20,22 +20,22 @@ module.exports = {
       match: /^https?:\/\/datastudio\.google\.com\/.*$/,
       browser: "Google Chrome",
     },
-    {
-      match: /^https?:\/\/xd\.adobe\.com\/.*$/,
-      browser: "Google Chrome",
-    },
-    {
-      match: /^https?:\/\/cms\.helseoversikt\.no\/.*$/,
-      browser: "Firefox",
-    },
-    {
-      match: /^https?:\/\/stage\-cms\.helseoversikt\.no\/.*$/,
-      browser: "Firefox",
-    },
-    {
-      match: finicky.matchHostnames("localhost"),
-      browser: "Firefox",
-    },
+    // {
+    //   match: /^https?:\/\/xd\.adobe\.com\/.*$/,
+    //   browser: "Google Chrome",
+    // },
+    // {
+    //   match: /^https?:\/\/cms\.helseoversikt\.no\/.*$/,
+    //   browser: "Firefox",
+    // },
+    // {
+    //   match: /^https?:\/\/stage\-cms\.helseoversikt\.no\/.*$/,
+    //   browser: "Firefox",
+    // },
+    // {
+    //   match: finicky.matchHostnames("localhost"),
+    //   browser: "Firefox",
+    // },
   ],
 };
 // match: finicky.matchHostnames('meet.google.com'),

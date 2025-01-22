@@ -58,5 +58,56 @@ rn (){
 }
 
 _done (){
-	afplay $DOTFILES/resources/random/$(jot -r 1 1 10).wav
+	# afplay $DOTFILES/resources/zelda.wav
+	afplay $DOTFILES/resources/randomstarwars/$(jot -r 1 1 5).wav
+}
+
+_d (){
+	afplay $DOTFILES/resources/randomstarwars/$(jot -r 1 1 5).wav
+}
+
+mvp (){
+    dir="$2" # Include a / at the end to indicate directory (not filename)
+    tmp="$2"; tmp="${tmp: -1}"
+    [ "$tmp" != "/" ] && dir="$(dirname "$2")"
+    [ -a "$dir" ] ||
+    mkdir -p "$dir" &&
+    mv "$@"
+}
+
+
+
+check () { ## For checking unused dependencies
+	cd $DIRNAME
+	FILES=$(mktemp)
+	PACKAGES=$(mktemp)
+	# use fd
+	# https://github.com/sharkdp/fd
+
+	function _check {
+		cat package.json \
+			| jq "{} + .$1 | keys" \
+			| sed -n 's/.*"\(.*\)".*/\1/p' > $PACKAGES
+		echo "--------------------------"
+		echo "Checking $1..."
+		fd '(js|ts|json)$' -t f > $FILES
+		while read PACKAGE
+		do
+			if [ -d "node_modules/${PACKAGE}" ]; then
+				fd  -t f '(js|ts|json)$' node_modules/${PACKAGE} >> $FILES
+			fi
+			RES=$(cat $FILES | xargs -I {} egrep -i "(import|require|loader|plugins|${PACKAGE}).*['\"](${PACKAGE}|.?\d+)[\"']" '{}' | wc -l)
+
+			if [ $RES = 0 ]
+			then
+				echo -e "UNUSED\t\t $PACKAGE"
+			else
+				echo -e "USED ($RES)\t $PACKAGE"
+			fi
+		done < $PACKAGES
+	}
+	
+	_check "dependencies"
+	_check "devDependencies"
+	_check "peerDependencies"
 }

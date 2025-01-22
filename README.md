@@ -45,3 +45,11 @@ Add git to sync
 ```
 p10k configure
 ```
+
+# Other
+
+### creates Brewfile in the current directory from currently-installed packages
+
+```
+brew bundle dump
+```
