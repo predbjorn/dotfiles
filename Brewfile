@@ -9,6 +9,7 @@ tap "homebrew/cask-fonts"
 tap "homebrew/cask-versions"
 tap "homebrew/services"
 tap "xcodesorg/made"
+tap "FelixKratz/formulae"
 
 # Binaries
 brew "wget"
@@ -28,11 +29,14 @@ brew "zsh-completions"
 brew "python"
 
 # brew "namp"
+brew "koekeishiya/formulae/yabai"
+brew "skhd"
 brew "rbenv"
 brew "ruby-build"
 brew "cocoapods"
 brew "fastlane"
 brew "zsh-syntax-highlighting"
+brew "sketchybar"
 
 #mongoDB
 tap "mongodb/brew"
@@ -128,6 +132,10 @@ cask "audio-hijack"
 cask "alt-tab"
 cask "divvy"
 cask "logos"
+cask "karabiner-elements"
+
+# Fonts
+cask "font-hack-nerd-font"
 
 # Other:
 cask "hyperswitch" 

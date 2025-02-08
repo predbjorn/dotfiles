@@ -16,6 +16,8 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 # /Users/predbjorn/Library/Android/sdk
 
+export XDG_CONFIG_HOME="$HOME/.config"
+export DOTFILES="$HOME/.dotfiles"
 # GEMS
 export GEM_HOME="$HOME/.gem"
 export PATH="$GEM_HOME/bin:$PATH"
@@ -39,6 +41,8 @@ export PATH="$ANDROID_HOME/platform-tools:$PATH"
 # export PATH="$ANDROID_HOME/build-tools/30.0.3:$PATH"
 # If you want the latest version of the build-tools and not the most recently installed try this
 export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort | tail -1):$PATH
+
+export CLOUDSDK_PYTHON=$(which python3.11)
 
 source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
 source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"

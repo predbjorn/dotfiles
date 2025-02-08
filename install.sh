@@ -14,6 +14,20 @@ brew update
 brew tap homebrew/bundle
 brew bundle
 
+mkdir -p $HOME/screenshots
+# Install services
+# yabai 
+mkdir -p $XDG_CONFIG_HOME/yabai
+rm -rf $XDG_CONFIG_HOME/yabai/.yabairc
+ln -s $HOME/.dotfiles/config/.yabairc $XDG_CONFIG_HOME/yabai/.yabairc
+chmod +x $XDG_CONFIG_HOME/yabai/.yabairc
+yabai --start-service
+
+mkdir -p $XDG_CONFIG_HOME/skhd
+rm -rf $XDG_CONFIG_HOME/skhd/.skhdrc
+ln -s $HOME/.dotfiles/config/.skhdrc $XDG_CONFIG_HOME/skhd/.skhdrc
+chmod +x $XDG_CONFIG_HOME/skhd/.skhdrc
+skhd --start-service
 
 
 # Make ZSH the default shell environment
@@ -42,6 +56,9 @@ if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-completions ]; then
 fi
 
 ## Sync and symlink files:
+# pk10 config
+rm -rf $HOME/.p10k.zsh
+ln -s $HOME/.dotfiles/.p10k.zsh $HOME/.p10k.zsh
 # zshrc
 rm -rf $HOME/.zshrc
 ln -s $HOME/.dotfiles/.zshrc $HOME/.zshrc
@@ -61,14 +78,8 @@ ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
 # gem update --system
 
 
-
-# Symlink the Mackup config file to the home directory
-# ln -s $HOME/.dotfiles/.mackup.cfg $HOME/.mackup.cfg
-
-# Set macOS preferences
-# We will run this last because this will reload the shell
-# source .macos
-
+chmod a+x pip.sh;
+source npm.sh;
 
 chmod a+x npm.sh;
 source npm.sh;
@@ -76,5 +87,20 @@ source npm.sh;
 chmod a+x hackingfolder.sh;
 source hackingfolder.sh;
 
+# Symlink the Mackup config file to the home directory
+# ln -s $HOME/.dotfiles/.mackup.cfg $HOME/.mackup.cfg
+
+# Set macOS preferences
+# We will run this last because this will reload the shell
+# source .macos
 chmod a+x macos.sh;
 source macos.sh;
+
+# Setup cronjobs
+if command -v python3.11 &> /dev/null
+then
+	chmod a+x setCronjobs.py
+	python3.11 ./setCronjobs.py
+else
+	echo "python3.11 is not installed."
+fi

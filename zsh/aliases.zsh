@@ -44,12 +44,12 @@ alias xbuild="pkill XCBBuildService"
 
 alias npmrs="npm start -- --reset-cache"
 
-alias is="npm i && cd ios && pod install && cd .. && _done && npm start"
-alias isf="npm i --force && cd ios && pod install && cd .. && _done && npm start"
+alias is="npm i && cd ios && bundle exec pod install && cd .. && _done && npm start"
+alias isf="npm i --force && cd ios && bundle exec pod install && cd .. && _done && npm start"
 
-alias rni="npm i && cd ios && pod install && cd .. && afplay /Users/predbjorn/.dotfiles/resources/Zelda_puzzle_OOT.aiff"
-alias rnif="npm i -f && cd ios && pod install && cd .. && afplay /Users/predbjorn/.dotfiles/resources/Zelda_puzzle_OOT.aiff"
-alias podi="cd ios && pod install && cd .. && afplay /Users/predbjorn/.dotfiles/resources/Zelda_puzzle_OOT.aiff"
+alias rni="npm i && cd ios && bundle exec pod install && cd .. && afplay /Users/predbjorn/.dotfiles/resources/Zelda_puzzle_OOT.aiff"
+alias rnif="npm i -f && cd ios && bundle exec pod install && cd .. && afplay /Users/predbjorn/.dotfiles/resources/Zelda_puzzle_OOT.aiff"
+alias podi="cd ios && bundle exec pod install && cd .. && afplay /Users/predbjorn/.dotfiles/resources/Zelda_puzzle_OOT.aiff"
 alias build="cd android &&  ./gradlew bundleRelease && open ./app/build/outputs/bundle/release/ && cd .."
 alias openr="open ./app/build/outputs/bundle/release/"
 alias clean="rm -rf node_modules package-lock.lock && npm cache clean --force && npm install"

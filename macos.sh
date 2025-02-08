@@ -3,6 +3,8 @@
 
 # Thanks to Mathias Bynens!
 # ~/.macos — https://mths.be/macos
+# ~/.macos — https://github.com/FelixKratz/dotfiles/blob/master/.install.sh
+
 
 # Close any open System Preferences panes, to prevent them from overriding
 # settings we’re about to change
@@ -28,24 +30,24 @@ sudo nvram SystemAudioVolume=" "
 # defaults write com.apple.finder QuitMenuItem -bool true
 
 # Finder: disable window animations and Get Info animations
-# defaults write com.apple.finder DisableAllAnimations -bool true
-
+defaults write com.apple.finder DisableAllAnimations -bool true
+defaults write com.apple.finder ShowStatusBar -bool false
 # Set Desktop as the default location for new Finder windows
 # For other paths, use `PfLo` and `file:///full/path/here/`
 # defaults write com.apple.finder NewWindowTarget -string "PfDe"
 # defaults write com.apple.finder NewWindowTargetPath -string "file://${HOME}/Desktop/"
 
 # Show icons for hard drives, servers, and removable media on the desktop
-# defaults write com.apple.finder ShowExternalHardDrivesOnDesktop -bool true
-# defaults write com.apple.finder ShowHardDrivesOnDesktop -bool true
-# defaults write com.apple.finder ShowMountedServersOnDesktop -bool true
-# defaults write com.apple.finder ShowRemovableMediaOnDesktop -bool true
+defaults write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
+defaults write com.apple.finder ShowHardDrivesOnDesktop -bool false
+defaults write com.apple.finder ShowMountedServersOnDesktop -bool false
+defaults write com.apple.finder ShowRemovableMediaOnDesktop -bool false
 
 # Finder: show hidden files by default
 defaults write com.apple.finder AppleShowAllFiles -bool true
 
 # Finder: show all filename extensions
-# defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+defaults write NSGlobalDomain AppleShowAllExtensions -bool true
 
 # Finder: show status bar
 # defaults write com.apple.finder ShowStatusBar -bool true
@@ -119,7 +121,7 @@ defaults write com.apple.finder FXPreferredViewStyle -string "Nlsv"
 # defaults write com.apple.NetworkBrowser BrowseAllInterfaces -bool true
 
 # Show the ~/Library folder
-chflags nohidden ~/Library && xattr -d com.apple.FinderInfo ~/Library
+# chflags nohidden ~/Library && xattr -d com.apple.FinderInfo ~/Library
 
 # Show the /Volumes folder
 # sudo chflags nohidden /Volumes
@@ -159,6 +161,8 @@ defaults write com.apple.dock minimize-to-application -bool true
 # Show indicator lights for open applications in the Dock
 defaults write com.apple.dock show-process-indicators -bool true
 
+defaults write com.apple.screencapture location -string "$HOME/screenshots"
+
 # Wipe all (default) app icons from the Dock
 # This is only really useful when setting up a new Mac, or if you don’t use
 # the Dock to launch apps.
@@ -171,7 +175,8 @@ defaults write com.apple.dock show-process-indicators -bool true
 defaults write com.apple.dock launchanim -bool false
 
 # Speed up Mission Control animations
-# defaults write com.apple.dock expose-animation-duration -float 0.1
+defaults write com.apple.universalaccess reduceMotion -bool true
+defaults write com.apple.dock expose-animation-duration -float 0
 
 # Don’t group windows by application in Mission Control
 # (i.e. use the old Exposé behavior instead)
