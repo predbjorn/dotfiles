@@ -2,9 +2,16 @@ import subprocess
 from openai import OpenAI
 import requests
 import datetime
+from dotenv import load_dotenv
+import os
 
-client = OpenAI(api_key="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")
+# Load environment variables from .env file
+load_dotenv()
 
+# Get the OpenAI API key from environment variables
+api_key = os.getenv("OPENAI_API_KEY")
+
+client = OpenAI(api_key=api_key)
 # Set your OpenAI API key
 
 def generate_landscape():
