@@ -1,5 +1,8 @@
 #!/bin/bash
 
+
+Do this script proparly!!
+
 mkdir -p ~/Hacking 
 cd ~/Hacking
 if [ ! -d ReactNative/helseoversikt_rn ]; then

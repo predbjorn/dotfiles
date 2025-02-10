@@ -36,7 +36,6 @@ brew "ruby-build"
 brew "cocoapods"
 brew "fastlane"
 brew "zsh-syntax-highlighting"
-brew "sketchybar"
 
 #mongoDB
 tap "mongodb/brew"
@@ -207,3 +206,10 @@ vscode "zhouronghui.propertylist"
 
 # TEMP
 cask "focusrite-control-2"
+
+
+
+# Sketchbar: 
+cask "sf-symbols"
+brew "switchaudio-osx"
+brew "sketchybar"

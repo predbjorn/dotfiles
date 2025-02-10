@@ -14,22 +14,6 @@ brew update
 brew tap homebrew/bundle
 brew bundle
 
-mkdir -p $HOME/screenshots
-# Install services
-# yabai 
-mkdir -p $XDG_CONFIG_HOME/yabai
-rm -rf $XDG_CONFIG_HOME/yabai/.yabairc
-ln -s $HOME/.dotfiles/config/.yabairc $XDG_CONFIG_HOME/yabai/.yabairc
-chmod +x $XDG_CONFIG_HOME/yabai/.yabairc
-yabai --start-service
-
-mkdir -p $XDG_CONFIG_HOME/skhd
-rm -rf $XDG_CONFIG_HOME/skhd/.skhdrc
-ln -s $HOME/.dotfiles/config/.skhdrc $XDG_CONFIG_HOME/skhd/.skhdrc
-chmod +x $XDG_CONFIG_HOME/skhd/.skhdrc
-skhd --start-service
-
-
 # Make ZSH the default shell environment
 if grep -q "zsh" /etc/shells; then 
     echo "ZSH shell already in allowed shells"
@@ -58,49 +42,32 @@ fi
 ## Sync and symlink files:
 # pk10 config
 rm -rf $HOME/.p10k.zsh
-ln -s $HOME/.dotfiles/.p10k.zsh $HOME/.p10k.zsh
+ln -s $HOME/.dotfiles/.config/.p10k.zsh $HOME/.p10k.zsh
 # zshrc
 rm -rf $HOME/.zshrc
-ln -s $HOME/.dotfiles/.zshrc $HOME/.zshrc
+ln -s $HOME/.dotfiles/.config/.zshrc $HOME/.zshrc
 # GEMS
 rm -rf $HOME/.gemrc
-ln -s $HOME/.dotfiles/.gemrc $HOME/.gemrc
-
-# # # list all available versions:
-# rbenv install -l
-# # install a Ruby version:
-# rbenv install 2.4.1
-# set ruby version for a specific dir
-# rbenv local 2.4.1
-# # set ruby version globally
-# rbenv global 2.4.1
-# # rbenv rehash
-# gem update --system
+ln -s $HOME/.dotfiles/.config/.gemrc $HOME/.gemrc
 
 
-chmod a+x pip.sh;
-source npm.sh;
+chmod a+x setupfiles/pip.sh;
+source setupfiles/npm.sh;
 
-chmod a+x npm.sh;
-source npm.sh;
+chmod a+x setupfiles/npm.sh;
+source setupfiles/npm.sh;
+s
+chmod a+x setupfiles/hackingfolder.sh;
+source setupfiles/hackingfolder.sh;
 
-chmod a+x hackingfolder.sh;
-source hackingfolder.sh;
+chmod a+x setupfiles/init_script.sh;
+source setupfiles/init_script.sh;
 
-# Symlink the Mackup config file to the home directory
-# ln -s $HOME/.dotfiles/.mackup.cfg $HOME/.mackup.cfg
+chmod a+x setupfiles/sync.sh;
+source setupfiles/sync.sh;
 
 # Set macOS preferences
 # We will run this last because this will reload the shell
-# source .macos
-chmod a+x macos.sh;
-source macos.sh;
-
-# Setup cronjobs
-if command -v python3.11 &> /dev/null
-then
-	chmod a+x setCronjobs.py
-	python3.11 ./setCronjobs.py
-else
-	echo "python3.11 is not installed."
-fi
+mkdir -p $HOME/screenshots
+chmod a+x setupfiles/macos.sh;
+source setupfiles/macos.sh;

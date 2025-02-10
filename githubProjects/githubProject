@@ -1,9 +1,8 @@
-predbjorn/variables.git variables
-Helseoversikt/helseoversikt-api.git NorsCare/nc_client
+Helseoversikt/helseoversikt-api.git NorsCare/nc_server
 Helseoversikt/helseoversikt-reactjs.git NorsCare/nc_client
 Helseoversikt/helseoversikt_rn.git NorsCare/nors
-predbjorn/foundation_sanity.git projects/foundationfound_sanity
+predbjorn/foundation_sanity.git projects/foundation/found_sanity
 predbjorn/foundation_web.git projects/foundation/found_web
-predbjorn/foundation_app.git projects/foundationfoundation
+predbjorn/foundation_app.git projects/foundation/foundation
 predbjorn/tren-web-cleint.git projects/tren/tren_client
 predbjorn/tren-web-server.git projects/tren/tren_server

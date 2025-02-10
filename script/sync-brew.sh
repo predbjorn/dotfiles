@@ -12,13 +12,13 @@ brew bundle dump --force
 # Go back to the parent directory
 cd ..
 # Set the output files for unique lines
-unique_installed_file="uniqueinstalled"
-unique_dot_file="uniquedot"
+unique_installed_file="$DOTFILES/script/syncBrew/uniqueinstalled"
+unique_dot_file="$DOTFILES/script/syncBrew/suniquedot"
 : > "$unique_installed_file" # Empty the file if it exists
 : > "$unique_dot_file" # Empty the file if it exists
 
 # Set the output file for extra applications
-extra_apps_file="extraappsinstalled"
+extra_apps_file="$DOTFILES/script/syncBrew/extraappsinstalled"
 : > "$extra_apps_file" # Empty the file if it exists
 
 # List all applications in /Applications and compare with Brewfile
