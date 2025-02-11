@@ -9,7 +9,6 @@ tap "homebrew/cask-fonts"
 tap "homebrew/cask-versions"
 tap "homebrew/services"
 tap "xcodesorg/made"
-tap "FelixKratz/formulae"
 
 # Binaries
 brew "wget"
@@ -29,8 +28,6 @@ brew "zsh-completions"
 brew "python"
 
 # brew "namp"
-brew "koekeishiya/formulae/yabai"
-brew "skhd"
 brew "rbenv"
 brew "ruby-build"
 brew "cocoapods"
@@ -91,6 +88,7 @@ brew "jq"
 brew "mongosh"
 brew "nghttp2"
 brew "nmap"
+brew "pnpm"
 brew "node@10"
 brew "openssl@1.1"
 brew "node@12"
@@ -132,6 +130,7 @@ cask "alt-tab"
 cask "divvy"
 cask "logos"
 cask "karabiner-elements"
+cask "hyperswitch"
 
 # Fonts
 cask "font-hack-nerd-font"
@@ -203,13 +202,24 @@ vscode "vscjava.vscode-maven"
 vscode "vscodevim.vim"
 vscode "zainchen.json"
 vscode "zhouronghui.propertylist"
+vscode "catppuccin.catppuccin-vsc"
+vscode "ms-python.debugpy"
+vscode "ms-python.python"
+vscode "ms-python.vscode-pylance"
+vscode "pdconsec.vscode-print"
+vscode "wmaurer.change-case"
 
 # TEMP
 cask "focusrite-control-2"
 
 
 
-# Sketchbar: 
+# Sketchbar and Yabai: 
+tap "felixkratz/formulae"
+tap "koekeishiya/formulae"
 cask "sf-symbols"
 brew "switchaudio-osx"
-brew "sketchybar"
+brew "felixkratz/formulae/borders"
+brew "felixkratz/formulae/sketchybar"
+brew "koekeishiya/formulae/yabai"
+brew "koekeishiya/formulae/skhd"
