@@ -2,7 +2,7 @@
 
 1. install xcode
 2. Log in to apple store
-3. Follow these commands:
+3. Follow these commands to get a github ssh key:
 
 ```
 ssh-keygen -t ed25519 -C "prebenhafnor@gmail.com"
@@ -12,6 +12,7 @@ eval "$(ssh-agent -s)"
 open ~/.ssh/config
 touch ~/.ssh/config
 
+Write this in the file:
 Host *
   AddKeysToAgent yes
   UseKeychain yes
@@ -32,7 +33,8 @@ chmod +x install.sh
 ./install.sh
 ```
 
-5. install "code" command https://www.freecodecamp.org/news/how-to-open-visual-studio-code-from-your-terminal/
+<!-- ## THIS SHOULD WORK
+5. install "code" command https://www.freecodecamp.org/news/how-to-open-visual-studio-code-from-your-terminal/ -->
 
 ## Other apps
 
@@ -44,12 +46,4 @@ Add git to sync
 
 ```
 p10k configure
-```
-
-# Other
-
-### creates Brewfile in the current directory from currently-installed packages
-
-```
-brew bundle dump
 ```

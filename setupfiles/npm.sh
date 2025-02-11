@@ -3,6 +3,7 @@
 # Install global NPM packages
 # list them like this: npm list -g --depth=0
 
+echo "Insatalling global npm packages"
 npm install --global 
 @sanity/cli
 @sanity/client

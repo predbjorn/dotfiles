@@ -11,14 +11,6 @@ alias gitclearall="git branch | grep -v "master" | xargs git branch -D"
 # alias gc="git checkout"
 # alias gl="git log --oneline --decorate --color"
 
-# Brew
-alias cask="brew --cask"
-
-# APPS
-# alias chrome="open -a ~/Applications/Google\ Chrome.app"
-# Open iOS Simulator
-# alias ios="open /Applications/Xcode.app/Contents/Developer/Applications/iOS\ Simulator.app"
-
 # cd 
 alias _hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
 alias _project="cd ~/Hacking/projects"
@@ -63,6 +55,7 @@ alias _trenpg_docker='psql -h localhost -U postgres -d postgres'
 alias _trenpg='psql -p5432 "predbjorn"'
 
 alias caff='caffeinate'
+alias hour='caffeinate -t 3600'
 
 alias countfiles='find . -type f -name "*.js" -not -path "./node_modules/*" | wc -l'
 

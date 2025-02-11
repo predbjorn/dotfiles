@@ -51,6 +51,7 @@ ENABLE_CORRECTION="true"
 plugins=(
   git
   zsh-autosuggestions
+  zsh-nvm
 )
 
 source $ZSH/oh-my-zsh.sh
@@ -129,10 +130,6 @@ prompt_context() { #Removes Username and client name
     # prompt_segment black default "%(!.%{%F{yellow}%}.)$USER" #removes username
   fi
 }
-
-export PATH="$HOME/.jenv/bin:$PATH"
-eval "$(jenv init -)"
-
 
 # defaults write com.google.android.studio AppleWindowTabbingMode manualexport PATH="/usr/local/opt/openssl/bin:$PATH"
 

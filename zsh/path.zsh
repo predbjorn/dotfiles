@@ -4,33 +4,42 @@ export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversi
 # export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktprod.json"
 export BREW_HOME="/usr/local/opt/"
 export CASK_HOME="/usr/local/share/"
-export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
-export JAVA_HOME="`jenv javahome`"
 
-export ANT_HOME="/usr/local/opt/ant"
-# export ANT_HOME=/usr/local/opt/ant/libexec
-export MAVEN_HOME="/usr/local/opt/maven"
-export GRADLE_HOME="/usr/local/opt/gradle"
-# export ANDROID_NDK_HOME="/usr/local/share/android-ndk"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-export ANDROID_SDK_ROOT="$ANDROID_HOME"
-# /Users/predbjorn/Library/Android/sdk
+
 
 export XDG_CONFIG_HOME="$HOME/.config"
 export DOTFILES="$HOME/.dotfiles"
-# GEMS
+
+# RUBY AND GEMS
 export GEM_HOME="$HOME/.gem"
 export PATH="$GEM_HOME/bin:$PATH"
 export PATH="$HOME/.rbenv/bin:$PATH"
 eval "$(rbenv init -)"
-# export PATH="$GEM_HOME/ruby/2.6.0/bin:$PATH"
-# export PATH="$GEM_HOME/ruby/3.0.0/bin:$PATH"
+
 # Jenv
 # Run brew info java
 # Then jenv add PATH_TO_JAVA_VERSION
 export PATH="$HOME/.jenv/bin:$PATH"
 eval "$(jenv init -)"
+
+
+# Export nvm completion settings for zsh-nvm plugin
+export NVM_DIR="$HOME/.nvm"
+export NVM_COMPLETION=true
+
+# CODE vscode
+# Add Visual Studio Code (code)
+export PATH="/Applications/Visual Studio Code.app/Contents/Resources/app/bin:$PATH"
+
 #Java & Android
+export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
+export JAVA_HOME="`jenv javahome`"
+export ANT_HOME="/usr/local/opt/ant"
+export MAVEN_HOME="/usr/local/opt/maven"
+export GRADLE_HOME="/usr/local/opt/gradle"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+
 export PATH="$ANT_HOME/bin:$PATH"
 export PATH="$MAVEN_HOME/bin:$PATH"
 export PATH="$GRADLE_HOME/bin:$PATH"
@@ -42,8 +51,8 @@ export PATH="$ANDROID_HOME/platform-tools:$PATH"
 # If you want the latest version of the build-tools and not the most recently installed try this
 export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort | tail -1):$PATH
 
-export CLOUDSDK_PYTHON=$(which python3.11)
 
+export CLOUDSDK_PYTHON=$(which python3.11)
 source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
 source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
 
@@ -70,18 +79,8 @@ export TREN_POSTGRESQL_STRING="postgres://iuzlyhwhwyrrin:75ac98c9c9f48b1b0173c2b
 #   export CPPFLAGS="-I/usr/local/opt/openssl/include"
 
 
-# Fastlane setup
-
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
-
-
-export NVM_DIR="$HOME/.nvm"
-    [ -s "$(brew --prefix)/opt/nvm/nvm.sh" ] && \. "$(brew --prefix)/opt/nvm/nvm.sh" # This loads nvm
-    [ -s "$(brew --prefix)/opt/nvm/etc/bash_completion.d/nvm" ] && \. "$(brew --prefix)/opt/nvm/etc/bash_completion.d/nvm" # This loads nvm bash_completion
-# export NVM_DIR="~/.nvm"
-# source $(brew --prefix nvm)/nvm.sh
-
 
 
 ## Commands for postgres

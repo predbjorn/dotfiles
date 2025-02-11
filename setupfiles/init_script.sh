@@ -1,4 +1,6 @@
+#!/bin/bash
 
+# Set up cronjobs
 if command -v python3.11 &> /dev/null
 then
 	chmod a+x $DOTFILES/script/setCronjobs.py

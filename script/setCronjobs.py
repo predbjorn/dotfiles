@@ -2,7 +2,7 @@ import os
 import subprocess
 
 # Define the cron job to check
-cron_job = "0 12 * * * /usr/local/bin/python3.11 ~/.dotfiles/wallpaper.py"
+cron_job = "0 12 * * * /usr/local/bin/python3.11 ~/.dotfiles/script/swallpaper.py"
 
 # Get current crontab contents
 def get_crontab():

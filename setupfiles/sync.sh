@@ -1,8 +1,21 @@
+#!/bin/bash
+
+## Sync and symlink files:
+# pk10 config
+rm -rf $HOME/.p10k.zsh
+ln -s $HOME/.dotfiles/.config/.p10k.zsh $HOME/.p10k.zsh
+# zshrc
+rm -rf $HOME/.zshrc
+ln -s $HOME/.dotfiles/.config/.zshrc $HOME/.zshrc
+# GEMS
+rm -rf $HOME/.gemrc
+ln -s $HOME/.dotfiles/.config/.gemrc $HOME/.gemrc
+
 # finicky
 cp $DOTFILES/.config/finicky.js /Users/predbjorn/.finicky.js 
 
 mkdir -p $XDG_CONFIG_HOME/skhd
-# rm -rf $XDG_CONFIG_HOME/skhd/skhdrc
+rm -rf $XDG_CONFIG_HOME/skhd/skhdrc 
 # ln -s $DOTFILES/.config/skhdrc $XDG_CONFIG_HOME/skhd/skhdrc
 yes | cp $DOTFILES/.config/skhdrc $XDG_CONFIG_HOME/skhd/skhdrc
 chmod +x $XDG_CONFIG_HOME/skhd/skhdrc

@@ -120,7 +120,7 @@ shift + alt - g : yabai -m window --display east; yabai -m display --focus east;
 # stop/start/restart yabai
 ctrl + alt - q : yabai --stop-service
 ctrl + alt - s : yabai --start-service
-ctrl + alt - r : yabai --restart-service; brew services restart sketchybar
+ctrl + alt - r : yabai --resstart-service; brew services restart sketchybar
 
 
 # view the last lines of the error log 
