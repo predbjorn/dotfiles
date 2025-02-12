@@ -1,6 +1,7 @@
-/zsh/secret.zsh
+/zsh/.env.zsh
 # OSX
 #
 .DS_Store
 .env
 script/tempBrew
+githubProjects/githubProject_local
