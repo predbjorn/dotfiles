@@ -36,6 +36,16 @@ brew "jenv"
 brew "pnpm"
 brew "ruby-build"
 
+# pyenv
+brew "openssl"
+brew "tcl-tk"
+brew "tcl-tk@8"
+brew "readline"
+brew "sqlite3" 
+brew "xz" 
+brew "zlib"
+brew "pyenv"
+
 # Depndencies ...
 # brew "namp"
 brew "cocoapods"
@@ -90,7 +100,7 @@ brew "mongosh"
 brew "nghttp2"
 brew "nmap"
 brew "openssl@1.1"
-brew "tcl-tk"
+
 
 
 

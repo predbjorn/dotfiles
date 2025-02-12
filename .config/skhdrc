@@ -122,6 +122,9 @@ ctrl + alt - q : yabai --stop-service
 ctrl + alt - s : yabai --start-service
 ctrl + alt - r : yabai --resstart-service; brew services restart sketchybar
 
+hyper - r : cd ~/.dotfiles; sh setupfiles/sync.sh
+hyper - p : cd ~/.dotfiles; /Users/predbjorn/.pyenv/versions/3.12.9/bin/python script/wallpaper.py
+hyper - o : cd ~/.dotfiles; ls;
 
 # view the last lines of the error log 
 # tail -f /tmp/skhd_$USER.out.log

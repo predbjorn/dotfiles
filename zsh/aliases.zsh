@@ -12,6 +12,7 @@ alias gitclearall="git branch | grep -v "master" | xargs git branch -D"
 # alias gl="git log --oneline --decorate --color"
 
 # cd 
+alias _hack="cd ~/Hacking"
 alias _hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
 alias _project="cd ~/Hacking/projects"
 alias _go="cd ~/Hacking/projects/goRaid"

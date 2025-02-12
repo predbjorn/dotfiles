@@ -27,6 +27,11 @@ eval "$(jenv init -)"
 export NVM_DIR="$HOME/.nvm"
 export NVM_COMPLETION=true
 
+# pyenv (python)
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init --path)"
+
 # CODE vscode
 # Add Visual Studio Code (code)
 export PATH="/Applications/Visual Studio Code.app/Contents/Resources/app/bin:$PATH"

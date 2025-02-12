@@ -4,16 +4,18 @@ from get_github_projects import get_github_projects
 
 local_dir = "~/Hacking"
 dest_dir = "~/Hacking/variables"
-
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # Read the list of projects from the default file
 projects = get_github_projects(local_dir)
 
 for project in projects:
     project_name, project_subdir = project.split()
-    project_name = project_name.removesuffix('.git')
     if project_name.endswith('/'):
        project_name = project_name[:-1]
-    project_dir = os.path.join(local_dir, project_subdir)
+    if project_subdir.startswith("~/"):
+       project_dir = os.path.expanduser(project_subdir)
+    else:
+       project_dir = os.path.join(local_dir, project_subdir)
     
     if os.path.isdir(os.path.expanduser(project_dir)):
         for root, dirs, files in os.walk(os.path.expanduser(project_dir)):

@@ -4,4 +4,7 @@
 .DS_Store
 .env
 script/tempBrew
-githubProjects/githubProject_local
+githubProjects/
+
+# Python
+*/__pycache__/

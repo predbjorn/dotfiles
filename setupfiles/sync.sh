@@ -1,51 +1,47 @@
 #!/bin/bash
 
+# If script is run by skhd (not running with zsh)
+home=${HOME:-'/Users/predbjorn'}
+dotfiles=${DOTFILES:-"$home/.dotfiles"}
+config_home=${XDG_CONFIG_HOME:-"$home/.config"}
+
 ## Sync and symlink files:
 # pk10 config
-rm -rf $HOME/.p10k.zsh
-ln -s $HOME/.dotfiles/.config/.p10k.zsh $HOME/.p10k.zsh
+rm -rf $home/.p10k.zsh
+ln -s $dotfiles/.config/.p10k.zsh $home/.p10k.zsh
 # zshrc
-rm -rf $HOME/.zshrc
-ln -s $HOME/.dotfiles/.config/.zshrc $HOME/.zshrc
+rm -rf $home/.zshrc
+ln -s $dotfiles/.config/.zshrc $home/.zshrc
 # GEMS
-rm -rf $HOME/.gemrc
-ln -s $HOME/.dotfiles/.config/.gemrc $HOME/.gemrc
+rm -rf $home/.gemrc
+ln -s $dotfiles/.config/.gemrc $home/.gemrc
 
 # finicky
-cp $DOTFILES/.config/finicky.js /Users/predbjorn/.finicky.js 
+cp $dotfiles/.config/.finicky.js $home/.finicky.js 
 
-mkdir -p $XDG_CONFIG_HOME/skhd
-rm -rf $XDG_CONFIG_HOME/skhd/skhdrc 
-# ln -s $DOTFILES/.config/skhdrc $XDG_CONFIG_HOME/skhd/skhdrc
-yes | cp $DOTFILES/.config/skhdrc $XDG_CONFIG_HOME/skhd/skhdrc
-chmod +x $XDG_CONFIG_HOME/skhd/skhdrc
+mkdir -p $config_home/skhd
+rm -rf $config_home/skhd/skhdrc 
+# ln -s $dotfiles/.config/skhdrc $config_home/skhd/skhdrc
+yes | cp $dotfiles/.config/skhdrc $config_home/skhd/skhdrc
+chmod +x $config_home/skhd/skhdrc
 skhd --start-service
 
 rm -rf ~/.config/karabiner/karabinder.json
-ln -s $DOTFILES/.config/karabinder.json ~/.config/karabiner/karabinder.json
+ln -s $dotfiles/.config/karabinder.json ~/.config/karabiner/karabinder.json
 
 # yabai 
-mkdir -p $XDG_CONFIG_HOME/yabai
-rm -rf $XDG_CONFIG_HOME/yabai/yabairc
-ln -s $DOTFILES/.config/yabairc $XDG_CONFIG_HOME/yabai/yabairc
-chmod +x $XDG_CONFIG_HOME/yabai/yabairc
-
-
-
-# brew tap FelixKratz/formulae
-# brew install borders
-
-mkdir -p $XDG_CONFIG_HOME/borders
-rm -rf $XDG_CONFIG_HOME/borders/bordersrc
-ln -s $DOTFILES/.config/borders/bordersrc $XDG_CONFIG_HOME/borders/bordersrc
-chmod +x $XDG_CONFIG_HOME/borders/bordersrc
-
+mkdir -p $config_home/yabai
+rm -rf $config_home/yabai/yabairc
+ln -s $dotfiles/.config/yabairc $config_home/yabai/yabairc
+chmod +x $config_home/yabai/yabairc
 
 
 echo "sketchybar Installing Dependencies"
-curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v1.0.23/sketchybar-app-font.ttf -o $HOME/Library/Fonts/sketchybar-app-font.ttf
+curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v1.0.23/sketchybar-app-font.ttf -o $home/Library/Fonts/sketchybar-app-font.ttf
 echo "sketchybar Cloning Config"
-cp -R $DOTFILES/.config/sketchybar $HOME/.config/sketchybar
+echo "$dotfiles/.config/sketchybar"
+ls $dotfiles/.config/sketchybar 
+cp -R $dotfiles/.config/sketchybar $home/.config/sketchybar
 
 ## STYLES
 # https://github.com/catppuccin/catppuccin?tab=readme-ov-file

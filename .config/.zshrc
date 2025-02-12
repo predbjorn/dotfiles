@@ -116,7 +116,7 @@ export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 
 
 # ALIASES
-source $DOTFILES/zsh/secret.zsh
+source $DOTFILES/zsh/.env.zsh
 source $DOTFILES/zsh/aliases.zsh
 
 # PATHS

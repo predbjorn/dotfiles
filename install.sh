@@ -43,6 +43,15 @@ source setupfiles/sync.sh;
 chmod a+x setupfiles/init_script.sh;
 source setupfiles/init_script.sh;
 
+# Set up cronjobs
+if command -v python &> /dev/null
+then
+	chmod a+x githubProjects/setupGitRepos.py;
+	python githubProjects/setupGitRepos.py;
+else
+	echo "python is not installed."
+fi
+
 # Set macOS preferences
 # We will run this last because this will reload the shell
 mkdir -p $HOME/screenshots # folder for all screenshots, obvoiusly!
