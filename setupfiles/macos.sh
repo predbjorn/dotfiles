@@ -111,7 +111,7 @@ defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false
 
 # Use list view in all Finder windows by default
 # Four-letter codes for the other view modes: `icnv`, `clmv`, `glyv`
-defaults write com.apple.finder FXPreferredViewStyle -string "Nlsv"
+defaults write com.apple.finder FXPreferredViewStyle -string "clmv"
 
 # Disable the warning before emptying the Trash
 # defaults write com.apple.finder WarnOnEmptyTrash -bool false
@@ -125,10 +125,6 @@ defaults write com.apple.finder FXPreferredViewStyle -string "Nlsv"
 # Show the /Volumes folder
 # sudo chflags nohidden /Volumes
 
-# Remove Dropbox’s green checkmark icons in Finder
-# file=/Applications/Dropbox.app/Contents/Resources/emblem-dropbox-uptodate.icns
-# [ -e "${file}" ] && mv -f "${file}" "${file}.bak"
-
 # Expand the following File Info panes:
 # “General”, “Open with”, and “Sharing & Permissions”
 # defaults write com.apple.finder FXInfoPanesExpanded -dict \
@@ -141,6 +137,9 @@ defaults write com.apple.finder FXPreferredViewStyle -string "Nlsv"
 ###############################################################################
 # Dock, Dashboard, and hot corners                                            #
 ###############################################################################
+
+# Hide menu bar
+defaults write NSGlobalDomain _HIHideMenuBar -bool true
 
 # Enable highlight hover effect for the grid view of a stack (Dock)
 # defaults write com.apple.dock mouse-over-hilite-stack -bool true
@@ -200,6 +199,9 @@ defaults write com.apple.dock autohide -bool true
 
 # Make Dock icons of hidden applications translucent
 defaults write com.apple.dock showhidden -bool true
+
+# Hide all icons in Dock
+defaults write com.apple.dock persistent-apps -array
 
 # Don’t show recent applications in Dock
 defaults write com.apple.dock show-recents -bool false

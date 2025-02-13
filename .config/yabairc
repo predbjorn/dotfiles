@@ -53,6 +53,8 @@ yabai -m rule --add app="^AmpliTube 5$" manage=off
 yabai -m rule --add app="^Creative Cloud$" manage=off
 yabai -m rule --add app="^Logi Options$" manage=off
 yabai -m rule --add app="^Simulator$" manage=off
+yabai -m rule --add app="^qemu-system-aarch64$" manage=off
+yabai -m rule --add app="^android-emulator$" manage=off
 
 borders active_color=0xfff38ba8 inactive_color=0xff414550 width=5.0 &
 

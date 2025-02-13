@@ -65,3 +65,7 @@ then we add the exact name:
 ```
 $ jenv add /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home/
 ```
+
+## React-native
+
+Follow this: https://reactnative.dev/docs/set-up-your-environment?platform=android

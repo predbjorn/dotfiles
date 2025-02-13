@@ -27,17 +27,17 @@ chmod +x install.sh
 ./install.sh
 ```
 
-<!-- ## THIS SHOULD WORK
-5. install "code" command https://www.freecodecamp.org/news/how-to-open-visual-studio-code-from-your-terminal/ -->
+8. Import spacelauncerapp file
 
-## Other apps
+# Backup
 
-### vscode
+1. Run backup of .env
+2. Export spacelaucherapp file
+3.
 
-Add git to sync
+# TODO:
 
-### iTerm2
-
-```
-p10k configure
-```
+- yabai setup
+  - pre load script:
+    - setup of spaces to diffrent monitors
+    - setup apps to diffrent spaces

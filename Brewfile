@@ -17,10 +17,6 @@ brew "trash"
 # https://github.com/mas-cli/mas
 brew "mas"
 
-# zsh
-brew "zsh"
-brew "zsh-completions"
-
 
 # languages / runtime environments
 brew "openjdk"
@@ -101,9 +97,10 @@ cask "google-chrome"
 cask "firefox"
 cask "slack"
 cask "iterm2"
+cask "warp"
 cask "spotify"
 cask "react-native-debugger"
-# cask "jetbrains-toolbox"
+cask "android-studio"
 cask "steam"
 cask "postman"
 # cask "toggl-track"
@@ -137,59 +134,8 @@ mas "Kindle", id: 302584613
 mas "Flow", id: 1423210932
 mas "Dropover", id: 1355679052
 
-# vscode "alphaxek.github-actions-locally"
-# vscode "bierner.emojisense"
-# vscode "chflick.firecode"
-# vscode "christian-kohler.npm-intellisense"
-# vscode "codezombiech.gitignore"
-# vscode "dbaeumer.vscode-eslint"
-# vscode "deerawan.vscode-dash"
-# vscode "eamodio.gitlens"
-# vscode "equinusocio.vsc-community-material-theme"
-# vscode "esbenp.prettier-vscode"
-# vscode "formulahendry.auto-rename-tag"
-# vscode "github.copilot"
-# vscode "github.copilot-chat"
-# vscode "github.vscode-github-actions"
-# vscode "grapecity.gc-excelviewer"
-# vscode "humao.rest-client"
-# vscode "idleberg.applescript"
-# vscode "jpoissonnier.vscode-styled-components"
-# vscode "jundat95.react-native-snippet"
-# vscode "mechatroner.rainbow-csv"
-# vscode "ms-azuretools.vscode-docker"
-# vscode "oderwat.indent-rainbow"
-# vscode "orta.vscode-jest"
-# vscode "qufiwefefwoyn.inline-sql-syntax"
-# vscode "rangav.vscode-thunder-client"
-# vscode "redhat.java"
-# vscode "sharat.vscode-brewfile"
-# vscode "shopify.ruby-lsp"
-# vscode "sleistner.vscode-fileutils"
-# vscode "tanhakabir.rest-book"
-# vscode "teabyii.ayu"
-# vscode "toba.vsfire"
-# vscode "visualstudioexptteam.intellicode-api-usage-examples"
-# vscode "visualstudioexptteam.vscodeintellicode"
-# vscode "vscjava.vscode-gradle"
-# vscode "vscjava.vscode-java-debug"
-# vscode "vscjava.vscode-java-dependency"
-# vscode "vscjava.vscode-java-pack"
-# vscode "vscjava.vscode-java-test"
-# vscode "vscjava.vscode-maven"
-# vscode "vscodevim.vim"
-# vscode "zainchen.json"
-# vscode "zhouronghui.propertylist"
-# vscode "catppuccin.catppuccin-vsc"
-# vscode "ms-python.debugpy"
-# vscode "ms-python.python"
-# vscode "ms-python.vscode-pylance"
-# vscode "pdconsec.vscode-print"
-# vscode "wmaurer.change-case"
-
-# TEMP
+# MUSIC
 cask "focusrite-control-2"
-
 
 
 # Sketchbar and Yabai: 
@@ -209,3 +155,7 @@ cask "font-hack-nerd-font"
 # INSTALLED IN OTHER SCRIPTS
 # brew "rbenv"
 # brew "python"
+# brew "zsh"
+# brew "zsh-completions"
+
+

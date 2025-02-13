@@ -14,7 +14,10 @@ for project in projects:
 		project_path = os.path.expanduser(project_subdir)
 	else:
 		project_path = os.path.join(local_dir, project_subdir)
-	if not os.path.isdir(project_path):
+	print(f"project_path {project_path}")
+	print(f"isdir {not os.path.isdir(project_path)}")
+	print(f"listdir {not os.listdir(project_path)}")
+	if not os.path.isdir(project_path) or not os.listdir(project_path):
 		print(f"Cloning {project_url} to {project_path}")
 		os.makedirs(project_path, exist_ok=True)
 		parent_dir = os.path.dirname(project_path)

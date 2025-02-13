@@ -1,9 +1,14 @@
 #!/bin/bash
 
+
 # If script is run by skhd (not running with zsh)
 home=${HOME:-'/Users/predbjorn'}
 dotfiles=${DOTFILES:-"$home/.dotfiles"}
 config_home=${XDG_CONFIG_HOME:-"$home/.config"}
+
+#THEMES
+mkdir -p $home/.warp/themes/
+cp $dotfiles/themes/catppuccin_mocha.yml $home/.warp/themes/
 
 # finicky
 cp $dotfiles/.config/.finicky.js $home/.finicky.js 
@@ -15,8 +20,8 @@ yes | cp $dotfiles/.config/skhdrc $config_home/skhd/skhdrc
 chmod +x $config_home/skhd/skhdrc
 skhd --start-service
 
-rm -rf ~/.config/karabiner/karabinder.json
-ln -s $dotfiles/.config/karabinder.json ~/.config/karabiner/karabinder.json
+rm -rf ~/.config/karabiner/karabiner.json
+ln -s $dotfiles/.config/karabiner.json ~/.config/karabiner/karabiner.json
 
 # yabai 
 mkdir -p $config_home/yabai
@@ -32,8 +37,6 @@ echo "$dotfiles/.config/sketchybar"
 ls $dotfiles/.config/sketchybar 
 cp -R $dotfiles/.config/sketchybar $home/.config/sketchybar
 
-## STYLES
-# https://github.com/catppuccin/catppuccin?tab=readme-ov-file
 
 
 brew services restart sketchybar

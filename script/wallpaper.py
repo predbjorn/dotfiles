@@ -50,8 +50,11 @@ def generate_landscape():
 
     # Download the image
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H_%M")
-    image_path = f"/Users/predbjorn/Pictures/chat_wall/landscape_{timestamp}.png"
-    print(image_path)
+    # Create directory if it does not exist
+    directory = "/Users/predbjorn/Pictures/wallpaperscript"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    image_path = f"{directory}/landscape_{timestamp}.png"
     image_data = requests.get(image_url).content
     with open(image_path, "wb") as image_file:
         image_file.write(image_data)

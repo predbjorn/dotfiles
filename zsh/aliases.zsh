@@ -13,10 +13,10 @@ alias gitclearall="git branch | grep -v "master" | xargs git branch -D"
 
 # cd 
 alias _hack="cd ~/Hacking"
-alias _hrn="cd ~/Hacking/ReactNative/helseoversikt_rn"
+alias _hrn="cd ~/Hacking/NorsCare/nors"
 alias _project="cd ~/Hacking/projects"
 alias _go="cd ~/Hacking/projects/goRaid"
-alias hrn="cd ~/Hacking/ReactNative/helseoversikt_rn && code . && rn"
+alias hrn="cd ~/Hacking/NorsCare/nors && code . && rn"
 alias _dot="cd ~/.dotfiles"
 alias dot="cd ~/.dotfiles && code ."
 alias portal="osascript ~/.dotfiles/AppleScripts/portal.applescript"

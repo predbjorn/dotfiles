@@ -23,7 +23,7 @@ eval "$(rbenv init -)"
 # Run brew info java
 # Then jenv add PATH_TO_JAVA_VERSION
 export PATH="$HOME/.jenv/bin:$PATH"
-eval "$(jenv init -)"
+# eval "$(jenv init -)"
 
 
 # Export nvm completion settings for zsh-nvm plugin
@@ -41,7 +41,7 @@ export PATH="/Applications/Visual Studio Code.app/Contents/Resources/app/bin:$PA
 
 #Java & Android
 export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
-export JAVA_HOME="`jenv javahome`"
+# export JAVA_HOME="`jenv javahome`"
 export ANT_HOME="/usr/local/opt/ant"
 export MAVEN_HOME="/usr/local/opt/maven"
 export GRADLE_HOME="/usr/local/opt/gradle"
