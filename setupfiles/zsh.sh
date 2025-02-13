@@ -16,8 +16,7 @@ fi
 if [ -d ~/.oh-my-zsh ]; then
 	echo "oh-my-zsh is installed"
  else
- 	sh -c
-	  "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+ 	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 fi
 
 if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k ]; then
@@ -31,6 +30,14 @@ if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-completions ]; then
 	git clone https://github.com/zsh-users/zsh-completions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-completions
 fi
 
-
-
+## Sync and symlink files:
+# pk10 config
+rm -rf $home/.p10k.zsh
+ln -s $dotfiles/.config/.p10k.zsh $home/.p10k.zsh
+# zshrc
+rm -rf $home/.zshrc
+ln -s $dotfiles/.config/.zshrc $home/.zshrc
+# GEMS
+rm -rf $home/.gemrc
+ln -s $dotfiles/.config/.gemrc $home/.gemrc
 

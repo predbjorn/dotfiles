@@ -3,10 +3,6 @@ tap "homebrew/bundle"
 tap "adoptopenjdk/openjdk"
 tap "heroku/brew"
 tap "cloudflare/cloudflare"
-tap "homebrew/cask-drivers"
-tap "homebrew/cask-eid"
-tap "homebrew/cask-fonts"
-tap "homebrew/cask-versions"
 tap "homebrew/services"
 tap "xcodesorg/made"
 
@@ -60,12 +56,10 @@ cask "postgres-unofficial"
 brew "act"
 cask "xcodes"
 brew "xcodesorg/made/xcodes"
-brew "heroku/brew/heroku"
 
 #mongoDB
 tap "mongodb/brew"
 cask "mongodb-compass"
-brew "mongodb-community"
 
 # Development
 #brew "php"
@@ -99,9 +93,6 @@ brew "jq"
 brew "mongosh"
 brew "nghttp2"
 brew "nmap"
-brew "openssl@1.1"
-
-
 
 
 # Apps
@@ -115,10 +106,10 @@ cask "react-native-debugger"
 # cask "jetbrains-toolbox"
 cask "steam"
 cask "postman"
-cask "toggl-track"
+# cask "toggl-track"
 cask "sourcetree"
 cask "finicky"
-cask "send-to-kindle"
+# cask "send-to-kindle"
 cask "spacelauncher"
 cask "calibre"
 cask "docker"
@@ -128,7 +119,7 @@ cask "docker"
 cask "flycut"
 cask "logos"
 cask "karabiner-elements"
-cask "hyperswitch"
+# cask "hyperswitch"
 
 
 # Other: 

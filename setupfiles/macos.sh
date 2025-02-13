@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 
 # Thanks to Mathias Bynens!
@@ -27,7 +26,7 @@ sudo nvram SystemAudioVolume=" "
 ###############################################################################
 
 # Finder: allow quitting via ⌘ + Q; doing so will also hide desktop icons
-# defaults write com.apple.finder QuitMenuItem -bool true
+defaults write com.apple.finder QuitMenuItem -bool true
 
 # Finder: disable window animations and Get Info animations
 defaults write com.apple.finder DisableAllAnimations -bool true
@@ -192,7 +191,7 @@ defaults write com.apple.dock expose-animation-duration -float 0
 defaults write com.apple.dock mru-spaces -bool false
 
 # Remove the auto-hiding Dock delay
-# defaults write com.apple.dock autohide-delay -float 0
+defaults write com.apple.dock autohide-delay -float 0
 # Remove the animation when hiding/showing the Dock
 defaults write com.apple.dock autohide-time-modifier -float 0
 

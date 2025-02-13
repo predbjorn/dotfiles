@@ -15,8 +15,10 @@ if ! command -v pyenv &> /dev/null; then
 	brew install pyenv
 else
 	echo "pyenv is already installed"
-	# brew upgrade pyenv
 fi
+
+brew install openssl readline sqlite3 xz zlib tcl-tk@8
+brew upgrade pyenv
 
 ## list available versions: 
 ## $ pyenv install -l

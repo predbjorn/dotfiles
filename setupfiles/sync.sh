@@ -5,17 +5,6 @@ home=${HOME:-'/Users/predbjorn'}
 dotfiles=${DOTFILES:-"$home/.dotfiles"}
 config_home=${XDG_CONFIG_HOME:-"$home/.config"}
 
-## Sync and symlink files:
-# pk10 config
-rm -rf $home/.p10k.zsh
-ln -s $dotfiles/.config/.p10k.zsh $home/.p10k.zsh
-# zshrc
-rm -rf $home/.zshrc
-ln -s $dotfiles/.config/.zshrc $home/.zshrc
-# GEMS
-rm -rf $home/.gemrc
-ln -s $dotfiles/.config/.gemrc $home/.gemrc
-
 # finicky
 cp $dotfiles/.config/.finicky.js $home/.finicky.js 
 

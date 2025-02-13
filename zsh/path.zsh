@@ -2,7 +2,10 @@
 export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktdev.json"
 # export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktprod.json:$GOOGLE_APPLICATION_CREDENTIALS"
 # export GOOGLE_APPLICATION_CREDENTIALS="/usr/local/devConfig/firebase/helseoversiktprod.json"
+
 export BREW_HOME="/usr/local/opt/"
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 export CASK_HOME="/usr/local/share/"
 
 

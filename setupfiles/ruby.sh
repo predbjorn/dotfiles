@@ -5,7 +5,6 @@ if ! command -v rbenv &> /dev/null; then
 	echo "rbnv not found, installing..."
 	brew install rbenv
 	rbenv init
-	rbenv install -l
 else
 	echo "rbnv is already installed"
 fi
