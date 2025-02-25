@@ -47,6 +47,9 @@ yabai -m config window_insertion_point       focused
 # yabai -m config external_bar main:20:0
 
 # apps to not manage (ignore)
+# TO GET TITLE: 
+# $ yabai -m query --windows --window | jq '.title'
+# $ yabai -m query --windows --window | jq '.app'
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Archive Utility$" manage=off
 yabai -m rule --add app="^AmpliTube 5$" manage=off

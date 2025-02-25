@@ -10,6 +10,7 @@ fi
 
 nvm upgrade
 nvm install node
+nvm alias default node
 
 # nvm 
 # https://github.com/nvm-sh/nvm

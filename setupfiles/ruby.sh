@@ -9,6 +9,8 @@ else
 	echo "rbnv is already installed"
 fi
 
+# gem update --system
+
 ##########################
 # THIS IS SET UP IN PATH #
 ##########################
