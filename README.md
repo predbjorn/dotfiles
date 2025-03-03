@@ -42,3 +42,4 @@ chmod +x install.sh
   - pre load script:
     - setup of spaces to diffrent monitors
     - setup apps to diffrent spaces
+- Übersicht bar vs sketchybar https://linkarzu.com/posts/macos/ubersitch-simple-bar/

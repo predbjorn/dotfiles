@@ -5,9 +5,10 @@ update() {
   source "$CONFIG_DIR/icons.sh"
 
   NOTIFICATIONS="$(gh api notifications)"
-  COUNT="$(echo "$NOTIFICATIONS" | jq 'length')"
+  FILTERED_NOTIFICATIONS="$(echo "$NOTIFICATIONS" | jq '[.[] | select(.reason == "review_requested")]')"
+  COUNT="$(echo "$FILTERED_NOTIFICATIONS" | jq 'length')"
   args=()
-  if [ "$NOTIFICATIONS" = "[]" ]; then
+  if [ "$FILTERED_NOTIFICATIONS" = "[]" ]; then
     args+=(--set $NAME icon=$BELL label="0")
   else
     args+=(--set $NAME icon=$BELL_DOT label="$COUNT")
@@ -65,7 +66,7 @@ update() {
 
     args+=(--clone github.notification.$COUNTER github.template \
            --set github.notification.$COUNTER "${notification[@]}")
-  done <<< "$(echo "$NOTIFICATIONS" | jq -r '.[] | [.repository.name, .subject.latest_comment_url, .subject.type, .subject.title] | @sh')"
+  done <<< "$(echo "$FILTERED_NOTIFICATIONS" | jq -r '.[] | [.repository.name, .subject.latest_comment_url, .subject.type, .subject.title] | @sh')"
 
   sketchybar -m "${args[@]}" > /dev/null
 
