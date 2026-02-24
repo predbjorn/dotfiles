@@ -5,6 +5,7 @@ import os
 from google import genai
 from google.genai import types
 
+# Watch spending: https://console.cloud.google.com/billing/01B85F-1A6511-809A4F?project=gen-lang-client-0292679403&authuser=1
 # Load environment variables from .env file
 load_dotenv()
 
@@ -15,15 +16,13 @@ client = genai.Client(api_key=api_key)
 
 def generate_landscape():
     prompt = (
-        "Generate an image only, no text response."
-        "Main Theme: create a painting of a dark and mystic forest landscape from a random continent, viewed from a hight,"
-        "Color pallete used in the painting:[#f5e0dc,#f2cdcd,#f5c2e7,#cba6f7,#f38ba8,#eba0ac,#fab387,#f9e2af,#a6e3a1,#94e2d5,#89dceb,#74c7ec,#89b4fa,#b4befe,#cdd6f4,#bac2de,#a6adc8,#9399b2,#7f849c,#6c7086,#585b70,#45475a,#313244,#1e1e2e,#181825,#11111b]"
-        "It should only contain the \"Main Theme\" and no other elements in the foreground, background or surrounding space."
-        "It should contain the \"Main Theme\" only once with no margins above, below or on either side."
-        "The \"Main Theme\" should consume the entire 16:9 space."
-        "It should not divide the \"Main Theme\" into separate parts of the image nor imply any variations of it."
-        "It should not contain any text, labels, borders, measurements nor design elements of any kind."
-        "The image should be suitable for digital printing without any instructional or guiding elements."
+        "Generate a single image only, no text response. "
+        "Create a dark and mystic forest landscape from a random continent, viewed from a height, in a painterly digital illustration style. "
+        "Color palette: [#f5e0dc,#f2cdcd,#f5c2e7,#cba6f7,#f38ba8,#eba0ac,#fab387,#f9e2af,#a6e3a1,#94e2d5,#89dceb,#74c7ec,#89b4fa,#b4befe,#cdd6f4,#bac2de,#a6adc8,#9399b2,#7f849c,#6c7086,#585b70,#45475a,#313244,#1e1e2e,#181825,#11111b]. "
+        "CRITICAL: The artwork must extend to every pixel of the image edge. There must be absolutely NO white margins, NO borders, NO frame, NO canvas effect, NO surrounding whitespace. "
+        "The scene must bleed off all four edges as if the viewer is looking through a window into the landscape. "
+        "Do not render this as a painting on a surface. Render it as a full-bleed wallpaper image in 16:9 aspect ratio. "
+        "No text, no labels, no design elements."
     )
 
     response = client.models.generate_content(
