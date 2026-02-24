@@ -8,10 +8,16 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 
 export CASK_HOME="/usr/local/share/"
 
-
+# JIRA/Atlassian credentials loaded from .env.zsh
+export ATLASSIAN_API_TOKEN=$JIRA_API_TOKEN
+export ATLASSIAN_SITE_NAME=$JIRA_HOST
+export ATLASSIAN_USER_EMAIL=$JIRA_USERNAME
 
 export XDG_CONFIG_HOME="$HOME/.config"
 export DOTFILES="$HOME/.dotfiles"
+
+# Claude Code
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 # RUBY AND GEMS
 export GEM_HOME="$HOME/.gem"
@@ -64,7 +70,7 @@ export CLOUDSDK_PYTHON=$(which python3.11)
 source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
 source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
 
-export TREN_POSTGRESQL_STRING="postgres://iuzlyhwhwyrrin:75ac98c9c9f48b1b0173c2b0b2f785fdf3df93c643f083df93a9b781d97c6156@ec2-52-50-161-219.eu-west-1.compute.amazonaws.com:5432/d8adj60pvvngoe"
+# TREN_POSTGRESQL_STRING loaded from .env.zsh
 # export DEBUG=app:*
 
 # wget

@@ -42,6 +42,7 @@ alt - j : yabai -m window --focus south
 alt - k : yabai -m window --focus north
 # alt - l : yabai -m window --focus east || yabai -m display --focus east || (yabai -m query --displays | jq length && yabai -m space --focus next);
 
+#  TODO: When holding shift, move to next space!
 # swap managed window
 shift + alt - h : id=$(yabai -m query --windows --window | jq -r '.id') && \
 				  yabai -m window --swap west || \
@@ -108,8 +109,6 @@ alt - t : yabai -m window --toggle float;\
 # toggle padding and gap
 alt - g : yabai -m space --toggle padding; yabai -m space --toggle gap
 
-
-
 # focus desktop
 cmd + alt - x : yabai -m space --focus recent
 cmd + alt - 1 : yabai -m space --focus 1
@@ -142,12 +141,57 @@ alt - tab : yabai -m space --focus recent
 
 # stop/start/restart yabai
 ctrl + alt - q : yabai --stop-service
-ctrl + alt - s : yabai --start-service
-ctrl + alt - r : yabai --resstart-service; brew services restart sketchybar
+ctrl + alt - s : yabai --start-servce
+ctrl + alt - r : yabai --restart-service; brew services restart sketchybar
 
+hyper - q : brew services stop sketchybar
 hyper - r : cd ~/.dotfiles; sh setupfiles/sync.sh
 hyper - p : cd ~/.dotfiles; /Users/predbjorn/.pyenv/versions/3.12.9/bin/python script/wallpaper.py
 hyper - 1 : cd ~/.dotfiles; sh script/windowarr.sh
+
+
+
+
+# App switcher
+hyper - return : echo "hello return" >&2
+shift + ctrl - b : echo "hello shift + ctrl - b" >&2
+# hyper - space - b : echo "hello space" >&2
+# hyper - tab - b : echo "hello tab" >&2
+# hyper + "return" - b : ~/.dotfiles/bin/focus_window_wrapper.sh Safari true
+# hyper + 0x31 - b : ~/.dotfiles/bin/focus_window_wrapper.sh Safari true
+hyper - b : ~/.dotfiles/bin/focus_window_wrapper.sh Safari false
+hyper - s : ~/.dotfiles/bin/focus_window_wrapper.sh Slack false
+
+
+
+ctrl + alt + cmd - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari false
+ctrl + alt + cmd + shift - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari true
+ctrl + shift - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari false
+ctrl + shift + cmd - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari true
+ctrl + shift - 0x2F :  ~/.dotfiles/bin/focus_window_wrapper.sh Warp false
+ctrl + shift + cmd - 0x2F :  ~/.dotfiles/bin/focus_window_wrapper.sh Warp true
+ctrl + shift - s :  ~/.dotfiles/bin/focus_window_wrapper.sh Slack false
+ctrl + shift + cmd - s :  ~/.dotfiles/bin/focus_window_wrapper.sh Slack true
+ctrl + shift - c :  ~/.dotfiles/bin/focus_window_wrapper.sh Cursor false
+ctrl + shift + cmd - c :  ~/.dotfiles/bin/focus_window_wrapper.sh Cursor true
+ctrl + shift - g :  ~/.dotfiles/bin/focus_window_wrapper.sh "Google Chrome" false
+ctrl + shift + cmd - g :  ~/.dotfiles/bin/focus_window_wrapper.sh "Google Chrome" true
+ctrl + shift - l :  ~/.dotfiles/bin/focus_window_wrapper.sh Sourcetree false
+ctrl + shift + cmd - l :  ~/.dotfiles/bin/focus_window_wrapper.sh Sourcetree true
+ctrl + shift - m :  ~/.dotfiles/bin/focus_window_wrapper.sh Mail false
+ctrl + shift + cmd - m :  ~/.dotfiles/bin/focus_window_wrapper.sh Mail true
+ctrl + shift - n :  ~/.dotfiles/bin/focus_window_wrapper.sh Notes false
+ctrl + shift + cmd - n :  ~/.dotfiles/bin/focus_window_wrapper.sh Notes true
+ctrl + shift - p :  ~/.dotfiles/bin/focus_window_wrapper.sh Spotify false
+ctrl + shift + cmd - p :  ~/.dotfiles/bin/focus_window_wrapper.sh Spotify true
+ctrl + shift - r :  ~/.dotfiles/bin/focus_window_wrapper.sh "React native debugger" false
+ctrl + shift + cmd - r :  ~/.dotfiles/bin/focus_window_wrapper.sh "React native debugger" true
+ctrl + shift - u :  ~/.dotfiles/bin/focus_window_wrapper.sh Postman false
+ctrl + shift + cmd - u :  ~/.dotfiles/bin/focus_window_wrapper.sh Postman true
+
+
+
+
 
 
 # view the last lines of the error log 

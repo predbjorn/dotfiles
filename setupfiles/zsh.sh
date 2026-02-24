@@ -13,9 +13,6 @@ else
     chsh -s $(which zsh)
 fi
 
-brew install zsh 
-
-
 if [ -d ~/.oh-my-zsh ]; then
 	echo "oh-my-zsh is installed"
  else
@@ -23,30 +20,14 @@ if [ -d ~/.oh-my-zsh ]; then
 fi
 
 if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k ]; then
-	echo "powerlevel10k already installed"
+	echo "powerlevel10k is installed"
  else
-	echo "Installing powerlevel10k"
  	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 fi
 if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-completions ]; then
-	echo "zsh-completions already installed"
+	echo "zsh-completions is installed"
  else
-	echo "Installing zsh-completions"
 	git clone https://github.com/zsh-users/zsh-completions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-completions
-fi
-
-if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting ]; then
-	echo "zsh-syntax-highlighting already installed"
- else
-	echo "Installing zsh-syntax-highlighting"
-	git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
-fi
-
-if [ -d ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions ]; then
-	echo "zsh-autosuggestions already installed"
- else
-	echo "Installing zsh-autosuggestions"
-	git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
 fi
 
 ## Sync and symlink files:
@@ -59,4 +40,3 @@ ln -s $dotfiles/.config/.zshrc $home/.zshrc
 # GEMS
 rm -rf $home/.gemrc
 ln -s $dotfiles/.config/.gemrc $home/.gemrc
-

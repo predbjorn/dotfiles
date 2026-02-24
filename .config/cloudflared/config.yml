@@ -1,0 +1,9 @@
+tunnel: d21fa304-74b3-41b3-a907-c75e6317cb72
+credentials-file: /Users/predbjorn/.cloudflared/d21fa304-74b3-41b3-a907-c75e6317cb72.json
+
+ingress:
+  - hostname: local8000.prebenhafnor.com
+    service: http://localhost:8000
+  - service: http_status:404
+# https://one.dash.cloudflare.com/d0f949f3cd75273ce515ec3815a22a1b/networks/tunnels
+# https://local8000.prebenhafnor.com

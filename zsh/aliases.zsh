@@ -4,6 +4,7 @@
 alias commit="git add . && git commit -m"
 alias gd="git diff"
 alias gitclearall="git branch | grep -v "master" | xargs git branch -D"
+alias gitcon="git diff HEAD --name-only | xargs grep -l "console\.log""
 
 ### Delete all local branches that have been merged to main branch
 # alias gitclear="git branch --merged | egrep -v "(^\*|master|main|dev)" | xargs git branch -d"
@@ -16,15 +17,15 @@ alias _hack="cd ~/Hacking"
 alias _hrn="cd ~/Hacking/NorsCare/nors"
 alias _project="cd ~/Hacking/projects"
 alias _go="cd ~/Hacking/projects/goRaid"
-alias hrn="cd ~/Hacking/NorsCare/nors && code . && rn"
+alias hrn="cd ~/Hacking/NorsCare/nors && cursor . && rn"
 alias _dot="cd ~/.dotfiles"
-alias dot="cd ~/.dotfiles && code ."
+alias dot="cd ~/.dotfiles && cursor ."
 alias portal="osascript ~/.dotfiles/AppleScripts/portal.applescript"
-alias _portal="cd ~/Hacking/React/partnerPortal/"
+alias _portal="cd ~/Hacking/NorsCare/"
 alias tren_web="osascript ~/.dotfiles/AppleScripts/tren.applescript"
-alias tren="cd ~/Hacking/projects/tren && code ."
-alias tren_server="cd ~/Hacking/projects/tren/tren_server && code ."
-alias tren_app="cd ~/Hacking/projects/tren/tren_app && code ."
+alias tren="cd ~/Hacking/projects/tren && cursor ."
+alias tren_server="cd ~/Hacking/projects/tren/tren_server && cursor ."
+alias tren_app="cd ~/Hacking/projects/tren/tren_app && cursor ."
 alias fouweb="osascript ~/.dotfiles/AppleScripts/fou.applescript"
 alias _fouweb="cd ~/Hacking/projects/foundation/found_web"
 alias _fou="cd ~/Hacking/projects/foundation/foundation"
@@ -60,8 +61,15 @@ alias hour='caffeinate -t 3600'
 
 alias countfiles='find . -type f -name "*.js" -not -path "./node_modules/*" | wc -l'
 
+alias xc='open /Applications/Xcode-15.4.0.app/Contents/MacOS/Xcode'
 
+alias claudtree='~/.dotfiles/bin/claude-worktree.sh'
 
+## Correction: 
+
+# alias npx='nocorrect npx'
+
+alias tunnel='cloudflared tunnel run --url http://localhost:8000 local8000'
 
 # alias hrn_dsym="~/Hacking/ReactNative/helseoversikt_rn/ios/Pods/FirebaseCrashlytics/upload-symbols -gsp /Users/predbjorn/Hacking/ReactNative/helseoversikt_rn/ios/AppConfig/Firebase/GoogleService-Info-prod.plist -p ios " 
 # add dsym file after this :)  

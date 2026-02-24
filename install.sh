@@ -46,6 +46,10 @@ source setupfiles/npm.sh;
 chmod a+x setupfiles/sync.sh;
 source setupfiles/sync.sh;
 
+# Setup cloudflared tunnel config
+mkdir -p $HOME/.cloudflared
+ln -sf $HOME/.dotfiles/.config/cloudflared/config.yml $HOME/.cloudflared/config.yml
+
 chmod a+x setupfiles/init_script.sh;
 source setupfiles/init_script.sh;
 

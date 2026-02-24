@@ -2,41 +2,53 @@
 
 
 # If script is run by skhd (not running with zsh)
-home=${HOME:-'/Users/predbjorn'}
-dotfiles=${DOTFILES:-"$home/.dotfiles"}
-config_home=${XDG_CONFIG_HOME:-"$home/.config"}
+HOME=${HOME:-'/Users/predbjorn'}
+DOTFILES=${DOTFILES:-"$HOME/.DOTFILES"}
+XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
 
 #THEMES
-mkdir -p $home/.warp/themes/
-cp $dotfiles/themes/catppuccin_mocha.yml $home/.warp/themes/
+mkdir -p $HOME/.warp/themes/
+cp $DOTFILES/themes/catppuccin_mocha.yml $HOME/.warp/themes/
 
 # finicky
-cp $dotfiles/.config/.finicky.js $home/.finicky.js 
+cp $DOTFILES/.config/.finicky.js $HOME/.finicky.js 
 
-mkdir -p $config_home/skhd
-rm -rf $config_home/skhd/skhdrc 
-# ln -s $dotfiles/.config/skhdrc $config_home/skhd/skhdrc
-yes | cp $dotfiles/.config/skhdrc $config_home/skhd/skhdrc
-chmod +x $config_home/skhd/skhdrc
+# skhd
+mkdir -p $XDG_CONFIG_HOME/skhd
+rm -rf $XDG_CONFIG_HOME/skhd/skhdrc 
+# ln -s $DOTFILES/.config/skhdrc $XDG_CONFIG_HOME/skhd/skhdrc
+yes | cp $DOTFILES/.config/skhdrc $XDG_CONFIG_HOME/skhd/skhdrc
+chmod +x $XDG_CONFIG_HOME/skhd/skhdrc
 skhd --start-service
 
 rm -rf ~/.config/karabiner/karabiner.json
-ln -s $dotfiles/.config/karabiner.json ~/.config/karabiner/karabiner.json
+ln -s $DOTFILES/.config/karabiner.json ~/.config/karabiner/karabiner.json
 
 # yabai 
-mkdir -p $config_home/yabai
-rm -rf $config_home/yabai/yabairc
-ln -s $dotfiles/.config/yabairc $config_home/yabai/yabairc
-chmod +x $config_home/yabai/yabairc
+
+# stop yabai
+yabai --stop-service
+# upgrade yabai with homebrew (remove old service file because homebrew changes binary path)
+
+# To upgrade: 
+# yabai --uninstall-service
+# brew upgrade yabai
+
+# configure yabai
+mkdir -p $XDG_CONFIG_HOME/yabai
+rm -rf $XDG_CONFIG_HOME/yabai/yabairc
+ln -s $DOTFILES/.config/yabairc $XDG_CONFIG_HOME/yabai/yabairc
+chmod +x $XDG_CONFIG_HOME/yabai/yabairc
 
 
 echo "sketchybar Installing Dependencies"
-curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v1.0.23/sketchybar-app-font.ttf -o $home/Library/Fonts/sketchybar-app-font.ttf
+curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v1.0.23/sketchybar-app-font.ttf -o $HOME/Library/Fonts/sketchybar-app-font.ttf
 echo "sketchybar Cloning Config"
-rm -rf $home/.config/sketchybar
-cp -R $dotfiles/.config/sketchybar $home/.config/sketchybar
+rm -rf $HOME/.config/sketchybar
+cp -R $DOTFILES/.config/sketchybar $HOME/.config/sketchybar
 
-
+chmod +x $DOTFILES/bin/focus_window_wrapper.sh
+chmod +x $DOTFILES/script/windowarr.sh
 
 brew services restart sketchybar
 yabai --start-service

@@ -176,6 +176,10 @@ defaults write com.apple.dock launchanim -bool false
 defaults write com.apple.universalaccess reduceMotion -bool true
 defaults write com.apple.dock expose-animation-duration -float 0
 
+
+# Disable the hide all function
+defaults write com.apple.universalaccess NSUserKeyEquivalents -dict-add "Hide Others" "nil"
+
 # Don’t group windows by application in Mission Control
 # (i.e. use the old Exposé behavior instead)
 # defaults write com.apple.dock expose-group-by-app -bool false

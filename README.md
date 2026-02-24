@@ -39,7 +39,13 @@ chmod +x install.sh
 # TODO:
 
 - yabai setup
+  - focus_window_manager
+  - force shortkey
+  - force newly open app open
+  - When swaping/ moving apps, hold shift to swap spaces in current screen
   - pre load script:
     - setup of spaces to diffrent monitors
     - setup apps to diffrent spaces
 - Übersicht bar vs sketchybar https://linkarzu.com/posts/macos/ubersitch-simple-bar/
+- Using dropover
+- use nnn (folder thing)
