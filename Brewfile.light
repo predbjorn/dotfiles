@@ -15,7 +15,6 @@ brew "lazygit"
 brew "delta"
 brew "tmux"
 brew "eza"
-brew "watchman"
 
 # pyenv dependencies
 brew "pyenv"

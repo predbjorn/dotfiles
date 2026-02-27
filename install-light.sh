@@ -35,7 +35,6 @@ run_check() {
     check_tool "tmux" "tmux" || ((missing++))
     check_tool "delta" "delta" || ((missing++))
     check_tool "lazygit" "lazygit" || ((missing++))
-    check_tool "watchman" "watchman" || ((missing++))
     check_tool "pnpm" "pnpm" || ((missing++))
 
     # eza uses different version flag
