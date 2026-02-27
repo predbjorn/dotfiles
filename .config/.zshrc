@@ -117,7 +117,7 @@ export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 
 
 # ALIASES
-source $DOTFILES/zsh/.env.zsh
+[[ -f $DOTFILES/zsh/.env.zsh ]] && source $DOTFILES/zsh/.env.zsh
 source $DOTFILES/zsh/aliases.zsh
 
 # PATHS
@@ -139,4 +139,4 @@ export PATH="/usr/local/opt/openssl/bin:$PATH"
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-. <(jenv init -)
+command -v jenv &>/dev/null && . <(jenv init -)

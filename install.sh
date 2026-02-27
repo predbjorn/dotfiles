@@ -2,28 +2,14 @@
 
 echo "Setting up your Mac..."
 
-echo "Setup brew"
-# Check for Homebrew and install if we don't have it
-if  ! command -v brew &> /dev/null; then
-  	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-	echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/predbjorn/.zprofile
-	eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/setupfiles/common.sh"
 
-if  ! command -v xcode-select &> /dev/null; then
-	xcode-select –-install
-fi
+setup_xcode_cli
+setup_homebrew
 
 chmod a+x setupfiles/zsh.sh;
 source setupfiles/zsh.sh;
-
-if  ! command -v brew &> /dev/null; then
-	echo "Homebrew not found, run again"
-	exit 1
-fi
-
-# Update Homebrew recipes
-brew update
 
 echo "Install all brew dependencies"
 # Install all our dependencies with bundle (See Brewfile)

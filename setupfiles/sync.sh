@@ -21,6 +21,7 @@ yes | cp $DOTFILES/.config/skhdrc $XDG_CONFIG_HOME/skhd/skhdrc
 chmod +x $XDG_CONFIG_HOME/skhd/skhdrc
 skhd --start-service
 
+mkdir -p ~/.config/karabiner
 rm -rf ~/.config/karabiner/karabiner.json
 ln -s $DOTFILES/.config/karabiner.json ~/.config/karabiner/karabiner.json
 
