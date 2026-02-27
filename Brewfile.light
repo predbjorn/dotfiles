@@ -28,6 +28,16 @@ brew "tcl-tk@8"
 # Node/JS
 brew "pnpm"
 
+# Sketchybar and Yabai
+tap "felixkratz/formulae"
+tap "koekeishiya/formulae"
+brew "switchaudio-osx"
+brew "felixkratz/formulae/borders"
+brew "felixkratz/formulae/sketchybar"
+brew "koekeishiya/formulae/yabai"
+brew "koekeishiya/formulae/skhd"
+cask "sf-symbols"
+
 # Lightweight cask apps
 cask "iterm2"
 cask "cursor"
