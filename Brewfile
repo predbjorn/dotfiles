@@ -107,7 +107,7 @@ cask "postman"
 cask "sourcetree"
 cask "finicky"
 # cask "send-to-kindle"
-cask "spacelauncher"
+# cask "spacelauncher" # replaced by Karabiner-Elements complex modifications
 cask "calibre"
 cask "docker"
 # cask "audio-hijack"

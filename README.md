@@ -27,14 +27,12 @@ chmod +x install.sh
 ./install.sh
 ```
 
-8. Import spacelauncerapp file
-9. Set finicy as default browser
+8. Set finicy as default browser
 
 # Backup
 
 1. Run backup of .env
-2. Export spacelaucherapp file
-3.
+2.
 
 # TODO:
 

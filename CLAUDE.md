@@ -34,7 +34,7 @@ Key env vars: `$DOTFILES` → `~/.dotfiles`, `$XDG_CONFIG_HOME` → `~/.config`
 
 - **Shell**: Zsh + oh-my-zsh + Powerlevel10k theme
 - **Window management**: Yabai (tiling WM) + skhd (hotkey daemon) + Sketchybar (status bar)
-- **Keyboard**: Karabiner-Elements + SpaceLauncher
+- **Keyboard**: Karabiner-Elements (caps→hyper, space-as-leader app launcher)
 - **Browser routing**: Finicky
 - **Version managers**: NVM (Node), pyenv (Python), rbenv (Ruby), jenv (Java)
 
