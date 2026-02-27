@@ -1,5 +1,7 @@
 # Brewfile.light — Minimal packages for lightweight Mac setup
 
+tap "cloudflare/cloudflare"
+
 # CLI tools
 brew "git"
 brew "gh"
