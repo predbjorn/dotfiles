@@ -20,10 +20,12 @@ export DOTFILES="$HOME/.dotfiles"
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 # RUBY AND GEMS
-export GEM_HOME="$HOME/.gem"
-export PATH="$GEM_HOME/bin:$PATH"
-export PATH="$HOME/.rbenv/bin:$PATH"
-eval "$(rbenv init -)"
+if command -v rbenv &>/dev/null; then
+  export GEM_HOME="$HOME/.gem"
+  export PATH="$GEM_HOME/bin:$PATH"
+  export PATH="$HOME/.rbenv/bin:$PATH"
+  eval "$(rbenv init -)"
+fi
 
 # Jenv
 # Run brew info java
@@ -46,29 +48,33 @@ eval "$(pyenv init --path)"
 export PATH="/Applications/Visual Studio Code.app/Contents/Resources/app/bin:$PATH"
 
 #Java & Android
-export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
-# export JAVA_HOME="`jenv javahome`"
-export ANT_HOME="/usr/local/opt/ant"
-export MAVEN_HOME="/usr/local/opt/maven"
-export GRADLE_HOME="/usr/local/opt/gradle"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-export ANDROID_SDK_ROOT="$ANDROID_HOME"
+if [ -d "$HOME/Library/Android/sdk" ]; then
+  export JAVA_HOMES="/Library/Java/JavaVirtualMachines/"
+  # export JAVA_HOME="`jenv javahome`"
+  export ANT_HOME="/usr/local/opt/ant"
+  export MAVEN_HOME="/usr/local/opt/maven"
+  export GRADLE_HOME="/usr/local/opt/gradle"
+  export ANDROID_HOME="$HOME/Library/Android/sdk"
+  export ANDROID_SDK_ROOT="$ANDROID_HOME"
 
-export PATH="$ANT_HOME/bin:$PATH"
-export PATH="$MAVEN_HOME/bin:$PATH"
-export PATH="$GRADLE_HOME/bin:$PATH"
-export PATH="$ANDROID_HOME/tools:$PATH"
-export PATH="$ANDROID_HOME/tools/bin:$PATH"
-export PATH="$ANDROID_HOME/emulator:$PATH"
-export PATH="$ANDROID_HOME/platform-tools:$PATH"
-# export PATH="$ANDROID_HOME/build-tools/30.0.3:$PATH"
-# If you want the latest version of the build-tools and not the most recently installed try this
-export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort | tail -1):$PATH
+  export PATH="$ANT_HOME/bin:$PATH"
+  export PATH="$MAVEN_HOME/bin:$PATH"
+  export PATH="$GRADLE_HOME/bin:$PATH"
+  export PATH="$ANDROID_HOME/tools:$PATH"
+  export PATH="$ANDROID_HOME/tools/bin:$PATH"
+  export PATH="$ANDROID_HOME/emulator:$PATH"
+  export PATH="$ANDROID_HOME/platform-tools:$PATH"
+  # export PATH="$ANDROID_HOME/build-tools/30.0.3:$PATH"
+  # If you want the latest version of the build-tools and not the most recently installed try this
+  export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort | tail -1):$PATH
+fi
 
 
-export CLOUDSDK_PYTHON=$(which python3.11)
-source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
-source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
+if [ -f "$(brew --prefix 2>/dev/null)/share/google-cloud-sdk/path.zsh.inc" ]; then
+  export CLOUDSDK_PYTHON=$(which python3.11)
+  source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
+  source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
+fi
 
 # TREN_POSTGRESQL_STRING loaded from .env.zsh
 # export DEBUG=app:*

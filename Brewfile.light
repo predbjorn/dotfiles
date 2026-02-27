@@ -1,0 +1,33 @@
+# Brewfile.light — Minimal packages for lightweight Mac setup
+
+# CLI tools
+brew "git"
+brew "gh"
+brew "wget"
+brew "jq"
+brew "fd"
+brew "trash"
+brew "coreutils"
+brew "zsh-syntax-highlighting"
+brew "lazygit"
+brew "delta"
+brew "tmux"
+brew "eza"
+brew "watchman"
+
+# pyenv dependencies
+brew "pyenv"
+brew "openssl"
+brew "readline"
+brew "sqlite3"
+brew "xz"
+brew "zlib"
+brew "tcl-tk@8"
+
+# Node/JS
+brew "pnpm"
+
+# Lightweight cask apps
+cask "iterm2"
+cask "cursor"
+cask "flycut"
