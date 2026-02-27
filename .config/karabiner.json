@@ -376,6 +376,210 @@
                 "type": "basic"
               }
             ]
+          },
+          {
+            "description": "SpaceLauncher shortcuts",
+            "manipulators": [
+              {
+                "type": "basic",
+                "from": {
+                  "key_code": "spacebar"
+                },
+                "parameters": {
+                  "basic.to_if_alone_timeout_milliseconds": 200
+                },
+                "to": [
+                  {
+                    "set_variable": {
+                      "name": "space_held",
+                      "value": 1
+                    }
+                  }
+                ],
+                "to_after_key_up": [
+                  {
+                    "set_variable": {
+                      "name": "space_held",
+                      "value": 0
+                    }
+                  },
+                  {
+                    "set_variable": {
+                      "name": "space_f_mode",
+                      "value": 0
+                    }
+                  }
+                ],
+                "to_if_alone": [
+                  {
+                    "key_code": "spacebar"
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 },
+                  { "type": "variable_if", "name": "space_f_mode", "value": 1 }
+                ],
+                "from": { "key_code": "d" },
+                "to": [{ "shell_command": "open ~/Downloads" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 },
+                  { "type": "variable_if", "name": "space_f_mode", "value": 1 }
+                ],
+                "from": { "key_code": "c" },
+                "to": [{ "shell_command": "open ~/Library/Mobile\\ Documents" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 },
+                  { "type": "variable_if", "name": "space_f_mode", "value": 1 }
+                ],
+                "from": { "key_code": "r" },
+                "to": [{ "shell_command": "open ~/Library" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "f" },
+                "to": [{ "set_variable": { "name": "space_f_mode", "value": 1 } }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "b" },
+                "to": [{ "shell_command": "open -a 'Safari'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "t" },
+                "to": [{ "shell_command": "open -a 'Toggl Track'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "g" },
+                "to": [{ "shell_command": "open -a 'Google Chrome'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "s" },
+                "to": [{ "shell_command": "open -a 'Slack'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "c" },
+                "to": [{ "shell_command": "open -a 'Visual Studio Code'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "x" },
+                "to": [{ "shell_command": "open -a 'Xcode'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "d" },
+                "to": [{ "shell_command": "open -a 'Simulator'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "r" },
+                "to": [{ "shell_command": "open -a 'React Native Debugger'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "n" },
+                "to": [{ "shell_command": "open -a 'Notes'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "m" },
+                "to": [{ "shell_command": "open -a 'Mail'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "p" },
+                "to": [{ "shell_command": "open -a 'Spotify'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "u" },
+                "to": [{ "shell_command": "open -a 'Postman'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "period" },
+                "to": [{ "shell_command": "open -a 'iTerm'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "l" },
+                "to": [{ "shell_command": "open -a 'Sourcetree'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "backslash" },
+                "to": [{ "shell_command": "open -a 'Sourcetree'" }]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 }
+                ],
+                "from": { "key_code": "8" },
+                "to": [{ "shell_command": "osascript -e 'tell application \"Spotify\" to playpause'" }]
+              }
+            ]
           }
         ]
       },
