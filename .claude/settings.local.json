@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(open:*)",
+      "Bash(do echo:*)",
+      "Bash(bash:*)",
+      "Bash(git:*)",
+      "Bash(DOTFILES=\"$HOME/.dotfiles\" bash:*)",
+      "Bash(gh pr list --state all --json number,title,headRefName)",
+      "Bash(gh pr:*)"
     ]
   }
 }

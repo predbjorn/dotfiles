@@ -10,16 +10,16 @@ Personal macOS dotfiles repository (`~/.dotfiles`) that automates development en
 2. Log in to Apple Store
 3. Grant Full Disk Access: System Settings > Privacy & Security > Full Disk Access > Terminal
 4. Generate SSH key and add to GitHub:
-   ```sh
+  ```sh
    cd ~/dotfiles
    chmod +x gitssh.sh
    ./gitssh.sh
-   ```
+  ```
    Then follow the [GitHub SSH guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account).
 5. Authenticate GitHub CLI:
-   ```sh
+  ```sh
    gh auth login   # Select SSH, then login in browser
-   ```
+  ```
 
 ### Full Install (primary Mac)
 
@@ -42,6 +42,7 @@ chmod +x install-light.sh
 Installs a minimal subset: core CLI tools, pyenv + Python, NVM + Node, pnpm, the window management stack (Yabai + skhd + Sketchybar), and lightweight GUI apps (iTerm2, Cursor, Flycut, Karabiner-Elements).
 
 Check install status anytime:
+
 ```sh
 ./install-light.sh --check
 ```
@@ -150,18 +151,20 @@ Runs only steps 1-4, 6-7 with `Brewfile.light` instead of `Brewfile`. Skips: rub
 
 Dotfiles are deployed via symlinks and copies:
 
-| Script | Source | Destination | Method |
-|--------|--------|-------------|--------|
-| `zsh.sh` | `.config/.zshrc` | `~/.zshrc` | symlink |
-| `zsh.sh` | `.config/.p10k.zsh` | `~/.p10k.zsh` | symlink |
-| `zsh.sh` | `.config/.gemrc` | `~/.gemrc` | symlink |
-| `sync.sh` | `.config/karabiner.json` | `~/.config/karabiner/karabiner.json` | symlink |
-| `sync.sh` | `.config/yabairc` | `~/.config/yabai/yabairc` | symlink |
-| `sync.sh` | `.config/skhdrc` | `~/.config/skhd/skhdrc` | copy |
-| `sync.sh` | `.config/sketchybar/` | `~/.config/sketchybar/` | copy (full dir) |
-| `sync.sh` | `.config/.finicky.js` | `~/.finicky.js` | copy |
-| `sync.sh` | `themes/catppuccin_mocha.yml` | `~/.warp/themes/` | copy |
-| `install.sh` | `.config/cloudflared/` | `~/.cloudflared/config.yml` | symlink |
+
+| Script       | Source                        | Destination                          | Method          |
+| ------------ | ----------------------------- | ------------------------------------ | --------------- |
+| `zsh.sh`     | `.config/.zshrc`              | `~/.zshrc`                           | symlink         |
+| `zsh.sh`     | `.config/.p10k.zsh`           | `~/.p10k.zsh`                        | symlink         |
+| `zsh.sh`     | `.config/.gemrc`              | `~/.gemrc`                           | symlink         |
+| `sync.sh`    | `.config/karabiner.json`      | `~/.config/karabiner/karabiner.json` | symlink         |
+| `sync.sh`    | `.config/yabairc`             | `~/.config/yabai/yabairc`            | symlink         |
+| `sync.sh`    | `.config/skhdrc`              | `~/.config/skhd/skhdrc`              | copy            |
+| `sync.sh`    | `.config/sketchybar/`         | `~/.config/sketchybar/`              | copy (full dir) |
+| `sync.sh`    | `.config/.finicky.js`         | `~/.finicky.js`                      | copy            |
+| `sync.sh`    | `themes/catppuccin_mocha.yml` | `~/.warp/themes/`                    | copy            |
+| `install.sh` | `.config/cloudflared/`        | `~/.cloudflared/config.yml`          | symlink         |
+
 
 Symlinked configs take effect immediately on edit. Copied configs (sketchybar, finicky, skhd, Warp theme) require re-running `sync.sh` or copying manually.
 
@@ -171,16 +174,17 @@ Symlinked configs take effect immediately on edit. Copied configs (sketchybar, f
 
 `.config/.zshrc` loads oh-my-zsh with plugins (`git`, `zsh-autosuggestions`, `zsh-nvm`, `zsh-syntax-highlighting`) and the Powerlevel10k theme. Modular config is split across `zsh/`:
 
-- **`aliases.zsh`** — Git shortcuts (`commit`, `gd`, `gitclearall`), directory navigation (`_hack`, `_dot`), React Native helpers (`rni`, `clean`, `is`), system utilities (`caff`, `tunnel`)
-- **`path.zsh`** — PATH setup for Homebrew, pyenv, rbenv, jenv, NVM, Android SDK, Google Cloud SDK, VS Code
-- **`functions.zsh`** — `mk` (mkdir+cd), `update` (full system update), `hacktime` (open all dev apps), `check` (find unused npm deps), `_done` (play random Star Wars sound)
-- **`.env.zsh`** — Secrets and API keys (gitignored)
+- `**aliases.zsh**` — Git shortcuts (`commit`, `gd`, `gitclearall`), directory navigation (`_hack`, `_dot`), React Native helpers (`rni`, `clean`, `is`), system utilities (`caff`, `tunnel`)
+- `**path.zsh**` — PATH setup for Homebrew, pyenv, rbenv, jenv, NVM, Android SDK, Google Cloud SDK, VS Code
+- `**functions.zsh**` — `mk` (mkdir+cd), `update` (full system update), `hacktime` (open all dev apps), `check` (find unused npm deps), `_done` (play random Star Wars sound)
+- `**.env.zsh**` — Secrets and API keys (gitignored)
 
 ### Window Management: Yabai + skhd + Sketchybar
 
 **Yabai** (`.config/yabairc`) — BSP tiling window manager. 40px top gap for Sketchybar, 12px window gaps. Excludes System Settings, Simulator, and other non-tileable apps from management. Pins specific apps to displays/spaces (Safari → display 2, Spotify → space 5).
 
 **skhd** (`.config/skhdrc`) — Hotkey daemon providing:
+
 - `alt + hjkl` — focus windows (vim-style)
 - `shift + alt + hjkl` — swap/move windows
 - `hyper + hjkl` — resize windows
@@ -195,24 +199,28 @@ Symlinked configs take effect immediately on edit. Copied configs (sketchybar, f
 ### Keyboard: Karabiner-Elements
 
 `.config/karabiner.json` has 5 complex modification rules:
+
 1. **Disable Cmd+Opt+H/M** — prevent accidental "Hide Others" / "Minimize All"
 2. **Fn-key passthrough** — F1-F12 as function keys in dev apps (iTerm, VS Code, etc.)
 3. **Caps Lock → Hyper** — remaps to Cmd+Ctrl+Opt+Shift (used extensively by skhd)
 4. **Right Cmd + hjkl → Arrow keys** — vim navigation (disabled by default)
 5. **SpaceLauncher shortcuts** — Hold space as a modifier key for app launching:
 
-| Key | Action | Key | Action |
-|-----|--------|-----|--------|
-| Space+B | Safari | Space+N | Notes |
-| Space+T | Toggl Track | Space+M | Mail |
-| Space+G | Chrome | Space+P | Spotify |
-| Space+S | Slack | Space+U | Postman |
-| Space+C | VS Code | Space+. | iTerm |
-| Space+X | Xcode | Space+L | Sourcetree |
-| Space+D | Simulator | Space+\ | Sourcetree |
+
+| Key     | Action      | Key     | Action             |
+| ------- | ----------- | ------- | ------------------ |
+| Space+B | Safari      | Space+N | Notes              |
+| Space+T | Toggl Track | Space+M | Mail               |
+| Space+G | Chrome      | Space+P | Spotify            |
+| Space+S | Slack       | Space+U | Postman            |
+| Space+C | VS Code     | Space+. | iTerm              |
+| Space+X | Xcode       | Space+L | Sourcetree         |
+| Space+D | Simulator   | Space+\ | Sourcetree         |
 | Space+R | RN Debugger | Space+8 | Spotify Play/Pause |
 
+
 Two-key folder shortcuts (Space+F, then):
+
 - **D** → `~/Downloads`, **C** → `~/Library/Mobile Documents` (iCloud), **R** → `~/Library`
 
 Tapping space alone (< 200ms) types a normal space.
@@ -259,15 +267,18 @@ Tapping space alone (< 200ms) types a normal space.
 
 ## Brewfile vs Brewfile.light
 
-| | Brewfile (full) | Brewfile.light |
-|---|---|---|
-| **CLI tools** | git, gh, wget, jq, fd, trash, mas, coreutils, cloudflared, nmap, imagemagick, mongosh, docker-compose, aria2 | git, gh, wget, jq, fd, trash, coreutils, lazygit, delta, tmux, eza |
-| **Languages** | pyenv, rbenv, openjdk, jenv, maven, cocoapods, fastlane | pyenv, pnpm |
-| **WM stack** | yabai, skhd, sketchybar, borders, switchaudio-osx | same |
-| **GUI apps** | VS Code, Chrome, Firefox, Slack, iTerm2, Warp, Spotify, Android Studio, Docker, Postman, Sourcetree, Karabiner, Steam, Discord, ~20 more | iTerm2, Cursor, Flycut, Karabiner-Elements |
-| **App Store** | Keynote, Pixelmator, Numbers, Pages, Kindle, Flow, Dropover | — |
+
+|               | Brewfile (full)                                                                                                                          | Brewfile.light                                                     |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **CLI tools** | git, gh, wget, jq, fd, trash, mas, coreutils, cloudflared, nmap, imagemagick, mongosh, docker-compose, aria2                             | git, gh, wget, jq, fd, trash, coreutils, lazygit, delta, tmux, eza |
+| **Languages** | pyenv, rbenv, openjdk, jenv, maven, cocoapods, fastlane                                                                                  | pyenv, pnpm                                                        |
+| **WM stack**  | yabai, skhd, sketchybar, borders, switchaudio-osx                                                                                        | same                                                               |
+| **GUI apps**  | VS Code, Chrome, Firefox, Slack, iTerm2, Warp, Spotify, Android Studio, Docker, Postman, Sourcetree, Karabiner, Steam, Discord, ~20 more | iTerm2, Cursor, Flycut, Karabiner-Elements                         |
+| **App Store** | Keynote, Pixelmator, Numbers, Pages, Kindle, Flow, Dropover                                                                              | —                                                                  |
+
 
 ## Backup
 
 1. Run `githubProjects/copy_env.py` to back up `.env` files
 2. Commit and push dotfiles changes
+
