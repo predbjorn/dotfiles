@@ -108,6 +108,41 @@ run_check() {
     fi
 
     echo ""
+    info "Window management:"
+    check_tool "yabai" "yabai" || ((missing++))
+    check_tool "skhd" "skhd" || ((missing++))
+    if brew services list 2>/dev/null | grep -q "sketchybar.*started"; then
+        success "sketchybar: running"
+    elif cmd_exists sketchybar; then
+        warn "sketchybar: installed but not running"
+    else
+        fail "sketchybar: not found"; ((missing++))
+    fi
+
+    echo ""
+    info "Configs:"
+    if [ -d "$HOME/.config/sketchybar" ]; then
+        success "sketchybar config: deployed"
+    else
+        fail "sketchybar config: not found"; ((missing++))
+    fi
+    if [ -f "$HOME/.config/skhd/skhdrc" ]; then
+        success "skhd config: deployed"
+    else
+        fail "skhd config: not found"; ((missing++))
+    fi
+    if [ -L "$HOME/.config/yabai/yabairc" ]; then
+        success "yabai config: symlinked → $(readlink "$HOME/.config/yabai/yabairc")"
+    else
+        fail "yabai config: not symlinked"; ((missing++))
+    fi
+    if [ -L "$HOME/.config/karabiner/karabiner.json" ]; then
+        success "karabiner config: symlinked → $(readlink "$HOME/.config/karabiner/karabiner.json")"
+    else
+        fail "karabiner config: not symlinked"; ((missing++))
+    fi
+
+    echo ""
     info "Cask apps:"
     for app in "iTerm" "Cursor" "Flycut"; do
         if [ -d "/Applications/${app}.app" ]; then
@@ -171,7 +206,13 @@ chmod a+x "$SCRIPT_DIR/setupfiles/python.sh"
 source "$SCRIPT_DIR/setupfiles/python.sh"
 success "Python setup complete"
 
-# 6. Final verification
+# 6. Deploy configs (skhd, yabai, sketchybar, karabiner, etc.)
+info "Syncing configs..."
+chmod a+x "$SCRIPT_DIR/setupfiles/sync.sh"
+source "$SCRIPT_DIR/setupfiles/sync.sh"
+success "Configs synced"
+
+# 7. Final verification
 echo ""
 info "Running verification..."
 run_check

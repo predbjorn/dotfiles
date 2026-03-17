@@ -1,42 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-update() {
-  source "$CONFIG_DIR/colors.sh"
-  COLOR=$BACKGROUND_2
-  if [ "$SELECTED" = "true" ]; then
-    COLOR=$GREY
-  fi
-  sketchybar --set $NAME icon.highlight=$SELECTED \
-                         label.highlight=$SELECTED \
-                         background.border_color=$COLOR
-}
+source "$HOME/.config/sketchybar/variables.sh" # Loads all defined colors
 
-set_space_label() {
-  sketchybar --set $NAME icon="$@"
-}
+SPACE_ICONS=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
 
-mouse_clicked() {
-  if [ "$BUTTON" = "right" ]; then
-    yabai -m space --destroy $SID
-  else
-    if [ "$MODIFIER" = "shift" ]; then
-      SPACE_LABEL="$(osascript -e "return (text returned of (display dialog \"Give a name to space $NAME:\" default answer \"\" with icon note buttons {\"Cancel\", \"Continue\"} default button \"Continue\"))")"
-      if [ $? -eq 0 ]; then
-        if [ "$SPACE_LABEL" = "" ]; then
-          set_space_label "${NAME:6}"
-        else
-          set_space_label "${NAME:6} ($SPACE_LABEL)"
-        fi
-      fi
-    else
-      yabai -m space --focus $SID 2>/dev/null
-    fi
-  fi
-}
+SPACE_CLICK_SCRIPT="yabai -m space --focus $SID 2>/dev/null"
 
-case "$SENDER" in
-  "mouse.clicked") mouse_clicked
-  ;;
-  *) update
-  ;;
-esac
+if [ "$SELECTED" = "true" ]; then
+	sketchybar --animate tanh 5 --set "$NAME" \
+		icon.color="$RED" \
+		icon="${SPACE_ICONS[$SID - 1]}" \
+		click_script="$SPACE_CLICK_SCRIPT"
+else
+	sketchybar --animate tanh 5 --set "$NAME" \
+		icon.color="$COMMENT" \
+		icon="${SPACE_ICONS[$SID - 1]}" \
+		click_script="$SPACE_CLICK_SCRIPT"
+fi

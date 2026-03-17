@@ -142,9 +142,9 @@ alt - tab : yabai -m space --focus recent
 # stop/start/restart yabai
 ctrl + alt - q : yabai --stop-service
 ctrl + alt - s : yabai --start-servce
-ctrl + alt - r : yabai --restart-service; brew services restart sketchybar
+ctrl + alt - r : yabai --restart-service
 
-hyper - q : brew services stop sketchybar
+hyper - q : yabai --stop-service
 hyper - r : cd ~/.dotfiles; sh setupfiles/sync.sh
 hyper - p : cd ~/.dotfiles; /Users/predbjorn/.pyenv/versions/3.12.9/bin/python script/wallpaper.py
 hyper - 1 : cd ~/.dotfiles; sh script/windowarr.sh

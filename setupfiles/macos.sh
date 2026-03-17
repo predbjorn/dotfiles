@@ -138,8 +138,8 @@ defaults write com.apple.finder FXPreferredViewStyle -string "clmv"
 # Dock, Dashboard, and hot corners                                            #
 ###############################################################################
 
-# Hide menu bar
-defaults write NSGlobalDomain _HIHideMenuBar -bool true
+# Show menu bar (requires logout to take effect)
+defaults write NSGlobalDomain _HIHideMenuBar -bool false
 
 # Enable highlight hover effect for the grid view of a stack (Dock)
 # defaults write com.apple.dock mouse-over-hilite-stack -bool true

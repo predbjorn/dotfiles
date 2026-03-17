@@ -141,14 +141,12 @@ cask "focusrite-control-2"
 # Sketchbar and Yabai: 
 tap "felixkratz/formulae"
 tap "koekeishiya/formulae"
-cask "sf-symbols"
-brew "switchaudio-osx"
 brew "felixkratz/formulae/borders"
 brew "felixkratz/formulae/sketchybar"
 brew "koekeishiya/formulae/yabai"
 brew "koekeishiya/formulae/skhd"
 cask "font-hack-nerd-font"
-## "jq", "bq" is a dependency for "sketchybar" and "yabai"
+cask "font-jetbrains-mono-nerd-font"
 
 
 

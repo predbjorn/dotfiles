@@ -11,7 +11,11 @@
       "Bash(git:*)",
       "Bash(DOTFILES=\"$HOME/.dotfiles\" bash:*)",
       "Bash(gh pr list --state all --json number,title,headRefName)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(python3:*)",
+      "Bash(yabai:*)",
+      "WebFetch(domain:medium.com)",
+      "Bash(xxd:*)"
     ]
   }
 }

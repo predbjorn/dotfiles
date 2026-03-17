@@ -7,8 +7,8 @@ DOTFILES=${DOTFILES:-"$HOME/.DOTFILES"}
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
 
 #THEMES
-mkdir -p $HOME/.warp/themes/
-cp $DOTFILES/themes/catppuccin_mocha.yml $HOME/.warp/themes/
+# mkdir -p $HOME/.warp/themes/
+# cp $DOTFILES/themes/catppuccin_mocha.yml $HOME/.warp/themes/
 
 # finicky
 cp $DOTFILES/.config/.finicky.js $HOME/.finicky.js 
@@ -42,14 +42,13 @@ ln -s $DOTFILES/.config/yabairc $XDG_CONFIG_HOME/yabai/yabairc
 chmod +x $XDG_CONFIG_HOME/yabai/yabairc
 
 
-echo "sketchybar Installing Dependencies"
-curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v1.0.23/sketchybar-app-font.ttf -o $HOME/Library/Fonts/sketchybar-app-font.ttf
-echo "sketchybar Cloning Config"
-rm -rf $HOME/.config/sketchybar
-cp -R $DOTFILES/.config/sketchybar $HOME/.config/sketchybar
-
 chmod +x $DOTFILES/bin/focus_window_wrapper.sh
 chmod +x $DOTFILES/script/windowarr.sh
 
-brew services restart sketchybar
 yabai --start-service
+
+# sketchybar
+rm -rf $XDG_CONFIG_HOME/sketchybar
+cp -r $DOTFILES/.config/sketchybar $XDG_CONFIG_HOME/sketchybar
+chmod -R +x $XDG_CONFIG_HOME/sketchybar
+brew services restart sketchybar

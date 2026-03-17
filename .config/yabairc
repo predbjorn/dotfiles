@@ -2,17 +2,16 @@
 
 
 yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
-yabai -m signal --add event=window_focused action="sketchybar --trigger window_focus"
 sudo yabai --load-sa
 
 # Tiling options
 # Layouts
 yabai -m config layout                       bsp
 # Padding and gaps
-yabai -m config top_padding                  40
-yabai -m config bottom_padding               12
-yabai -m config left_padding                 12
-yabai -m config right_padding                12
+yabai -m config top_padding                  2
+yabai -m config bottom_padding               8
+yabai -m config left_padding                 8
+yabai -m config right_padding                8
 # NOTE: for OBS floating head
 yabai -m config window_gap                   12
 # Split ratios
@@ -44,7 +43,7 @@ yabai -m config window_shadow                on
 yabai -m config window_zoom_persist          on
 yabai -m config window_insertion_point       focused
 
-# yabai -m config external_bar main:20:0
+yabai -m config external_bar main:32:0
 
 # apps to not manage (ignore)
 # TO GET TITLE: 
