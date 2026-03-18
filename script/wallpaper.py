@@ -62,11 +62,10 @@ def generate_landscape():
     return image_path
 
 def set_wallpaper(image_path):
-    # Use AppleScript to set the wallpaper on macOS
-    script = f'''
-    osascript -e 'tell application "System Events" to set picture of every desktop to "{image_path}"'
-    '''
-    subprocess.run(script, shell=True, check=True)
+    subprocess.run([
+        "osascript", "-e",
+        f'tell application "Finder" to set desktop picture to POSIX file "{image_path}"'
+    ], check=True)
 
 # Call the functions and set the wallpaper
 if __name__ == "__main__":

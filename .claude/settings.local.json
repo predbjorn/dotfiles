@@ -15,7 +15,9 @@
       "Bash(python3:*)",
       "Bash(yabai:*)",
       "WebFetch(domain:medium.com)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

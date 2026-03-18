@@ -43,6 +43,8 @@ export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init --path)"
 
+export CLOUDSDK_PYTHON=/Users/predbjorn/.pyenv/versions/3.12.9/bin/python3
+
 # CODE vscode
 # Add Visual Studio Code (code)
 export PATH="/Applications/Visual Studio Code.app/Contents/Resources/app/bin:$PATH"
@@ -70,12 +72,15 @@ if [ -d "$HOME/Library/Android/sdk" ]; then
 fi
 
 
-if [ -f "$(brew --prefix 2>/dev/null)/share/google-cloud-sdk/path.zsh.inc" ]; then
-  export CLOUDSDK_PYTHON=$(which python3.11)
-  source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
-  source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
-fi
+# if [ -f "$(brew --prefix 2>/dev/null)/share/google-cloud-sdk/path.zsh.inc" ]; then
+#   export CLOUDSDK_PYTHON=$(which python3.11)
+#   source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
+#   source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
+# fi
 
+
+# POSTGRES
+export PATH="/Applications/Postgres.app/Contents/Versions/latest/bin:$PATH"
 # TREN_POSTGRESQL_STRING loaded from .env.zsh
 # export DEBUG=app:*
 
