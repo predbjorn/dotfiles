@@ -7,7 +7,12 @@ focus_window () {
 		window_id="$(yabai -m query --windows | jq -r "map(select(.app==\"$app\"))[0].id")"
 		if [ "$window_id" = "null" ]; then
 			echo "No window found for app $app"
-			open -a "$app"
+			# iTerm2's bundle name is "iTerm2" but the .app is "iTerm.app"
+			if [ "$app" = "iTerm2" ]; then
+				open -a "iTerm"
+			else
+				open -a "$app"
+			fi
 		fi
 		display_id="$(yabai -m query --windows | jq -r "map(select(.id==$window_id))[0].display")" 
 		if [ "$force_move" = "true" ]; then

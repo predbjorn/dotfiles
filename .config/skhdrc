@@ -168,8 +168,8 @@ ctrl + alt + cmd - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari false
 ctrl + alt + cmd + shift - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari true
 ctrl + shift - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari false
 ctrl + shift + cmd - b :  ~/.dotfiles/bin/focus_window_wrapper.sh Safari true
-ctrl + shift - 0x2F :  ~/.dotfiles/bin/focus_window_wrapper.sh Warp false
-ctrl + shift + cmd - 0x2F :  ~/.dotfiles/bin/focus_window_wrapper.sh Warp true
+ctrl + shift - 0x2F :  ~/.dotfiles/bin/toggle_app.sh iTerm2
+ctrl + shift + cmd - 0x2F :  ~/.dotfiles/bin/focus_window_wrapper.sh iTerm2 true
 ctrl + shift - s :  ~/.dotfiles/bin/focus_window_wrapper.sh Slack false
 ctrl + shift + cmd - s :  ~/.dotfiles/bin/focus_window_wrapper.sh Slack true
 ctrl + shift - c :  ~/.dotfiles/bin/focus_window_wrapper.sh Cursor false
