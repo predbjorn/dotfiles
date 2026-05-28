@@ -36,6 +36,12 @@ source setupfiles/sync.sh;
 mkdir -p $HOME/.cloudflared
 ln -sf $HOME/.dotfiles/.config/cloudflared/config.yml $HOME/.cloudflared/config.yml
 
+# Setup Claude Code config (settings + status line)
+mkdir -p $HOME/.claude
+ln -sf $HOME/.dotfiles/.claude/settings.json $HOME/.claude/settings.json
+ln -sf $HOME/.dotfiles/.claude/settings.local.json $HOME/.claude/settings.local.json
+chmod +x $HOME/.dotfiles/.claude/statusline.sh
+
 chmod a+x setupfiles/init_script.sh;
 source setupfiles/init_script.sh;
 
