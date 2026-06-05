@@ -12,6 +12,7 @@ final class HTTPServer {
     private let port: UInt16
     private let workQueue: DispatchQueue
     private let maxRequestBytes = 256 * 1024
+    private static let requestTimeoutSeconds: TimeInterval = 10
     private var listener: NWListener?
 
     init(router: Router, port: UInt16, workQueue: DispatchQueue) {
@@ -29,34 +30,40 @@ final class HTTPServer {
         let listener = try NWListener(using: params)
         listener.newConnectionHandler = { [weak self] conn in
             conn.start(queue: .global())
-            self?.receiveLoop(conn, accumulated: Data())
+            // Drop a connection that fails to deliver a full request in time (slowloris/idle guard).
+            let timeout = DispatchWorkItem { conn.cancel() }
+            DispatchQueue.global().asyncAfter(deadline: .now() + Self.requestTimeoutSeconds, execute: timeout)
+            self?.receiveLoop(conn, accumulated: Data(), timeout: timeout)
         }
         listener.start(queue: .global())
         self.listener = listener
     }
 
     // [FIX 9] keep reading until a full request is buffered (or limits are hit).
-    private func receiveLoop(_ conn: NWConnection, accumulated: Data) {
+    private func receiveLoop(_ conn: NWConnection, accumulated: Data, timeout: DispatchWorkItem) {
         conn.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
             [weak self] data, _, isComplete, error in
-            guard let self else { conn.cancel(); return }
+            guard let self else { timeout.cancel(); conn.cancel(); return }
             var buffer = accumulated
             if let data { buffer.append(data) }
 
             if buffer.count > self.maxRequestBytes {
+                timeout.cancel()
                 self.send(conn, .text(413, "request too large")); return
             }
             switch HTTPServer.parse(buffer) {
             case .complete(let req):
+                timeout.cancel()
                 self.workQueue.async {
                     let resp = self.router.handle(req)
                     self.send(conn, resp)
                 }
             case .invalid:
+                timeout.cancel()
                 self.send(conn, .text(400, "bad request"))
             case .incomplete:
-                if isComplete || error != nil { conn.cancel() }
-                else { self.receiveLoop(conn, accumulated: buffer) }
+                if isComplete || error != nil { timeout.cancel(); conn.cancel() }
+                else { self.receiveLoop(conn, accumulated: buffer, timeout: timeout) }
             }
         }
     }
@@ -84,8 +91,13 @@ final class HTTPServer {
 
         let bodyStart = range.upperBound
         let available = data.subdata(in: bodyStart..<data.endIndex)
-        let expected = headers.first { $0.key.lowercased() == "content-length" }
-            .flatMap { Int($0.value) } ?? 0
+        let expected: Int
+        if let cl = headers.first(where: { $0.key.lowercased() == "content-length" })?.value {
+            guard let n = Int(cl), n >= 0 else { return .invalid }
+            expected = n
+        } else {
+            expected = 0
+        }
         if available.count < expected { return .incomplete }
         let body = expected > 0 ? available.prefix(expected) : Data()
 

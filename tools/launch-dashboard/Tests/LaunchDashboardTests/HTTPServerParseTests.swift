@@ -37,4 +37,9 @@ final class HTTPServerParseTests: XCTestCase {
         guard case .complete(let req) = HTTPServer.parse(raw) else { return XCTFail("expected complete") }
         XCTAssertEqual(req.headers["Authorization"], "Bearer tok")
     }
+
+    func testRejectsNegativeContentLength() {
+        let raw = data("POST /x HTTP/1.1\r\nContent-Length: -5\r\n\r\n")
+        if case .invalid = HTTPServer.parse(raw) {} else { XCTFail("expected invalid") }
+    }
 }
