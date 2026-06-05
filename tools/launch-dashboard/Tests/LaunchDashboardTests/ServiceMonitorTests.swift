@@ -33,41 +33,6 @@ final class ServiceMonitorTests: XCTestCase {
         XCTAssertEqual(delta.pid, 5678)
     }
 
-    func testWatchedLabelsFilterRestrictsSnapshot() throws {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ld-mon-\(UUID())")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try writePlist(at: dir, label: "com.example.alpha")
-        try writePlist(at: dir, label: "com.example.beta")
-        try writePlist(at: dir, label: "com.example.delta")
-
-        let fake = FakeRunner()
-        // Only alpha is watched; beta and delta must be excluded from the snapshot.
-        let monitor = ServiceMonitor(
-            scanner: PlistScanner(directory: dir),
-            client: LaunchctlClient(runner: fake, uid: 501),
-            watchedLabels: ["com.example.alpha"]
-        )
-        let snap = try monitor.snapshot()
-
-        XCTAssertEqual(snap.map(\.label), ["com.example.alpha"])
-    }
-
-    func testNilWatchedLabelsWatchesAll() throws {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ld-mon-\(UUID())")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try writePlist(at: dir, label: "com.example.alpha")
-        try writePlist(at: dir, label: "com.example.beta")
-
-        let monitor = ServiceMonitor(
-            scanner: PlistScanner(directory: dir),
-            client: LaunchctlClient(runner: FakeRunner(), uid: 501),
-            watchedLabels: nil
-        )
-        XCTAssertEqual(try monitor.snapshot().count, 2)
-    }
-
     private func writePlist(at dir: URL, label: String) throws {
         let body: [String: Any] = ["Label": label, "ProgramArguments": ["/bin/true"]]
         let data = try PropertyListSerialization.data(fromPropertyList: body,

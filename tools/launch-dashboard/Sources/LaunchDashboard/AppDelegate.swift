@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let crashTracker = CrashTracker()
     private let notifier = CrashNotifier()
     private let config: Config
+    private let priorityLabels: Set<String>   // immutable after init; safe to read off-queue
     private var notificationsAuthorized = false
     // one serial queue serializes ALL launchctl + shared-state access.
     private let workQueue = DispatchQueue(label: "com.prebenhafnor.launch-dashboard.work")
@@ -26,13 +27,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.config = loaded ?? Config(bearerToken: Config.makeToken(), httpPort: 8765,
                                        pollIntervalSeconds: 5, autoRestartEnabled: false,
-                                       watchedLabels: nil)
+                                       priorityLabels: nil)
+        self.priorityLabels = Set(self.config.priorityLabels ?? [])
         let client = LaunchctlClient.makeReal()
         self.client = client
         self.monitor = ServiceMonitor(
             scanner: PlistScanner(directory: PlistScanner.userLaunchAgents),
-            client: client,
-            watchedLabels: self.config.watchedLabels
+            client: client
         )
         self.restarter = AutoRestarter(
             now: { Date().timeIntervalSince1970 },
@@ -113,12 +114,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // runs on workQueue: snapshot, crash-tracking, and auto-restart are serialized.
     private func pollOnQueue() {
         do {
-            let snap = try monitor.snapshot()
-            let events = crashTracker.update(snap)
+            let snap = try monitor.snapshot()                    // all services (UI shows them all)
+            // Badge + crash notifications are scoped to the priority set (the services you care
+            // about). If no priority configured, everything is treated as priority.
+            let prioritySnap = priorityLabels.isEmpty
+                ? snap : snap.filter { priorityLabels.contains($0.label) }
+            let events = crashTracker.update(prioritySnap)
+            // Auto-restart stays a safety net across ALL services (it only acts on real crashes).
             if config.autoRestartEnabled { restarter.observe(snap) }
             let crashedSet = crashTracker.crashed
+            let priority = priorityLabels
             DispatchQueue.main.async {
                 self.menuBar.vm.services = snap
+                self.menuBar.vm.priority = priority
                 self.menuBar.vm.crashed = crashedSet
                 self.menuBar.updateBadge(failedCount: crashedSet.count)
             }

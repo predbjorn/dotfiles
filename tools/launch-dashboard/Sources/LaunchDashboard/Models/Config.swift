@@ -6,10 +6,10 @@ struct Config: Codable {
     var httpPort: UInt16
     var pollIntervalSeconds: Int
     var autoRestartEnabled: Bool
-    /// Labels to monitor. `nil` or empty = watch ALL LaunchAgents (default).
-    /// Otherwise only these labels are monitored/badged/notified/auto-restarted.
-    /// Optional so existing config.json files (without the key) still decode.
-    var watchedLabels: [String]?
+    /// Priority labels: shown at the top of the popover and the ONLY ones that drive the
+    /// menu-bar badge and crash notifications. The rest appear under "Show more". `nil`/empty
+    /// = treat everything as priority (no split). Optional so existing config.json still decodes.
+    var priorityLabels: [String]?
 
     static func loadOrCreate(at url: URL) throws -> Config {
         let fm = FileManager.default
@@ -24,7 +24,7 @@ struct Config: Codable {
             httpPort: 8765,
             pollIntervalSeconds: 5,
             autoRestartEnabled: true,
-            watchedLabels: nil
+            priorityLabels: nil
         )
         let data = try JSONEncoder().encode(fresh)
         try data.write(to: url, options: .atomic)
