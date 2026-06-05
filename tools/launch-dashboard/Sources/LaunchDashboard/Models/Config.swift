@@ -30,7 +30,9 @@ struct Config: Codable {
     /// Internal (not private) so AppDelegate can mint an ephemeral token if config is unreadable.
     static func makeToken() -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            fatalError("CSPRNG unavailable; refusing to mint a predictable token")
+        }
         return bytes.map { String(format: "%02x", $0) }.joined()
     }
 
