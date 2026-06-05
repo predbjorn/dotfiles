@@ -25,6 +25,24 @@ enum Routes {
             } catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
         })
 
+        router.add("GET", "/summary", guarded { _, _ in
+            do {
+                let snap = try monitor.snapshot()
+                let prioritySet = Set(priorityLabels)
+                let priority = prioritySet.isEmpty
+                    ? snap : snap.filter { prioritySet.contains($0.label) }
+                let rows: [[String: Any]] = priority.map { s in
+                    ["label": s.label, "state": s.state.rawValue, "up": s.state == .running]
+                }
+                let payload: [String: Any] = [
+                    "priorityDown": priority.filter { $0.state != .running }.count,
+                    "priorityTotal": priority.count,
+                    "priority": rows,
+                ]
+                return .json(200, payload)
+            } catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
+        })
+
         // [FIX 8] Ensure the job is in the domain before kickstart; bootstrap from plist if not.
         router.add("POST", "/services/:label/start", guarded { _, params in
             guard let label = params["label"] else { return .text(400, "missing label") }
