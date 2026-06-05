@@ -6,6 +6,10 @@ struct Config: Codable {
     var httpPort: UInt16
     var pollIntervalSeconds: Int
     var autoRestartEnabled: Bool
+    /// Labels to monitor. `nil` or empty = watch ALL LaunchAgents (default).
+    /// Otherwise only these labels are monitored/badged/notified/auto-restarted.
+    /// Optional so existing config.json files (without the key) still decode.
+    var watchedLabels: [String]?
 
     static func loadOrCreate(at url: URL) throws -> Config {
         let fm = FileManager.default
@@ -19,7 +23,8 @@ struct Config: Codable {
             bearerToken: Self.makeToken(),
             httpPort: 8765,
             pollIntervalSeconds: 5,
-            autoRestartEnabled: true
+            autoRestartEnabled: true,
+            watchedLabels: nil
         )
         let data = try JSONEncoder().encode(fresh)
         try data.write(to: url, options: .atomic)

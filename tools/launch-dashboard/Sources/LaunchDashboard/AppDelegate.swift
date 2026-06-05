@@ -25,12 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("LaunchDashboard: config unreadable; using an ephemeral in-memory token for this run")
         }
         self.config = loaded ?? Config(bearerToken: Config.makeToken(), httpPort: 8765,
-                                       pollIntervalSeconds: 5, autoRestartEnabled: false)
+                                       pollIntervalSeconds: 5, autoRestartEnabled: false,
+                                       watchedLabels: nil)
         let client = LaunchctlClient.makeReal()
         self.client = client
         self.monitor = ServiceMonitor(
             scanner: PlistScanner(directory: PlistScanner.userLaunchAgents),
-            client: client
+            client: client,
+            watchedLabels: self.config.watchedLabels
         )
         self.restarter = AutoRestarter(
             now: { Date().timeIntervalSince1970 },
