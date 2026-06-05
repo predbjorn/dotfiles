@@ -193,6 +193,37 @@ final class RoutesTests: XCTestCase {
         XCTAssertEqual(obj?["priorityTotal"] as? Int, 2)
     }
 
+    func testSummaryEmptyPriorityTreatsAllAsPriority() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ld-summary-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        for label in ["com.example.alpha", "com.example.beta"] {
+            let body: [String: Any] = ["Label": label, "ProgramArguments": ["/bin/true"]]
+            let data = try PropertyListSerialization.data(fromPropertyList: body, format: .xml, options: 0)
+            try data.write(to: dir.appendingPathComponent("\(label).plist"))
+        }
+
+        let fake = FakeRunner()
+        // alpha is running (PID present); beta is absent from `launchctl list` → notLoaded.
+        fake.responses["/bin/launchctl list"] = ProcessResult(
+            stdout: "PID\tStatus\tLabel\n42\t0\tcom.example.alpha\n", stderr: "", exitCode: 0)
+        let monitor = ServiceMonitor(
+            scanner: PlistScanner(directory: dir),
+            client: LaunchctlClient(runner: fake, uid: 501)
+        )
+        let router = Router()
+        Routes.register(router: router, monitor: monitor, client: monitor.client,
+                        token: "tok", priorityLabels: [])
+
+        let req = HTTPRequest(method: "GET", path: "/summary",
+                              headers: ["Authorization": "Bearer tok"], body: Data())
+        let resp = router.handle(req)
+        XCTAssertEqual(resp.status, 200)
+        let obj = try JSONSerialization.jsonObject(with: resp.body) as? [String: Any]
+        XCTAssertEqual(obj?["priorityTotal"] as? Int, 2)
+        XCTAssertEqual(obj?["priorityDown"] as? Int, 1)
+    }
+
     func testSummaryUnauthorizedReturns401() {
         let dir = FileManager.default.temporaryDirectory
         let monitor = ServiceMonitor(
