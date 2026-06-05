@@ -45,6 +45,7 @@ cask "cursor"
 cask "flycut"
 cask "karabiner-elements"
 cask "alt-tab"
+cask "finicky"
 
 # App Store
 brew "mas"

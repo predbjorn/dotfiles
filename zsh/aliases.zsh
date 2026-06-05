@@ -65,11 +65,15 @@ alias xc='open /Applications/Xcode-15.4.0.app/Contents/MacOS/Xcode'
 
 alias claudtree='~/.dotfiles/bin/claude-worktree.sh'
 
+# Launch a second Claude desktop instance with an isolated profile dir so a
+# different account (e.g. Personal) can run alongside the default (NorsCare).
+alias claude-personal='open -n -a Claude --args --user-data-dir="$HOME/Library/Application Support/Claude-Personal"'
+
 ## Correction: 
 
 # alias npx='nocorrect npx'
 
-alias tunnel='cloudflared tunnel run --url http://localhost:8000 local8000'
+alias tunnel='cloudflared tunnel run local8000'
 
 # alias hrn_dsym="~/Hacking/ReactNative/helseoversikt_rn/ios/Pods/FirebaseCrashlytics/upload-symbols -gsp /Users/predbjorn/Hacking/ReactNative/helseoversikt_rn/ios/AppConfig/Firebase/GoogleService-Info-prod.plist -p ios " 
 # add dsym file after this :)  

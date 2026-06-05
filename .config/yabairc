@@ -58,7 +58,7 @@ yabai -m rule --add app="^Simulator$" manage=off
 yabai -m rule --add app="^qemu-system-aarch64$" manage=off
 yabai -m rule --add app="^android-emulator$" manage=off
 
-borders active_color=0xfff38ba8 inactive_color=0xff414550 width=5.0 &
+borders active_color=0xffff8f40 inactive_color=0xff414550 width=5.0 &
 
 echo "yabai configuration loaded.."
 
@@ -93,11 +93,11 @@ echo "yabai configuration loaded.."
 # setup_space 6 other
 
 # move some apps automatically to specific spaces
-yabai -m rule --add app="^Safari$" display=^2
-yabai -m rule --add app="^Firefox$" space=^3
-# yabai -m rule --add app="^Telegram$" space=4
-yabai -m rule --add app="^Google Chrome$" space=9
-yabai -m rule --add app="^Spotify$" space=5
+# yabai -m rule --add app="^Safari$" display=^2
+# yabai -m rule --add app="^Firefox$" space=^3
+# # yabai -m rule --add app="^Telegram$" space=4
+# yabai -m rule --add app="^Google Chrome$" space=9
+# yabai -m rule --add app="^Spotify$" space=5
 
 # view the last lines of the error log 
 # tail -f /tmp/yabai_$USER.err.log

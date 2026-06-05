@@ -111,3 +111,6 @@ export LANG=en_US.UTF-8
 ## Commands for postgres
 # sudo mkdir -p /etc/paths.d &&
 # echo /Applications/Postgres.app/Contents/Versions/latest/bin | sudo tee /etc/paths.d/postgresapp
+
+
+# FIGMA_ACCESS_TOKEN is defined in zsh/.env.zsh (gitignored — secrets never live here)

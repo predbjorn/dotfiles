@@ -57,7 +57,7 @@ def generate_landscape():
         "CRITICAL: The artwork must extend to every pixel of the image edge. There must be absolutely NO white margins, NO borders, NO frame, NO canvas effect, NO surrounding whitespace. "
         "The scene must bleed off all four edges as if the viewer is looking through a window into the landscape. "
         "Do not render this as a painting on a surface. Render it as a full-bleed wallpaper image in 16:9 aspect ratio. "
-        "Color palette should be minimalistic and black colors. no big contrast."
+        "Use a rich, vibrant color palette with many varied hues blended throughout the scene — deep greens, blues, purples, warm oranges, magentas, teals, and golden highlights. Embrace bold, saturated colors with atmospheric depth while keeping the mystical mood. "
         "No text, no labels, no design elements."
     )
 

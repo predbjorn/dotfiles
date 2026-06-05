@@ -17,7 +17,13 @@
       "WebFetch(domain:medium.com)",
       "Bash(xxd:*)",
       "Bash(python:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(/Users/predbjorn/.dotfiles/bin/toggle_app.sh Safari 2>&1)",
+      "Bash(brew services:*)",
+      "Read(//Users/predbjorn/.config/karabiner/**)",
+      "Bash(plutil -p ~/.config/karabiner/karabiner.json)",
+      "Read(//Users/predbjorn/.dotfiles/**)"
     ]
   }
 }
