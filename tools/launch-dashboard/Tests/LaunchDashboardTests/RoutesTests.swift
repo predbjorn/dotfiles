@@ -19,7 +19,7 @@ final class RoutesTests: XCTestCase {
         )
         let router = Router()
         Routes.register(router: router, monitor: monitor,
-                        client: monitor.client, token: "tok")
+                        client: monitor.client, token: "tok", priorityLabels: [])
 
         let req = HTTPRequest(method: "GET", path: "/services",
                               headers: ["Authorization": "Bearer tok"], body: Data())
@@ -40,7 +40,7 @@ final class RoutesTests: XCTestCase {
         )
         let router = Router()
         Routes.register(router: router, monitor: monitor,
-                        client: monitor.client, token: "tok")
+                        client: monitor.client, token: "tok", priorityLabels: [])
 
         let req = HTTPRequest(method: "POST",
                               path: "/services/com.example.foo/restart",
@@ -66,7 +66,7 @@ final class RoutesTests: XCTestCase {
             client: LaunchctlClient(runner: fake, uid: 501)
         )
         let router = Router()
-        Routes.register(router: router, monitor: monitor, client: monitor.client, token: "tok")
+        Routes.register(router: router, monitor: monitor, client: monitor.client, token: "tok", priorityLabels: [])
 
         let req = HTTPRequest(method: "POST", path: "/services/com.example.foo/start",
                               headers: ["Authorization": "Bearer tok"], body: Data())
@@ -94,7 +94,7 @@ final class RoutesTests: XCTestCase {
             client: LaunchctlClient(runner: FakeRunner(), uid: 501)
         )
         let router = Router()
-        Routes.register(router: router, monitor: monitor, client: monitor.client, token: "tok")
+        Routes.register(router: router, monitor: monitor, client: monitor.client, token: "tok", priorityLabels: [])
 
         let req = HTTPRequest(method: "GET", path: "/services/com.evil.foo/logs",
                               headers: ["Authorization": "Bearer tok"], body: Data())
@@ -110,7 +110,7 @@ final class RoutesTests: XCTestCase {
         )
         let router = Router()
         Routes.register(router: router, monitor: monitor,
-                        client: monitor.client, token: "tok")
+                        client: monitor.client, token: "tok", priorityLabels: [])
         let req = HTTPRequest(method: "GET", path: "/services",
                               headers: [:], body: Data())
         XCTAssertEqual(router.handle(req).status, 401)

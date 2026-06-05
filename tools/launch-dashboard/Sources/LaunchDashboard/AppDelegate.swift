@@ -65,7 +65,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let router = Router()
         Routes.register(router: router, monitor: monitor,
-                        client: client, token: config.bearerToken)
+                        client: client, token: config.bearerToken,
+                        priorityLabels: Array(priorityLabels))
         server = HTTPServer(router: router, port: config.httpPort, workQueue: workQueue)
         do { try server.start() }
         catch { NSLog("HTTPServer failed to start: \(error)") }

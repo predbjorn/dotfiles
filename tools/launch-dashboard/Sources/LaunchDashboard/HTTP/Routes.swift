@@ -4,7 +4,8 @@ enum Routes {
     static func register(router: Router,
                          monitor: ServiceMonitor,
                          client: LaunchctlClient,
-                         token: String) {
+                         token: String,
+                         priorityLabels: [String]) {
         let guarded: (@escaping (HTTPRequest, [String: String]) -> HTTPResponse)
                   -> (HTTPRequest, [String: String]) -> HTTPResponse = { handler in
             return { req, params in
