@@ -27,7 +27,14 @@ sed -e "s|__BIN_PATH__|$BIN_PATH|g" \
     scripts/com.prebenhafnor.launch-dashboard.plist.template > "$PLIST_PATH"
 
 UID_NUM=$(id -u)
-launchctl bootout "gui/$UID_NUM/com.prebenhafnor.launch-dashboard" 2>/dev/null || true
+DOMAIN_TARGET="gui/$UID_NUM/com.prebenhafnor.launch-dashboard"
+launchctl bootout "$DOMAIN_TARGET" 2>/dev/null || true
+# bootout is asynchronous; wait for the job to fully unload before bootstrapping,
+# otherwise a re-install races and bootstrap fails with EIO (5: Input/output error).
+for _ in $(seq 1 20); do
+    launchctl print "$DOMAIN_TARGET" >/dev/null 2>&1 || break
+    sleep 0.5
+done
 launchctl bootstrap "gui/$UID_NUM" "$PLIST_PATH"
 
 echo "Installed to $APP_DIR"
