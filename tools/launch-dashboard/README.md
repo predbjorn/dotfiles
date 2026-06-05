@@ -107,6 +107,31 @@ A badge on the menu-bar icon shows the count of currently-crashed services. The
 `⋯` menu on each row offers Load / Start / Stop / Restart as appropriate; failures
 surface in a red banner at the top of the popover.
 
+## Prioritizing the services you care about
+
+By default the dashboard treats every LaunchAgent equally. To focus on a few,
+set `priorityLabels` in `config.json`:
+
+```bash
+CONFIG="$HOME/Library/Application Support/LaunchDashboard/config.json"
+jq '.priorityLabels = ["com.nors.ai-daemon","com.nors.cloudflared"]' "$CONFIG" \
+  > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG" && chmod 600 "$CONFIG"
+# then reload:
+launchctl kickstart -k "gui/$(id -u)/com.prebenhafnor.launch-dashboard"
+```
+
+When `priorityLabels` is set:
+
+- those services are listed **at the top** of the popover;
+- everything else collapses under a **"Show more (N)"** disclosure (still fully
+  controllable);
+- the menu-bar **badge** and **crash notifications** fire **only** for the priority
+  services — the rest no longer add alert noise.
+
+Auto-restart stays a safety net across **all** services (it only ever acts on a real
+running→crashed transition, never on a manual stop). Leave `priorityLabels` out (or
+empty) to treat everything as priority again.
+
 ## Development
 
 ```bash
