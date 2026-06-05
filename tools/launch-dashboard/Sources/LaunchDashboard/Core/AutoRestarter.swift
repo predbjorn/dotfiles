@@ -5,6 +5,7 @@ final class AutoRestarter {
         var lastRunning: Bool
         var lastRestartAt: TimeInterval
         var backoffSeconds: TimeInterval
+        var runningSince: TimeInterval   // when it most recently transitioned into running
     }
     private var tracks: [String: Track] = [:]
     private let now: () -> TimeInterval
@@ -25,7 +26,8 @@ final class AutoRestarter {
         for s in statuses where s.label != ownLabel {   // [FIX 12]
             var t = tracks[s.label] ?? Track(lastRunning: false,
                                              lastRestartAt: -.infinity,
-                                             backoffSeconds: 1)
+                                             backoffSeconds: 1,
+                                             runningSince: -.infinity)
             let isRunning = (s.state == .running)
             // Crash = running→stopped transition with a non-zero exit recorded at that moment.
             let crashed = t.lastRunning && !isRunning && (s.lastExitCode ?? 0) != 0
@@ -34,8 +36,12 @@ final class AutoRestarter {
                 t.lastRestartAt = now()
                 t.backoffSeconds = min(t.backoffSeconds * 2, maxBackoff)
             }
-            // Reset backoff if a service has been stably running for a while.
-            if isRunning, now() - t.lastRestartAt > 60 {
+            // Record when the service most recently became running.
+            if isRunning && !t.lastRunning {
+                t.runningSince = now()
+            }
+            // Reset backoff only after it has been stably running for a while.
+            if isRunning, now() - t.runningSince > 60 {
                 t.backoffSeconds = 1
             }
             t.lastRunning = isRunning
