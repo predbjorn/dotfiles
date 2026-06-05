@@ -45,6 +45,7 @@ Bound to `127.0.0.1:8765` only — **not reachable from the LAN**. All routes re
 | Method | Path                          | Effect                                                   |
 |--------|-------------------------------|----------------------------------------------------------|
 | GET    | `/services`                   | JSON snapshot of all services                            |
+| GET    | `/summary`                    | Priority-service health: `{priorityDown, priorityTotal, priority[]}` |
 | POST   | `/services/:label/start`      | bootstrap (if needed) then `launchctl kickstart`         |
 | POST   | `/services/:label/stop`       | `launchctl bootout`                                      |
 | POST   | `/services/:label/restart`    | `launchctl kickstart -k`                                 |
@@ -55,6 +56,29 @@ Bound to `127.0.0.1:8765` only — **not reachable from the LAN**. All routes re
 TOKEN=$(jq -r .bearerToken "$HOME/Library/Application Support/LaunchDashboard/config.json")
 curl -sS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8765/services | jq '. | length'
 ```
+
+### Sketchybar health glyph
+
+`/summary` powers an ambient health glyph in the user's sketchybar. The bar item
+(`.config/sketchybar/items/launchdash.sh`) and its plugin
+(`.config/sketchybar/plugins/launchdash.sh`) curl this endpoint every 5s:
+
+- **Green** check glyph — all priority services running.
+- **Red** triangle glyph + count — one or more priority services not running right now.
+- **Gray** "?" glyph — the dashboard isn't reachable.
+
+Click the glyph for a popup listing each priority service with a green/red dot.
+
+`priorityDown` counts priority services whose state is not `running` (PID-based —
+catches crashes, manual stops, and never-started alike). "Priority" = `config.priorityLabels`
+(empty ⇒ all services).
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8765/summary | jq
+```
+
+Sketchybar config is **copied, not symlinked** — after editing `.config/sketchybar/`,
+deploy with `setupfiles/sync.sh` then `sketchybar --reload`.
 
 ## Remote access (optional, MUST be behind Cloudflare Access)
 
