@@ -2,5 +2,6 @@ import AppKit
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
-print("LaunchDashboard starting")
+let delegate = AppDelegate()
+app.delegate = delegate
 app.run()
