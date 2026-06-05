@@ -21,7 +21,7 @@ enum Routes {
                 let arr = try JSONSerialization.jsonObject(
                     with: try JSONEncoder().encode(snap)) as? [Any] ?? []
                 return .json(200, arr)
-            } catch { return .text(500, "\(error)") }
+            } catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
         })
 
         // [FIX 8] Ensure the job is in the domain before kickstart; bootstrap from plist if not.
@@ -36,19 +36,19 @@ enum Routes {
                 }
                 try client.kickstart(label: label, restart: false)
                 return .text(200, "ok")
-            } catch { return .text(500, "\(error)") }
+            } catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
         })
 
         router.add("POST", "/services/:label/stop", guarded { _, params in
             guard let label = params["label"] else { return .text(400, "missing label") }
             do { try client.bootout(label: label); return .text(200, "ok") }
-            catch { return .text(500, "\(error)") }
+            catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
         })
 
         router.add("POST", "/services/:label/restart", guarded { _, params in
             guard let label = params["label"] else { return .text(400, "missing label") }
             do { try client.kickstart(label: label, restart: true); return .text(200, "ok") }
-            catch { return .text(500, "\(error)") }
+            catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
         })
 
         router.add("GET", "/services/:label/logs", guarded { _, params in
@@ -59,12 +59,12 @@ enum Routes {
                       let path = entry.stderrPath
                 else { return .text(404, "no log") }
                 // [FIX 11] confine to standard log locations.
-                guard isAllowedLogPath(path) else { return .text(403, "log path not allowed") }
-                guard let data = try? Data(contentsOf: URL(fileURLWithPath: path))
+                guard let resolved = resolvedAllowedLogPath(path) else { return .text(403, "log path not allowed") }
+                guard let data = try? Data(contentsOf: URL(fileURLWithPath: resolved))
                 else { return .text(404, "no log") }
                 let tail = String(data: data.suffix(16_384), encoding: .utf8) ?? ""
                 return .text(200, tail)
-            } catch { return .text(500, "\(error)") }
+            } catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
         })
 
         router.add("POST", "/services/:label/load", guarded { _, params in
@@ -75,15 +75,17 @@ enum Routes {
                 else { return .text(404, "no plist") }
                 try client.bootstrap(plistPath: entry.plistPath)
                 return .text(200, "ok")
-            } catch { return .text(500, "\(error)") }
+            } catch { NSLog("LaunchDashboard route error: \(error)"); return .text(500, "internal error") }
         })
     }
 
-    /// [FIX 11] Only serve logs whose *resolved* path is under a known log directory.
-    static func isAllowedLogPath(_ path: String) -> Bool {
+    /// [FIX 11] Returns the resolved real path IF it is under a known log directory, else nil.
+    /// The caller reads the RESOLVED path (not the original), closing the check-then-read
+    /// TOCTOU on a symlinked StandardErrorPath.
+    static func resolvedAllowedLogPath(_ path: String) -> String? {
         let resolved = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath().path
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let prefixes = ["\(home)/Library/Logs/", "/tmp/", "/private/tmp/", "/var/log/"]
-        return prefixes.contains { resolved.hasPrefix($0) }
+        return prefixes.contains { resolved.hasPrefix($0) } ? resolved : nil
     }
 }
