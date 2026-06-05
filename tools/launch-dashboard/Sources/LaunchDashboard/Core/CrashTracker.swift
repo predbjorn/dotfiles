@@ -1,5 +1,11 @@
 import Foundation
 
+/// Crash detection is **transition-only**: a crash is reported solely when a service is
+/// observed going running→stopped (with a non-zero exit) *while this tracker is watching*.
+/// A service that is already stopped-with-nonzero-exit at first sight is deliberately NOT
+/// reported and NOT added to `crashed` — this avoids false positives from one-shot agents
+/// whose stale non-zero last-exit lingers in `launchctl`. `crashed` therefore means
+/// "crashed since watching began"; Task 11's badge/red-dots read it with that meaning.
 final class CrashTracker {
     struct Event: Equatable { let label: String; let exitCode: Int? }
 
