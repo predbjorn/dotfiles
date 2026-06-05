@@ -51,10 +51,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // UNUserNotificationCenter requires a bundle identifier; a bare SwiftPM binary run
         // outside an .app bundle has none and crashes when touching it. Only use notifications
         // when bundled. (notifyCrash is additionally gated by notificationsAuthorized below.)
-        if Bundle.main.bundleIdentifier != nil {
+        if let bundleID = Bundle.main.bundleIdentifier {
+            NSLog("LaunchDashboard: notifications enabled (bundle \(bundleID))")
             notifier.requestAuthorization { [weak self] granted in
                 self?.workQueue.async { self?.notificationsAuthorized = granted }
             }
+        } else {
+            NSLog("LaunchDashboard: notifications disabled (running unbundled)")
         }
 
         let router = Router()
