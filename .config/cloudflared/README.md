@@ -6,27 +6,53 @@ This folder contains the configuration for a named Cloudflare tunnel that expose
 
 - **Tunnel Name**: `local8000`
 - **Tunnel ID**: `d21fa304-74b3-41b3-a907-c75e6317cb72`
-- **Public URL**: `https://local8000.predbjorn.com.prebenhafnor.com`
-- **Local Service**: `http://localhost:8000`
+
+`config.yml` is the **single source of truth** for this tunnel's routing. It maps
+several hostnames onto local ports:
+
+| Hostname                        | Local service     | Notes                          |
+|---------------------------------|-------------------|--------------------------------|
+| `daemon.prebenhafnor.com`       | `:8787`           | nors ai-daemon dashboard (always-on) |
+| `local3000.prebenhafnor.com`    | `:3000`           | local dev (e.g. tren_web)      |
+| `local8000.prebenhafnor.com`    | `:8000`           | local dev                      |
+| `local8001.prebenhafnor.com`    | `:8001`           | local dev                      |
+| *(anything else)*               | `http_status:404` | catch-all                      |
+
+> ⚠️ **One tunnel, one config.** This single tunnel UUID has two runners (see below).
+> They must read the **same** config — never give the tunnel a second config with
+> different ingress, or Cloudflare's edge will fan requests across mismatched
+> connectors and you'll get intermittent 404s.
 
 ## Usage
 
-To start the tunnel, run:
+The tunnel normally runs always-on via the `com.nors.cloudflared` launchd job, so you
+don't need to start it by hand. To run/inspect it manually:
 
 ```bash
-cloudflared tunnel run local8000
-cloudflared tunnel run --url http://localhost:3000 local8000
+cloudflared tunnel run local8000          # uses ~/.cloudflared/config.yml (-> this file)
 cloudflared tunnel info local8000
+cloudflared tunnel --config ~/.cloudflared/config.yml ingress validate
 ```
-
-This will make your local service at `localhost:8000` accessible via the public URL.
-Use --url to override the port or local adress.
 
 ## How It Works
 
-1. The `config.yml` file is symlinked to `~/.cloudflared/config.yml` during dotfiles installation
-2. Tunnel credentials are stored separately in `~/.cloudflared/d21fa304-74b3-41b3-a907-c75e6317cb72.json`
-3. When you run the tunnel, cloudflared reads the config and establishes a secure connection to Cloudflare's edge
+This file is symlinked into **both** consumers of the tunnel during `install.sh`:
+
+1. `~/.cloudflared/config.yml` → manual `cloudflared tunnel run`
+2. `~/.ai-daemon/cloudflared.yml` → the always-on launchd job `com.nors.cloudflared`
+   (the launchd plist lives in the nors `helseoversikt_rn` repo and hardcodes that path;
+   pointing it at a symlink keeps the config here in dotfiles)
+
+Tunnel credentials are stored separately in
+`~/.cloudflared/d21fa304-74b3-41b3-a907-c75e6317cb72.json` (not in dotfiles).
+When a runner starts, cloudflared reads this config and establishes a secure
+connection to Cloudflare's edge.
+
+After editing this file, restart the always-on runner:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.nors.cloudflared
+```
 
 ## Benefits Over Quick Tunnels
 

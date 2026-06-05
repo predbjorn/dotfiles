@@ -1,9 +1,22 @@
 tunnel: d21fa304-74b3-41b3-a907-c75e6317cb72
 credentials-file: /Users/predbjorn/.cloudflared/d21fa304-74b3-41b3-a907-c75e6317cb72.json
 
+# Single source of truth for the `local8000` tunnel (d21fa304).
+# Symlinked to BOTH consumers (see install.sh):
+#   ~/.cloudflared/config.yml    -> manual `cloudflared tunnel run`
+#   ~/.ai-daemon/cloudflared.yml -> always-on launchd job `com.nors.cloudflared`
+# Keep all routes here so the two consumers never diverge.
 ingress:
+  # nors ai-daemon dashboard (always-on)
+  - hostname: daemon.prebenhafnor.com
+    service: http://localhost:8787
+  # local dev services
+  - hostname: local3000.prebenhafnor.com
+    service: http://localhost:3000
   - hostname: local8000.prebenhafnor.com
     service: http://localhost:8000
+  - hostname: local8001.prebenhafnor.com
+    service: http://localhost:8001
   - service: http_status:404
 # https://one.dash.cloudflare.com/d0f949f3cd75273ce515ec3815a22a1b/networks/tunnels
 # https://local8000.prebenhafnor.com

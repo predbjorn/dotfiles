@@ -32,9 +32,13 @@ source setupfiles/npm.sh;
 chmod a+x setupfiles/sync.sh;
 source setupfiles/sync.sh;
 
-# Setup cloudflared tunnel config
+# Setup cloudflared tunnel config (single source of truth in dotfiles).
+# Both the manual `cloudflared tunnel run` and the always-on launchd job
+# (com.nors.cloudflared, which reads ~/.ai-daemon/cloudflared.yml) point here.
 mkdir -p $HOME/.cloudflared
 ln -sf $HOME/.dotfiles/.config/cloudflared/config.yml $HOME/.cloudflared/config.yml
+mkdir -p $HOME/.ai-daemon
+ln -sf $HOME/.dotfiles/.config/cloudflared/config.yml $HOME/.ai-daemon/cloudflared.yml
 
 # Setup Claude Code config (settings + status line)
 mkdir -p $HOME/.claude
