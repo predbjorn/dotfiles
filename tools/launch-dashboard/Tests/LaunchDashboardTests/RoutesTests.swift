@@ -153,6 +153,13 @@ final class RoutesTests: XCTestCase {
             })
         XCTAssertEqual(upByLabel["com.example.alpha"], true)
         XCTAssertEqual(upByLabel["com.example.beta"], false)
+        let stateByLabel = Dictionary(uniqueKeysWithValues:
+            rows.compactMap { r -> (String, String)? in
+                guard let l = r["label"] as? String, let s = r["state"] as? String else { return nil }
+                return (l, s)
+            })
+        XCTAssertEqual(stateByLabel["com.example.alpha"], "running")
+        XCTAssertEqual(stateByLabel["com.example.beta"], "notLoaded")
     }
 
     func testSummaryAllUpWhenAllRunning() throws {
