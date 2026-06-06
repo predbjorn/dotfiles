@@ -44,4 +44,18 @@ final class LauncherCommandTests: XCTestCase {
         XCTAssertEqual(LauncherCommand.render(a),
                        "$HOME/.dotfiles/bin/toggle_app.sh 'evil; rm -rf ~'")
     }
+
+    func testBackslashEscapedFolderPathStaysOpaque() {
+        // Real karabiner line: `open ~/Library/Mobile\ Documents`. The tokenizer has no backslash
+        // handling, so this must remain opaque (nil) and round-trip verbatim, never parse to a wrong target.
+        XCTAssertNil(LauncherCommand.parse(#"open ~/Library/Mobile\ Documents"#))
+    }
+
+    func testToggleWithExtraArgsIsRejected() {
+        XCTAssertNil(LauncherCommand.parse("$HOME/.dotfiles/bin/toggle_app.sh Safari extra"))
+    }
+
+    func testFocusWithTooManyArgsIsRejected() {
+        XCTAssertNil(LauncherCommand.parse("~/.dotfiles/bin/focus_window_wrapper.sh Safari true extra"))
+    }
 }

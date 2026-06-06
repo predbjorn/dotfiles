@@ -13,11 +13,11 @@ enum LauncherCommand {
 
         switch script {
         case "toggle_app.sh":
-            guard tokens.count >= 2 else { return nil }
+            guard tokens.count == 2 else { return nil }
             return LauncherAction(mechanism: .toggle, target: tokens[1],
                                   focusBringToCurrent: false, rawCommand: command)
         case "focus_window_wrapper.sh":
-            guard tokens.count >= 2 else { return nil }
+            guard tokens.count == 2 || tokens.count == 3 else { return nil }
             let flag = tokens.count >= 3 ? (tokens[2] == "true") : false
             return LauncherAction(mechanism: .focus, target: tokens[1],
                                   focusBringToCurrent: flag, rawCommand: command)
