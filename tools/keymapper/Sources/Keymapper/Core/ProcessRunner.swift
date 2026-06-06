@@ -19,8 +19,13 @@ struct RealProcessRunner: ProcessRunner {
         p.standardOutput = outPipe
         p.standardError = errPipe
         try p.run()
+        // Drain both pipes concurrently before waitUntilExit to avoid a two-pipe deadlock
+        // (child blocking on a full stderr buffer while parent blocks reading stdout).
+        var errData = Data()
+        let drain = DispatchQueue(label: "keymapper.stderr-drain")
+        drain.async { errData = errPipe.fileHandleForReading.readDataToEndOfFile() }
         let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+        drain.sync {}   // ensure the stderr read has completed
         p.waitUntilExit()
         let out = String(data: outData, encoding: .utf8) ?? ""
         let err = String(data: errData, encoding: .utf8) ?? ""

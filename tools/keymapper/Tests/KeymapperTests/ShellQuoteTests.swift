@@ -20,4 +20,16 @@ final class ShellQuoteTests: XCTestCase {
     func testEmbeddedSingleQuoteIsEscaped() {
         XCTAssertEqual(ShellQuote.quote("it's"), "'it'\\''s'")
     }
+
+    func testLoneSingleQuote() {
+        XCTAssertEqual(ShellQuote.quote("'"), "''\\'''")
+    }
+
+    func testEmptyStringBecomesEmptyQuotedArg() {
+        XCTAssertEqual(ShellQuote.quote(""), "''")
+    }
+
+    func testLeadingDashReturnedBarePerFixedSlotContract() {
+        XCTAssertEqual(ShellQuote.quote("-rf"), "-rf")
+    }
 }
