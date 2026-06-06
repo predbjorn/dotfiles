@@ -180,15 +180,34 @@ indirect enum JSONValue: Equatable {
                     case "b": s.append(Unicode.Scalar(8))
                     case "f": s.append(Unicode.Scalar(12))
                     case "u":
-                        let hex = String(String.UnicodeScalarView(scalars[index..<min(index+4, scalars.count)]))
-                        guard hex.count == 4, let code = UInt32(hex, radix: 16),
-                              let scalar = Unicode.Scalar(code) else { throw JSONError.badEscape(index) }
-                        s.append(scalar); index += 4
+                        let code = try readHex4()
+                        if (0xD800...0xDBFF).contains(code) {
+                            // High surrogate — must be followed by a \uXXXX low surrogate.
+                            guard index + 1 < scalars.count, scalars[index] == "\\", scalars[index + 1] == "u" else {
+                                throw JSONError.badEscape(index)
+                            }
+                            index += 2 // consume the "\u" of the low surrogate
+                            let low = try readHex4()
+                            guard (0xDC00...0xDFFF).contains(low) else { throw JSONError.badEscape(index) }
+                            let combined = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00)
+                            guard let scalar = Unicode.Scalar(combined) else { throw JSONError.badEscape(index) }
+                            s.append(scalar)
+                        } else {
+                            guard let scalar = Unicode.Scalar(code) else { throw JSONError.badEscape(index) }
+                            s.append(scalar)
+                        }
                     default: throw JSONError.badEscape(index)
                     }
                 } else { s.append(c) }
             }
             throw JSONError.unexpectedEnd
+        }
+        mutating func readHex4() throws -> UInt32 {
+            let end = min(index + 4, scalars.count)
+            let hex = String(String.UnicodeScalarView(scalars[index..<end]))
+            guard hex.count == 4, let code = UInt32(hex, radix: 16) else { throw JSONError.badEscape(index) }
+            index += 4
+            return code
         }
         mutating func parseNumber() throws -> String {
             let start = index
