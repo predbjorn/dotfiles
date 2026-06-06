@@ -28,8 +28,14 @@ struct Migration {
     private func migrateSkhd() throws {
         let text = try String(contentsOf: skhdURL, encoding: .utf8)
         var doc = try SkhdDocument(text: text)
-        let unmanagedLaunchers = doc.bindings().filter { !$0.managed && $0.launcher != nil }
-        guard !unmanagedLaunchers.isEmpty else { return } // nothing to adopt / already fenced
+        let allLaunchers = doc.bindings().filter { $0.launcher != nil }
+        let managedLaunchers = allLaunchers.filter { $0.managed }
+        let unmanagedLaunchers = allLaunchers.filter { !$0.managed }
+        // Short-circuit if every unmanaged launcher chord already has a managed counterpart.
+        let notYetFenced = unmanagedLaunchers.filter { u in
+            !managedLaunchers.contains { $0.chord == u.chord }
+        }
+        guard !notYetFenced.isEmpty else { return }
         var adopted = unmanagedLaunchers
         for i in adopted.indices { adopted[i].managed = true }
         try doc.setManagedBindings(adopted)
