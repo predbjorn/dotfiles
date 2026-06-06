@@ -19,7 +19,8 @@ struct KarabinerDocument {
         var out: [Binding] = []
         for m in mans {
             guard let key = m["from"]?["key_code"]?.stringValue,
-                  let to = m["to"]?.arrayValue, let shell = to.first?["shell_command"]?.stringValue
+                  let to = m["to"]?.arrayValue,
+                  let shell = to.compactMap({ $0["shell_command"]?.stringValue }).first
             else { continue }
             let names = Self.conditionNames(m)
             let layer: Layer = names.contains("space_f_mode") ? .spaceFLeader : .spaceLeader
@@ -52,8 +53,12 @@ struct KarabinerDocument {
                 let names = Self.conditionNames(mans[i])
                 let mLayer: Layer = names.contains("space_f_mode") ? .spaceFLeader : .spaceLeader
                 guard mLayer == layer else { continue }
-                let newTo = JSONValue.array([.object([("shell_command", .string(newShell))])])
-                mans[i] = mans[i].settingKey("to", to: newTo)
+                // Rewrite only the shell_command entry; preserve siblings (e.g. set_variable).
+                guard case .array(var toArr)? = mans[i]["to"] else { continue }
+                for ti in toArr.indices where toArr[ti]["shell_command"] != nil {
+                    toArr[ti] = toArr[ti].settingKey("shell_command", to: .string(newShell))
+                }
+                mans[i] = mans[i].settingKey("to", to: .array(toArr))
             }
             rule = rule.settingKey("manipulators", to: .array(mans))
         }
@@ -62,6 +67,9 @@ struct KarabinerDocument {
     // MARK: Helpers
     private struct Located { var value: JSONValue; var description: String? }
 
+    /// Intentional asymmetry: reads return the rule from the FIRST matching profile, while writes
+    /// (rewritingSpaceLauncherRule) apply to the rule in ALL profiles. The real file has one
+    /// profile, so this is moot today.
     private func spaceLauncherRule() -> Located? {
         for rule in allRules() {
             if let d = rule["description"]?.stringValue,

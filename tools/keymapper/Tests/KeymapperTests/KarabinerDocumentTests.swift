@@ -52,4 +52,34 @@ final class KarabinerDocumentTests: XCTestCase {
         let doc = try KarabinerDocument(text: fixture("karabiner-min.json"))
         XCTAssertTrue(doc.serialized().contains("\n  \"profiles\""))
     }
+
+    func testExtractsLauncherWhenShellCommandNotFirstInToArray() throws {
+        let json = #"""
+        {"profiles":[{"complex_modifications":{"rules":[{"description":"SpaceLauncher shortcuts","manipulators":[
+          {"conditions":[{"type":"variable_if","name":"space_held","value":1}],
+           "from":{"key_code":"x"},
+           "to":[{"set_variable":{"name":"space_held","value":0}},{"shell_command":"$HOME/.dotfiles/bin/toggle_app.sh Notes"}]}
+        ]}]}}]}
+        """#
+        let doc = try KarabinerDocument(text: json)
+        XCTAssertEqual(doc.bindings().first { $0.chord.key == "x" }?.launcher?.target, "Notes")
+    }
+
+    func testSetLauncherTargetPreservesSiblingToEntries() throws {
+        let json = #"""
+        {"profiles":[{"complex_modifications":{"rules":[{"description":"keymap: SpaceLauncher shortcuts","manipulators":[
+          {"conditions":[{"type":"variable_if","name":"space_held","value":1}],
+           "from":{"key_code":"x"},
+           "to":[{"set_variable":{"name":"space_held","value":0}},{"shell_command":"$HOME/.dotfiles/bin/toggle_app.sh Notes"}]}
+        ]}]}}]}
+        """#
+        var doc = try KarabinerDocument(text: json)
+        try doc.setLauncherTarget(layer: .spaceLeader, key: "x",
+                                  action: LauncherAction(mechanism: .toggle, target: "Mail",
+                                                         focusBringToCurrent: false, rawCommand: ""))
+        let out = doc.serialized()
+        XCTAssertTrue(out.contains("toggle_app.sh Mail"))
+        XCTAssertTrue(out.contains("set_variable"))
+        XCTAssertFalse(out.contains("toggle_app.sh Notes"))
+    }
 }
