@@ -1,0 +1,13 @@
+# changing screen focus
+lalt + lcmd - l: yabai -m display --focus east
+
+shift + alt - n : yabai -m space --create && \
+                  index="$(yabai -m query --spaces --display | jq 'map(select(."is-native-fullscreen" == false))[-1].index')" && \
+                  yabai -m window --space "${index}"
+
+hyper - b : ~/.dotfiles/bin/focus_window_wrapper.sh Safari false
+ctrl + shift - g :  ~/.dotfiles/bin/focus_window_wrapper.sh "Google Chrome" false
+
+# >>> keymap-managed >>>
+hyper - s : ~/.dotfiles/bin/focus_window_wrapper.sh Slack false
+# <<< keymap-managed <<<
