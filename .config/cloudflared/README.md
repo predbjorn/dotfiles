@@ -25,7 +25,7 @@ several hostnames onto local ports:
 
 ## Usage
 
-The tunnel normally runs always-on via the `com.nors.cloudflared` launchd job, so you
+The tunnel normally runs always-on via the `com.prebenhafnor.cloudflared` launchd job, so you
 don't need to start it by hand. To run/inspect it manually:
 
 ```bash
@@ -38,10 +38,12 @@ cloudflared tunnel --config ~/.cloudflared/config.yml ingress validate
 
 This file is symlinked into **both** consumers of the tunnel during `install.sh`:
 
-1. `~/.cloudflared/config.yml` → manual `cloudflared tunnel run`
-2. `~/.ai-daemon/cloudflared.yml` → the always-on launchd job `com.nors.cloudflared`
-   (the launchd plist lives in the nors `helseoversikt_rn` repo and hardcodes that path;
-   pointing it at a symlink keeps the config here in dotfiles)
+1. `~/.cloudflared/config.yml` → the always-on launchd job `com.prebenhafnor.cloudflared`
+   and manual `cloudflared tunnel run`
+2. `~/.ai-daemon/cloudflared.yml` → legacy alias kept for older ai-daemon references
+
+The launchd plist (`com.prebenhafnor.cloudflared.plist`) now lives here in dotfiles and
+is installed/loaded by `install.sh`.
 
 Tunnel credentials are stored separately in
 `~/.cloudflared/d21fa304-74b3-41b3-a907-c75e6317cb72.json` (not in dotfiles).
@@ -51,7 +53,7 @@ connection to Cloudflare's edge.
 After editing this file, restart the always-on runner:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.nors.cloudflared
+launchctl kickstart -k gui/$(id -u)/com.prebenhafnor.cloudflared
 ```
 
 ## Benefits Over Quick Tunnels

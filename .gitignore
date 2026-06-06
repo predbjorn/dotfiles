@@ -8,3 +8,8 @@ githubProjects/githubProjects_local
 
 # Python
 */__pycache__/
+
+# Secrets — this is a PUBLIC repo. Never commit tunnel credentials or app secrets.
+.config/cloudflared/*.json
+.config/cloudflared/*.pem
+**/config.json

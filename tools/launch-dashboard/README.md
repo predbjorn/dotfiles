@@ -138,7 +138,7 @@ set `priorityLabels` in `config.json`:
 
 ```bash
 CONFIG="$HOME/Library/Application Support/LaunchDashboard/config.json"
-jq '.priorityLabels = ["com.nors.ai-daemon","com.nors.cloudflared"]' "$CONFIG" \
+jq '.priorityLabels = ["com.nors.ai-daemon","com.prebenhafnor.cloudflared"]' "$CONFIG" \
   > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG" && chmod 600 "$CONFIG"
 # then reload:
 launchctl kickstart -k "gui/$(id -u)/com.prebenhafnor.launch-dashboard"

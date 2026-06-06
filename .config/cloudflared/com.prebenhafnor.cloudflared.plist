@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Personal Cloudflare Tunnel launch agent. Owned here in dotfiles because the
+  tunnel is personal infrastructure (the prebenhafnor.com domain on this Mac),
+  shared by several services (daemon.*, local3000/8000/8001.*) — not specific
+  to any one project.
+
+  install.sh renders __HOME__ to $HOME and installs this into
+  ~/Library/LaunchAgents/. cloudflared path below is Apple-Silicon homebrew;
+  Intel macs use /usr/local/bin/cloudflared.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.prebenhafnor.cloudflared</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/cloudflared</string>
+    <string>tunnel</string>
+    <string>--config</string>
+    <string>__HOME__/.cloudflared/config.yml</string>
+    <string>run</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>__HOME__/.cloudflared/cloudflared.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/.cloudflared/cloudflared.err.log</string>
+</dict>
+</plist>

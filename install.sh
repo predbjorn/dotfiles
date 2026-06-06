@@ -33,12 +33,23 @@ chmod a+x setupfiles/sync.sh;
 source setupfiles/sync.sh;
 
 # Setup cloudflared tunnel config (single source of truth in dotfiles).
-# Both the manual `cloudflared tunnel run` and the always-on launchd job
-# (com.nors.cloudflared, which reads ~/.ai-daemon/cloudflared.yml) point here.
+# The always-on launchd job (com.prebenhafnor.cloudflared) and any manual
+# `cloudflared tunnel run` both read this config.
 mkdir -p $HOME/.cloudflared
 ln -sf $HOME/.dotfiles/.config/cloudflared/config.yml $HOME/.cloudflared/config.yml
+# Legacy alias kept for older ai-daemon references to ~/.ai-daemon/cloudflared.yml.
 mkdir -p $HOME/.ai-daemon
 ln -sf $HOME/.dotfiles/.config/cloudflared/config.yml $HOME/.ai-daemon/cloudflared.yml
+
+# Install & (re)load the personal cloudflared launch agent.
+# Renders the __HOME__ placeholder to $HOME so the plist is portable across machines.
+mkdir -p $HOME/Library/LaunchAgents
+CF_PLIST="$HOME/Library/LaunchAgents/com.prebenhafnor.cloudflared.plist"
+sed "s#__HOME__#$HOME#g" \
+  "$HOME/.dotfiles/.config/cloudflared/com.prebenhafnor.cloudflared.plist" > "$CF_PLIST"
+launchctl bootout "gui/$(id -u)/com.prebenhafnor.cloudflared" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$CF_PLIST" 2>/dev/null \
+  || launchctl load -w "$CF_PLIST" 2>/dev/null || true
 
 # Setup Claude Code config (settings + status line)
 mkdir -p $HOME/.claude
