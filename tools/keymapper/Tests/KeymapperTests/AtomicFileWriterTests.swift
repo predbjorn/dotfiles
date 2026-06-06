@@ -54,4 +54,16 @@ final class AtomicFileWriterTests: XCTestCase {
         try writer.restore(backup, to: target)
         XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "good")
     }
+
+    func testWritingThroughSymlinkPreservesLinkAndUpdatesTarget() throws {
+        let real = dir.appendingPathComponent("real.txt")
+        try "old".write(to: real, atomically: true, encoding: .utf8)
+        let link = dir.appendingPathComponent("link.txt")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+        let writer = AtomicFileWriter(backupDir: backups)
+        try writer.write("new", to: link, backupStem: "x")
+        let attrs = try FileManager.default.attributesOfItem(atPath: link.path)
+        XCTAssertEqual(attrs[.type] as? FileAttributeType, .typeSymbolicLink)
+        XCTAssertEqual(try String(contentsOf: real, encoding: .utf8), "new")
+    }
 }

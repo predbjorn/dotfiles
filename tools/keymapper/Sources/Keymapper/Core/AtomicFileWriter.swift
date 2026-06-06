@@ -35,7 +35,12 @@ struct AtomicFileWriter {
     @discardableResult
     func makeBackup(of target: URL, stem: String) throws -> URL {
         try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
-        let backup = backupDir.appendingPathComponent("\(stem).\(timestamp).bak")
+        var backup = backupDir.appendingPathComponent("\(stem).\(timestamp).bak")
+        var counter = 1
+        while FileManager.default.fileExists(atPath: backup.path) {
+            backup = backupDir.appendingPathComponent("\(stem).\(timestamp)-\(counter).bak")
+            counter += 1
+        }
         let data = try Data(contentsOf: target)
         try data.write(to: backup, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: backup.path)
@@ -48,6 +53,7 @@ struct AtomicFileWriter {
     }
 
     private func prune(stem: String) throws {
+        // Best-effort: if the dir read fails, prune is skipped and backups are not pruned this round.
         let all = (try? FileManager.default.contentsOfDirectory(atPath: backupDir.path)) ?? []
         let mine = all.filter { $0.hasPrefix("\(stem).") && $0.hasSuffix(".bak") }.sorted()
         guard mine.count > retain else { return }
@@ -57,16 +63,18 @@ struct AtomicFileWriter {
     }
 
     /// Write to a temp file in the SAME directory (same volume) then rename — atomic (D17).
-    /// Resolves a symlink target so we replace the real file rather than clobbering the link (D18).
+    /// Resolves the full symlink chain so we replace the real file rather than clobbering the link (D18),
+    /// and cleans up the temp file if the replace fails so no stale temp is left beside live config.
     private func atomicReplace(_ target: URL, with data: Data) throws {
-        let resolved = URL(fileURLWithPath: (try? FileManager.default.destinationOfSymbolicLink(atPath: target.path))
-            .map { link in
-                link.hasPrefix("/") ? link
-                    : target.deletingLastPathComponent().appendingPathComponent(link).path
-            } ?? target.path)
+        let resolved = target.resolvingSymlinksInPath()
         let dir = resolved.deletingLastPathComponent()
         let tmp = dir.appendingPathComponent(".\(resolved.lastPathComponent).tmp-\(timestamp)")
         try data.write(to: tmp, options: .atomic)
-        _ = try FileManager.default.replaceItemAt(resolved, withItemAt: tmp)
+        do {
+            _ = try FileManager.default.replaceItemAt(resolved, withItemAt: tmp)
+        } catch {
+            try? FileManager.default.removeItem(at: tmp)
+            throw error
+        }
     }
 }
