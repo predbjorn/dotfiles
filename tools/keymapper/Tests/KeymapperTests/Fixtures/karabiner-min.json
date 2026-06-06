@@ -1,0 +1,42 @@
+{
+  "profiles": [
+    {
+      "name": "Default profile",
+      "complex_modifications": {
+        "rules": [
+          {
+            "description": "fn passthrough",
+            "future_field": { "keep": [1, 2] },
+            "manipulators": []
+          },
+          {
+            "description": "SpaceLauncher shortcuts",
+            "manipulators": [
+              {
+                "type": "basic",
+                "from": { "key_code": "spacebar" },
+                "to_if_held_down": [ { "set_variable": { "name": "space_held", "value": 1 } } ],
+                "to_if_alone": [ { "key_code": "spacebar" } ]
+              },
+              {
+                "type": "basic",
+                "conditions": [ { "type": "variable_if", "name": "space_held", "value": 1 } ],
+                "from": { "key_code": "b" },
+                "to": [ { "shell_command": "$HOME/.dotfiles/bin/toggle_app.sh Safari" } ]
+              },
+              {
+                "type": "basic",
+                "conditions": [
+                  { "type": "variable_if", "name": "space_held", "value": 1 },
+                  { "type": "variable_if", "name": "space_f_mode", "value": 1 }
+                ],
+                "from": { "key_code": "d" },
+                "to": [ { "shell_command": "open ~/Downloads" } ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

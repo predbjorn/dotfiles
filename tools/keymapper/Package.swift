@@ -6,6 +6,10 @@ let package = Package(
     platforms: [.macOS(.v13)],
     targets: [
         .target(name: "Keymapper"),
-        .testTarget(name: "KeymapperTests", dependencies: ["Keymapper"]),
+        .testTarget(
+            name: "KeymapperTests",
+            dependencies: ["Keymapper"],
+            resources: [.copy("Fixtures")]
+        ),
     ]
 )
