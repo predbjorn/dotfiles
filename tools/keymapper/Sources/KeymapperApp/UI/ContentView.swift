@@ -71,12 +71,8 @@ struct ContentView: View {
     private var scrollBody: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24, pinnedViews: [.sectionHeaders]) {
-                // Managed section placeholder — replaced in Task 5.
                 Section(header: SectionHeader(title: "Managed", count: vm.editedManaged.count)) {
-                    Text("(Managed bindings — coming in Task 5)")
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                    ManagedSection(vm: vm)
                 }
                 // Reference section placeholder — replaced in Task 6.
                 let ref = vm.keymap?.reference ?? []
