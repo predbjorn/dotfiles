@@ -12,6 +12,7 @@ struct MockDeployer: Deploying {
 
 // MARK: - Tests
 
+@MainActor
 final class KeymapperViewModelTests: XCTestCase {
     private var dir: URL!
 

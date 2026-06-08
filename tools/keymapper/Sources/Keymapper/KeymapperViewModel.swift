@@ -3,6 +3,7 @@ import Combine
 
 /// The observable model for the Keymapper UI. Loads both config files, tracks in-flight edits,
 /// and saves atomically (D27). Lives in the library target so it is testable without SwiftUI.
+@MainActor
 final class KeymapperViewModel: ObservableObject {
     @Published private(set) var keymap: Keymap?
     @Published private(set) var editedManaged: [Binding] = []   // working copy for pending edits
