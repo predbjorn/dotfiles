@@ -2,17 +2,17 @@ import Foundation
 
 /// Holds karabiner.json as a lossless JSONValue and exposes the SpaceLauncher launchers as Bindings.
 /// Only the managed rule's shell_commands are mutated; everything else is preserved (D7, D24).
-struct KarabinerDocument {
+public struct KarabinerDocument {
     private var root: JSONValue
-    static let managedPrefix = "keymap: "
-    static let spaceLauncherName = "SpaceLauncher shortcuts"
+    public static let managedPrefix = "keymap: "
+    public static let spaceLauncherName = "SpaceLauncher shortcuts"
 
-    init(text: String) throws { root = try JSONValue.parse(text) }
+    public init(text: String) throws { root = try JSONValue.parse(text) }
 
-    func serialized() -> String { root.serialized(indent: 2) + "\n" }
+    public func serialized() -> String { root.serialized(indent: 2) + "\n" }
 
     // MARK: Reading
-    func bindings() -> [Binding] {
+    public func bindings() -> [Binding] {
         guard let rule = spaceLauncherRule() else { return [] }
         let managed = (rule.description ?? "").hasPrefix(Self.managedPrefix)
         guard case .array(let mans)? = rule.value["manipulators"] else { return [] }
@@ -35,7 +35,7 @@ struct KarabinerDocument {
     }
 
     // MARK: Mutating
-    mutating func adoptSpaceLauncherRule() {
+    public mutating func adoptSpaceLauncherRule() {
         root = Self.rewritingSpaceLauncherRule(in: root) { rule in
             let desc = rule["description"]?.stringValue ?? Self.spaceLauncherName
             if !desc.hasPrefix(Self.managedPrefix) {
@@ -44,7 +44,7 @@ struct KarabinerDocument {
         }
     }
 
-    mutating func setLauncherTarget(layer: Layer, key: String, action: LauncherAction) throws {
+    public mutating func setLauncherTarget(layer: Layer, key: String, action: LauncherAction) throws {
         let newShell = LauncherCommand.render(action)
         root = Self.rewritingSpaceLauncherRule(in: root) { rule in
             guard case .array(var mans)? = rule["manipulators"] else { return }

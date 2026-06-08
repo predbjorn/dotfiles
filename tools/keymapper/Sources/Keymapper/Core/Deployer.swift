@@ -1,26 +1,26 @@
 import Foundation
 
 /// Protocol so KeymapperViewModel can inject a mock deployer in tests (same pattern as ProcessRunner).
-protocol Deploying {
+public protocol Deploying {
     func isInSync() throws -> Bool
     func apply() throws
 }
 
 /// Makes skhd changes live with the minimal scoped step (D12): copy repo skhdrc to the deployed path,
 /// then `skhd --reload` via argv with an absolute path (D20). karabiner is symlinked (no deploy step).
-struct Deployer {
-    let skhdRepo: URL
-    let skhdDeployed: URL
-    let runner: ProcessRunner
-    let skhdPath: String
+public struct Deployer {
+    public let skhdRepo: URL
+    public let skhdDeployed: URL
+    public let runner: ProcessRunner
+    public let skhdPath: String
 
-    static func makeReal() -> Deployer {
+    public static func makeReal() -> Deployer {
         Deployer(skhdRepo: Paths.skhdRepo, skhdDeployed: Paths.skhdDeployed,
                  runner: RealProcessRunner(), skhdPath: resolveSkhd())
     }
 
     /// Prefer Homebrew's path; fall back if neither exists (caller surfaces errors).
-    static func resolveSkhd() -> String {
+    public static func resolveSkhd() -> String {
         for p in ["/opt/homebrew/bin/skhd", "/usr/local/bin/skhd"] {
             if FileManager.default.isExecutableFile(atPath: p) { return p }
         }
@@ -28,7 +28,7 @@ struct Deployer {
     }
 
     /// True iff repo and deployed files have identical byte content.
-    func isInSync() throws -> Bool {
+    public func isInSync() throws -> Bool {
         guard FileManager.default.fileExists(atPath: skhdDeployed.path) else { return false }
         let a = try Data(contentsOf: skhdRepo)
         let b = try Data(contentsOf: skhdDeployed)
@@ -36,7 +36,7 @@ struct Deployer {
     }
 
     /// Copy repo → deployed (FileManager, not a shelled cp — D20), then reload skhd.
-    func apply() throws {
+    public func apply() throws {
         try FileManager.default.createDirectory(
             at: skhdDeployed.deletingLastPathComponent(),
             withIntermediateDirectories: true)
@@ -49,6 +49,6 @@ struct Deployer {
     }
 }
 
-enum DeployError: Error, Equatable { case reloadFailed(String) }
+public enum DeployError: Error, Equatable { case reloadFailed(String) }
 
 extension Deployer: Deploying {}

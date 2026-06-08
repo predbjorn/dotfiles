@@ -4,16 +4,16 @@ import Foundation
 /// on edit; everything else passes through verbatim (D8). All binding lines (managed or not) are parsed
 /// at chord level for the auditor (D29). Line numbers (1-based) are stored on each Binding for D29
 /// open-at-line support.
-struct SkhdDocument {
-    static let openFence = "# >>> keymap-managed >>>"
-    static let closeFence = "# <<< keymap-managed <<<"
+public struct SkhdDocument {
+    public static let openFence = "# >>> keymap-managed >>>"
+    public static let closeFence = "# <<< keymap-managed <<<"
 
     private var prefix: [String]
     private var managedLines: [String]
     private var suffix: [String]
     private var hasFence: Bool
 
-    init(text: String) throws {
+    public init(text: String) throws {
         let lines = text.components(separatedBy: "\n")
         if let open = lines.firstIndex(of: Self.openFence),
            let close = lines[open...].firstIndex(of: Self.closeFence) {
@@ -29,7 +29,7 @@ struct SkhdDocument {
         }
     }
 
-    func serialized() -> String {
+    public func serialized() -> String {
         if !hasFence && managedLines.isEmpty {
             return prefix.joined(separator: "\n")
         }
@@ -41,7 +41,7 @@ struct SkhdDocument {
         return out.joined(separator: "\n")
     }
 
-    func bindings() -> [Binding] {
+    public func bindings() -> [Binding] {
         // Compute 0-based line offsets for each section so sourceLine is accurate.
         let prefixOffset = 0                                          // prefix starts at line 1 (offset 0)
         let managedOffset = prefix.count + 1                          // +1 for the open-fence line
@@ -55,7 +55,7 @@ struct SkhdDocument {
     }
 
     /// Replace the managed region with freshly rendered bindings. If no fence exists, one is created.
-    mutating func setManagedBindings(_ bindings: [Binding]) throws {
+    public mutating func setManagedBindings(_ bindings: [Binding]) throws {
         managedLines = bindings.map { binding -> String in
             let chord = SkhdChord.render(binding.chord)
             let command = binding.launcher.map(LauncherCommand.render) ?? binding.rawText
@@ -116,8 +116,8 @@ struct SkhdDocument {
 }
 
 /// Parse/render an skhd chord LHS, e.g. "ctrl + shift + cmd - g" or "hyper - b".
-enum SkhdChord {
-    static func parse(_ lhs: String) -> Chord? {
+public enum SkhdChord {
+    public static func parse(_ lhs: String) -> Chord? {
         let parts = lhs.components(separatedBy: " - ")
         let key: String
         var mods: [String] = []
@@ -131,7 +131,7 @@ enum SkhdChord {
         return Chord(layer: .skhdModifier, modifiers: mods.filter { !$0.isEmpty }, key: key)
     }
 
-    static func render(_ chord: Chord) -> String {
+    public static func render(_ chord: Chord) -> String {
         if chord.modifiers.isEmpty { return chord.key }
         let set = Set(chord.modifiers)
         if set == Set(["cmd", "ctrl", "alt", "shift"]) { return "hyper - \(chord.key)" }

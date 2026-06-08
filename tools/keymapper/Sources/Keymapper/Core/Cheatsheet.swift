@@ -1,7 +1,7 @@
 import Foundation
 
-enum Cheatsheet {
-    static func markdown(bindings: [Binding], conflicts: [Conflict]) -> String {
+public enum Cheatsheet {
+    public static func markdown(bindings: [Binding], conflicts: [Conflict]) -> String {
         var out = "# Keymap Cheatsheet\n"
         for layer in Layer.allCases {
             let inLayer = bindings

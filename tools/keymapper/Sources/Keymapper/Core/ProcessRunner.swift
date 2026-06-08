@@ -1,17 +1,18 @@
 import Foundation
 
-struct ProcessResult {
-    let stdout: String
-    let stderr: String
-    let exitCode: Int32
+public struct ProcessResult {
+    public let stdout: String
+    public let stderr: String
+    public let exitCode: Int32
 }
 
-protocol ProcessRunner {
+public protocol ProcessRunner {
     func run(_ launchPath: String, _ args: [String]) throws -> ProcessResult
 }
 
-struct RealProcessRunner: ProcessRunner {
-    func run(_ launchPath: String, _ args: [String]) throws -> ProcessResult {
+public struct RealProcessRunner: ProcessRunner {
+    public init() {}
+    public func run(_ launchPath: String, _ args: [String]) throws -> ProcessResult {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: launchPath)
         p.arguments = args

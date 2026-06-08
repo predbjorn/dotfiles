@@ -5,7 +5,13 @@ let package = Package(
     name: "Keymapper",
     platforms: [.macOS(.v13)],
     targets: [
-        .target(name: "Keymapper"),
+        .target(
+            name: "Keymapper"
+        ),
+        .executableTarget(
+            name: "KeymapperApp",
+            dependencies: ["Keymapper"]
+        ),
         .testTarget(
             name: "KeymapperTests",
             dependencies: ["Keymapper"],

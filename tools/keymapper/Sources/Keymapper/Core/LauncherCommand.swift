@@ -1,11 +1,11 @@
 import Foundation
 
 /// Parse/render the three recognized launcher command shapes. Anything else is opaque (parse -> nil).
-enum LauncherCommand {
-    static let toggleScript = "$HOME/.dotfiles/bin/toggle_app.sh"
-    static let focusScript  = "$HOME/.dotfiles/bin/focus_window_wrapper.sh"
+public enum LauncherCommand {
+    public static let toggleScript = "$HOME/.dotfiles/bin/toggle_app.sh"
+    public static let focusScript  = "$HOME/.dotfiles/bin/focus_window_wrapper.sh"
 
-    static func parse(_ command: String) -> LauncherAction? {
+    public static func parse(_ command: String) -> LauncherAction? {
         let cmd = command.trimmingCharacters(in: .whitespaces)
         let tokens = tokenize(cmd)
         guard let first = tokens.first else { return nil }
@@ -30,7 +30,7 @@ enum LauncherCommand {
         }
     }
 
-    static func render(_ a: LauncherAction) -> String {
+    public static func render(_ a: LauncherAction) -> String {
         switch a.mechanism {
         case .toggle: return "\(toggleScript) \(ShellQuote.quote(a.target))"
         case .focus:  return "\(focusScript) \(ShellQuote.quote(a.target)) \(a.focusBringToCurrent ? "true" : "false")"
@@ -39,7 +39,7 @@ enum LauncherCommand {
     }
 
     /// Minimal shell tokenizer: splits on whitespace, honoring single and double quotes. No expansion.
-    static func tokenize(_ s: String) -> [String] {
+    public static func tokenize(_ s: String) -> [String] {
         var tokens: [String] = []
         var current = ""
         var quote: Character? = nil

@@ -4,25 +4,25 @@ import Combine
 /// The observable model for the Keymapper UI. Loads both config files, tracks in-flight edits,
 /// and saves atomically (D27). Lives in the library target so it is testable without SwiftUI.
 @MainActor
-final class KeymapperViewModel: ObservableObject {
-    @Published private(set) var keymap: Keymap?
-    @Published private(set) var editedManaged: [Binding] = []   // working copy for pending edits
-    @Published private(set) var isDirty: Bool = false
-    @Published private(set) var skhdInSync: Bool = true
-    @Published var loadError: String?    // set by loadReportingError(); cleared by view
-    @Published var saveError: String?    // set by saveReportingError(); cleared by view
-    @Published private(set) var needsMigration: Bool = false
+public final class KeymapperViewModel: ObservableObject {
+    @Published public private(set) var keymap: Keymap?
+    @Published public private(set) var editedManaged: [Binding] = []   // working copy for pending edits
+    @Published public private(set) var isDirty: Bool = false
+    @Published public private(set) var skhdInSync: Bool = true
+    @Published public var loadError: String?    // set by loadReportingError(); cleared by view
+    @Published public var saveError: String?    // set by saveReportingError(); cleared by view
+    @Published public private(set) var needsMigration: Bool = false
 
     /// Hashes of each file as read at load time; used to detect concurrent external edits (D10).
     private var karabinerHash: Int = 0
     private var skhdHash: Int = 0
 
-    let karabinerURL: URL
-    let skhdURL: URL
-    let deployer: any Deploying
-    let writer: AtomicFileWriter
+    public let karabinerURL: URL
+    public let skhdURL: URL
+    public let deployer: any Deploying
+    public let writer: AtomicFileWriter
 
-    init(
+    public init(
         karabinerURL: URL = Paths.karabinerRepo,
         skhdURL: URL = Paths.skhdRepo,
         deployer: any Deploying = Deployer.makeReal(),
@@ -37,7 +37,7 @@ final class KeymapperViewModel: ObservableObject {
     // MARK: Load
 
     /// Load (or re-load) both config files. Resets all edit state.
-    func load() throws {
+    public func load() throws {
         let karText = try String(contentsOf: karabinerURL, encoding: .utf8)
         let skhdText = try String(contentsOf: skhdURL, encoding: .utf8)
         karabinerHash = karText.hashValue
@@ -51,13 +51,13 @@ final class KeymapperViewModel: ObservableObject {
     }
 
     /// Convenience wrapper used by AppDelegate so the caller doesn't need a try/catch.
-    func loadReportingError() {
+    public func loadReportingError() {
         do { try load() } catch { loadError = error.localizedDescription }
     }
 
     // MARK: Edit
 
-    func updateBinding(_ binding: Binding) {
+    public func updateBinding(_ binding: Binding) {
         guard let idx = editedManaged.firstIndex(where: {
             $0.chord == binding.chord && $0.source == binding.source
         }) else { return }
@@ -65,12 +65,12 @@ final class KeymapperViewModel: ObservableObject {
         isDirty = true
     }
 
-    func addBinding(_ binding: Binding) {
+    public func addBinding(_ binding: Binding) {
         editedManaged.append(binding)
         isDirty = true
     }
 
-    func removeBinding(at offsets: IndexSet) {
+    public func removeBinding(at offsets: IndexSet) {
         // remove(atOffsets:) is SwiftUI-only; replicate it without importing SwiftUI.
         for index in offsets.reversed() {
             editedManaged.remove(at: index)
@@ -82,7 +82,7 @@ final class KeymapperViewModel: ObservableObject {
 
     /// Atomic save: re-read to detect concurrent edits (D10), write both files (D17, D21),
     /// validate (D25), then deploy skhd (D12). Throws on any failure; backups are preserved.
-    func save() throws {
+    public func save() throws {
         guard var km = keymap else { return }
 
         // D10: re-read immediately before writing to detect concurrent external edits.
@@ -137,14 +137,14 @@ final class KeymapperViewModel: ObservableObject {
     }
 
     /// Convenience wrapper for the Save button action in SwiftUI.
-    func saveReportingError() {
+    public func saveReportingError() {
         do { try save() } catch { saveError = error.localizedDescription }
     }
 
     // MARK: Migration (D26)
 
     /// First-run: auto-adopt all existing launcher bindings into the managed model.
-    func migrate() throws {
+    public func migrate() throws {
         let m = Migration(karabinerURL: karabinerURL, skhdURL: skhdURL, writer: writer)
         try m.run()
         try load()
@@ -153,7 +153,7 @@ final class KeymapperViewModel: ObservableObject {
     // MARK: Drift (D13, D28)
 
     /// "Make it live" — re-deploy repo skhdrc when it diverged from the deployed copy.
-    func makeItLive() throws {
+    public func makeItLive() throws {
         try deployer.apply()
         skhdInSync = true
     }
@@ -161,11 +161,11 @@ final class KeymapperViewModel: ObservableObject {
 
 // MARK: - Errors
 
-enum SaveError: Error, LocalizedError, Equatable {
+public enum SaveError: Error, LocalizedError, Equatable {
     case concurrentEdit
     case validationFailed
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .concurrentEdit:
             return "The config file was modified externally — reloaded the latest version. Please review and save again."

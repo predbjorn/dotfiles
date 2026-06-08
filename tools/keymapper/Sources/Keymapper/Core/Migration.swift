@@ -5,12 +5,18 @@ import Foundation
 /// - skhd: wraps the existing unmanaged launcher bindings in the managed fence.
 /// NOTE: the original launcher lines stay in the prefix/suffix (byte-fidelity); the conflict engine
 /// will surface the resulting duplicate chords, and Plan-B's UI will guide removing the originals.
-struct Migration {
-    let karabinerURL: URL
-    let skhdURL: URL
-    let writer: AtomicFileWriter
+public struct Migration {
+    public let karabinerURL: URL
+    public let skhdURL: URL
+    public let writer: AtomicFileWriter
 
-    func run() throws {
+    public init(karabinerURL: URL, skhdURL: URL, writer: AtomicFileWriter) {
+        self.karabinerURL = karabinerURL
+        self.skhdURL = skhdURL
+        self.writer = writer
+    }
+
+    public func run() throws {
         try migrateKarabiner()
         try migrateSkhd()
     }

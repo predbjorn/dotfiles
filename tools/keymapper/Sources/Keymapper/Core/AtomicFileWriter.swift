@@ -4,18 +4,18 @@ import Foundation
 /// - Backup BEFORE each write (D9).
 /// - Write to a temp file on the same volume, then rename(2) (D17).
 /// - Backups are user-only and pruned to the newest `retain` (D21, D22).
-struct AtomicFileWriter {
-    let backupDir: URL
-    let timestamp: String
-    let retain: Int
+public struct AtomicFileWriter {
+    public let backupDir: URL
+    public let timestamp: String
+    public let retain: Int
 
-    init(backupDir: URL, timestamp: String = AtomicFileWriter.now(), retain: Int = 20) {
+    public init(backupDir: URL, timestamp: String = AtomicFileWriter.now(), retain: Int = 20) {
         self.backupDir = backupDir
         self.timestamp = timestamp
         self.retain = retain
     }
 
-    static func now() -> String {
+    public static func now() -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd-HHmmss"
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -23,7 +23,7 @@ struct AtomicFileWriter {
     }
 
     /// Backup (if the target exists) then atomically replace it. Prunes old backups afterward.
-    func write(_ contents: String, to target: URL, backupStem stem: String) throws {
+    public func write(_ contents: String, to target: URL, backupStem stem: String) throws {
         if FileManager.default.fileExists(atPath: target.path) {
             _ = try makeBackup(of: target, stem: stem)
             try prune(stem: stem)
@@ -33,7 +33,7 @@ struct AtomicFileWriter {
 
     /// Copy the current target into the backup dir as `<stem>.<timestamp>.bak`, mode 0600. Returns its URL.
     @discardableResult
-    func makeBackup(of target: URL, stem: String) throws -> URL {
+    public func makeBackup(of target: URL, stem: String) throws -> URL {
         try FileManager.default.createDirectory(at: backupDir, withIntermediateDirectories: true)
         var backup = backupDir.appendingPathComponent("\(stem).\(timestamp).bak")
         var counter = 1
@@ -48,7 +48,7 @@ struct AtomicFileWriter {
     }
 
     /// Restore a backup over the target (used by the deployer's auto-revert, D25).
-    func restore(_ backup: URL, to target: URL) throws {
+    public func restore(_ backup: URL, to target: URL) throws {
         try atomicReplace(target, with: try Data(contentsOf: backup))
     }
 
