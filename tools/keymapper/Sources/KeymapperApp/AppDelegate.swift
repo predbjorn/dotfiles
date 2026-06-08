@@ -2,12 +2,13 @@ import AppKit
 import SwiftUI
 import Keymapper
 
-@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
-    let vm = KeymapperViewModel()
+    private var vm: KeymapperViewModel!
 
+    @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
+        vm = KeymapperViewModel()
         let content = ContentView(vm: vm)
         let hosting = NSHostingController(rootView: content)
 
@@ -24,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         // Load on launch — errors are surfaced in the UI.
-        Task { @MainActor in self.vm.loadReportingError() }
+        vm.loadReportingError()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

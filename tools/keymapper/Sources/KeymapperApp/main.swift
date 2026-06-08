@@ -2,6 +2,6 @@ import AppKit
 
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
-let delegate = MainActor.assumeIsolated { AppDelegate() }
+let delegate = AppDelegate()
 app.delegate = delegate
 app.run()
