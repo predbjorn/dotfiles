@@ -27,4 +27,31 @@ final class ConfigTests: XCTestCase {
         XCTAssertThrowsError(try Config.loadOrCreate(at: url))
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "}{ not json")
     }
+
+    func testDecodesInspectTargets() throws {
+        let json = """
+        {"bearerToken":"x","httpPort":8765,"pollIntervalSeconds":5,"autoRestartEnabled":true,
+         "inspectTargets":{"com.nors.ai-daemon":{"public":"https://daemon.prebenhafnor.com","local":"http://localhost:8787"}}}
+        """
+        let cfg = try JSONDecoder().decode(Config.self, from: Data(json.utf8))
+        let t = cfg.inspectTargets?["com.nors.ai-daemon"]
+        XCTAssertEqual(t?.publicURL, URL(string: "https://daemon.prebenhafnor.com"))
+        XCTAssertEqual(t?.localURL, URL(string: "http://localhost:8787"))
+        XCTAssertEqual(t?.preferredURL, URL(string: "https://daemon.prebenhafnor.com"))
+    }
+
+    func testConfigWithoutInspectTargetsStillDecodes() throws {
+        let json = """
+        {"bearerToken":"x","httpPort":8765,"pollIntervalSeconds":5,"autoRestartEnabled":true}
+        """
+        let cfg = try JSONDecoder().decode(Config.self, from: Data(json.utf8))
+        XCTAssertNil(cfg.inspectTargets)
+        XCTAssertNil(cfg.cloudflaredConfigPath)
+        XCTAssertNil(cfg.cloudflaredLabel)
+    }
+
+    func testPreferredURLFallsBackToLocal() {
+        let t = InspectTarget(public: nil, local: "http://localhost:9000")
+        XCTAssertEqual(t.preferredURL, URL(string: "http://localhost:9000"))
+    }
 }

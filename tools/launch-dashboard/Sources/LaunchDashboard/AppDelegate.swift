@@ -27,7 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.config = loaded ?? Config(bearerToken: Config.makeToken(), httpPort: 8765,
                                        pollIntervalSeconds: 5, autoRestartEnabled: false,
-                                       priorityLabels: nil)
+                                       priorityLabels: nil,
+                                       inspectTargets: nil,
+                                       cloudflaredConfigPath: nil,
+                                       cloudflaredLabel: nil)
         self.priorityLabels = Set(self.config.priorityLabels ?? [])
         let client = LaunchctlClient.makeReal()
         self.client = client
