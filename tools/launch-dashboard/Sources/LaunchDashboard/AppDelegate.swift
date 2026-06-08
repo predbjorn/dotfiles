@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static let ownLabel = "com.prebenhafnor.launch-dashboard"
 
     private var menuBar: MenuBarController!
+    private var tunnelRoutesWC: TunnelRoutesWindowController!
     private var server: HTTPServer!
     private var timer: Timer?
     private let monitor: ServiceMonitor
@@ -47,12 +48,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        tunnelRoutesWC = TunnelRoutesWindowController(
+            controller: CloudflaredController.makeDefault(config: config))
+
         menuBar = MenuBarController(
             onStart:   { [weak self] label in self?.run { try $0.startService(label) } },
             onStop:    { [weak self] label in self?.run { try $0.client.bootout(label: label) } },
             onRestart: { [weak self] label in self?.run { try $0.client.kickstart(label: label, restart: true) } },
-            onLoad:    { [weak self] label in self?.run { try $0.loadService(label) } }
+            onLoad:    { [weak self] label in self?.run { try $0.loadService(label) } },
+            onOpenURL: { url in NSWorkspace.shared.open(url) },
+            onOpenTunnelRoutes: { [weak self] in self?.tunnelRoutesWC.show() }
         )
+        menuBar.vm.inspectTargets = config.inspectTargets ?? [:]
 
         // UNUserNotificationCenter requires a bundle identifier; a bare SwiftPM binary run
         // outside an .app bundle has none and crashes when touching it. Only use notifications
