@@ -8,22 +8,33 @@ enum LauncherMechanism: String, Codable {
     case open     // open <path>  (space+f folder shortcuts)
 }
 
-/// A recognized launcher action. `rawCommand` is the verbatim source of truth (D11);
-/// structured fields are derived and used to regenerate via the SAME mechanism on edit.
+/// A recognized launcher action. `rawCommand` is the verbatim source of truth (D11).
 struct LauncherAction: Equatable {
     var mechanism: LauncherMechanism
-    var target: String          // app name or folder path
-    var focusBringToCurrent: Bool   // only meaningful for .focus; false otherwise
+    var target: String
+    var focusBringToCurrent: Bool
     var rawCommand: String
 }
 
-/// One keymap binding. `launcher == nil` means an opaque/non-launcher action (e.g. a yabai pipeline):
-/// the chord is still parsed so it participates in conflict detection + cheatsheet (D29).
+/// One keymap binding. `launcher == nil` means an opaque action (e.g. yabai pipeline):
+/// the chord is still parsed for conflict detection + cheatsheet (D29).
 struct Binding: Equatable {
     var chord: Chord
     var source: SourceFile
     var managed: Bool
     var launcher: LauncherAction?
-    var rawText: String         // verbatim source span / shell command for round-trip (D8)
-    var displayName: String     // for cheatsheet: app name, folder, or a short command summary
+    var rawText: String
+    var displayName: String
+    var sourceLine: Int?   // 1-based line number in skhdrc (nil for karabiner bindings, D29)
+
+    init(chord: Chord, source: SourceFile, managed: Bool, launcher: LauncherAction?,
+         rawText: String, displayName: String, sourceLine: Int? = nil) {
+        self.chord = chord
+        self.source = source
+        self.managed = managed
+        self.launcher = launcher
+        self.rawText = rawText
+        self.displayName = displayName
+        self.sourceLine = sourceLine
+    }
 }

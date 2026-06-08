@@ -2,7 +2,8 @@ import Foundation
 
 /// Splits skhdrc into [prefix lines] [managed region] [suffix lines]. The managed region is regenerated
 /// on edit; everything else passes through verbatim (D8). All binding lines (managed or not) are parsed
-/// at chord level for the auditor (D29).
+/// at chord level for the auditor (D29). Line numbers (1-based) are stored on each Binding for D29
+/// open-at-line support.
 struct SkhdDocument {
     static let openFence = "# >>> keymap-managed >>>"
     static let closeFence = "# <<< keymap-managed <<<"
@@ -41,15 +42,19 @@ struct SkhdDocument {
     }
 
     func bindings() -> [Binding] {
+        // Compute 0-based line offsets for each section so sourceLine is accurate.
+        let prefixOffset = 0                                          // prefix starts at line 1 (offset 0)
+        let managedOffset = prefix.count + 1                          // +1 for the open-fence line
+        let suffixOffset = prefix.count + 1 + managedLines.count + 1 // +1 for close-fence line
+
         var out: [Binding] = []
-        out += parseBindings(from: prefix, managed: false)
-        out += parseBindings(from: suffix, managed: false)
-        out += parseBindings(from: managedLines, managed: true)
+        out += parseBindings(from: prefix, managed: false, startLineOffset: prefixOffset)
+        out += parseBindings(from: managedLines, managed: true, startLineOffset: managedOffset)
+        out += parseBindings(from: suffix, managed: false, startLineOffset: suffixOffset)
         return out
     }
 
-    /// Replace the managed region with freshly rendered bindings. If no fence exists, one is created
-    /// (after the existing content) so the rest of the file is untouched.
+    /// Replace the managed region with freshly rendered bindings. If no fence exists, one is created.
     mutating func setManagedBindings(_ bindings: [Binding]) throws {
         managedLines = bindings.map { binding -> String in
             let chord = SkhdChord.render(binding.chord)
@@ -60,23 +65,36 @@ struct SkhdDocument {
     }
 
     // MARK: Line parsing
-    private func parseBindings(from lines: [String], managed: Bool) -> [Binding] {
-        // Join skhd line-continuations (trailing backslash) so a multi-line pipeline is one logical line.
-        var logical: [String] = []
+
+    /// Parse an array of raw lines into Bindings. `startLineOffset` is the 0-based index of
+    /// `lines[0]` within the full file (so sourceLine = startLineOffset + localIndex + 1, 1-based).
+    private func parseBindings(from lines: [String], managed: Bool, startLineOffset: Int) -> [Binding] {
+        // Join skhd line-continuations (trailing backslash); track the first physical line of each logical line.
+        var logical: [(text: String, firstLine: Int)] = []
         var buffer = ""
-        for line in lines {
-            if buffer.isEmpty && isComment(line) { continue }
-            if line.hasSuffix("\\") {
-                buffer += String(line.dropLast())
+        var bufferLine = 0
+        var inBuffer = false
+
+        for (localIndex, raw) in lines.enumerated() {
+            let lineNumber = startLineOffset + localIndex + 1  // 1-based
+            if !inBuffer && isComment(raw) { continue }
+            if !inBuffer { bufferLine = lineNumber; inBuffer = true }
+            if raw.hasSuffix("\\") {
+                buffer += String(raw.dropLast())
                 continue
             }
-            buffer += line
-            if !buffer.trimmingCharacters(in: .whitespaces).isEmpty { logical.append(buffer) }
+            buffer += raw
+            if !buffer.trimmingCharacters(in: .whitespaces).isEmpty {
+                logical.append((buffer, bufferLine))
+            }
             buffer = ""
+            inBuffer = false
         }
-        if !buffer.trimmingCharacters(in: .whitespaces).isEmpty { logical.append(buffer) }
+        if !buffer.trimmingCharacters(in: .whitespaces).isEmpty {
+            logical.append((buffer, bufferLine))
+        }
 
-        return logical.compactMap { line -> Binding? in
+        return logical.compactMap { (line, lineNum) -> Binding? in
             guard let colon = line.firstIndex(of: ":") else { return nil }
             let lhs = String(line[..<colon]).trimmingCharacters(in: .whitespaces)
             let rhs = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
@@ -84,7 +102,8 @@ struct SkhdDocument {
             let action = LauncherCommand.parse(rhs)
             return Binding(chord: chord, source: .skhd, managed: managed,
                            launcher: action, rawText: rhs,
-                           displayName: action?.target ?? summarize(rhs))
+                           displayName: action?.target ?? summarize(rhs),
+                           sourceLine: lineNum)
         }
     }
 

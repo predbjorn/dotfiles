@@ -1,5 +1,11 @@
 import Foundation
 
+/// Protocol so KeymapperViewModel can inject a mock deployer in tests (same pattern as ProcessRunner).
+protocol Deploying {
+    func isInSync() throws -> Bool
+    func apply() throws
+}
+
 /// Makes skhd changes live with the minimal scoped step (D12): copy repo skhdrc to the deployed path,
 /// then `skhd --reload` via argv with an absolute path (D20). karabiner is symlinked (no deploy step).
 struct Deployer {
@@ -44,3 +50,5 @@ struct Deployer {
 }
 
 enum DeployError: Error, Equatable { case reloadFailed(String) }
+
+extension Deployer: Deploying {}

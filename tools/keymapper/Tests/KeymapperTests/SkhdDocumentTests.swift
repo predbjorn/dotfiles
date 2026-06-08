@@ -51,6 +51,24 @@ final class SkhdDocumentTests: XCTestCase {
         XCTAssertTrue(out.contains(#"jq 'map(select(."is-native-fullscreen" == false))[-1].index')"#))
     }
 
+    func testParsedBindingsHaveCorrectLineNumbers() throws {
+        // Line 1: lalt + lcmd - l: yabai -m display --focus east
+        // Line 2: # >>> keymap-managed >>>
+        // Line 3: hyper - s : ~/.dotfiles/bin/focus_window_wrapper.sh Slack false
+        // Line 4: # <<< keymap-managed <<<
+        let text = "lalt + lcmd - l: yabai -m display --focus east\n# >>> keymap-managed >>>\nhyper - s : ~/.dotfiles/bin/focus_window_wrapper.sh Slack false\n# <<< keymap-managed <<<"
+        let doc = try SkhdDocument(text: text)
+        let bs = doc.bindings()
+
+        let lalt = bs.first { $0.chord.key == "l" }
+        XCTAssertNotNil(lalt)
+        XCTAssertEqual(lalt?.sourceLine, 1)
+
+        let slack = bs.first { $0.chord.key == "s" }
+        XCTAssertNotNil(slack)
+        XCTAssertEqual(slack?.sourceLine, 3)
+    }
+
     func testCreatesFenceWhenAbsent() throws {
         var doc = try SkhdDocument(text: "hyper - b : echo hi\n")
         try doc.setManagedBindings([
