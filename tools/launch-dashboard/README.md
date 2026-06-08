@@ -110,7 +110,7 @@ Cloudflare Access policy:
 4. Restart the tunnel:
 
    ```bash
-   launchctl kickstart -k "gui/$(id -u)/com.nors.cloudflared"
+   launchctl kickstart -k "gui/$(id -u)/com.prebenhafnor.cloudflared"
    ```
 
 The bearer token still guards every request as a second layer.
