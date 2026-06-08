@@ -5,6 +5,7 @@ final class ServicesViewModel: ObservableObject {
     @Published var priority: Set<String> = []     // priority labels (shown on top)
     @Published var crashed: Set<String> = []      // currently-crashed labels → red
     @Published var lastError: String?             // surfaced action failures
+    @Published var inspectTargets: [String: InspectTarget] = [:]   // label → URLs
 }
 
 struct ServicesView: View {
@@ -13,6 +14,8 @@ struct ServicesView: View {
     let onStop: (String) -> Void
     let onRestart: (String) -> Void
     let onLoad: (String) -> Void
+    let onOpenURL: (URL) -> Void
+    let onOpenTunnelRoutes: () -> Void
     @State private var showMore = false
 
     // When a priority set is configured, split it out; otherwise everything is "priority".
@@ -59,14 +62,31 @@ struct ServicesView: View {
 
     @ViewBuilder
     private func row(_ s: ServiceStatus) -> some View {
+        let target = vm.inspectTargets[s.label]
         HStack {
             Circle().fill(color(for: s)).frame(width: 8, height: 8)
             VStack(alignment: .leading) {
-                Text(s.label).font(.system(.body, design: .monospaced))
+                if let url = target?.preferredURL {
+                    Button {
+                        onOpenURL(url)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(s.label).font(.system(.body, design: .monospaced))
+                            Image(systemName: "globe").font(.caption2)
+                        }
+                        .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(s.label).font(.system(.body, design: .monospaced))
+                }
                 Text(detail(for: s)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             Menu("⋯") {
+                if let url = target?.publicURL { Button("Open \(url.host ?? url.absoluteString)") { onOpenURL(url) } }
+                if let url = target?.localURL { Button("Open \(url.host ?? "local"):\(url.port.map(String.init) ?? "")") { onOpenURL(url) } }
+                if target?.publicURL != nil || target?.localURL != nil { Divider() }
                 if s.state == .notLoaded { Button("Load") { onLoad(s.label) } }
                 if s.state != .running { Button("Start") { onStart(s.label) } }
                 if s.state == .running { Button("Stop") { onStop(s.label) } }
