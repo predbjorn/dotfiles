@@ -156,6 +156,28 @@ Auto-restart stays a safety net across **all** services (it only ever acts on a 
 running→crashed transition, never on a manual stop). Leave `priorityLabels` out (or
 empty) to treat everything as priority again.
 
+## Inspecting a service (open its URL)
+
+Give a service a clickable URL by adding it to `inspectTargets` in `config.json`:
+
+```bash
+CONFIG="$HOME/Library/Application Support/LaunchDashboard/config.json"
+jq '.inspectTargets = {"com.nors.ai-daemon": {"public":"https://daemon.prebenhafnor.com","local":"http://localhost:8787"}}' \
+  "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG" && chmod 600 "$CONFIG"
+```
+
+The row's label turns into a link (globe icon); clicking it opens the **public**
+URL. The row's `⋯` menu offers both the public and local URLs.
+
+## Tunnel routes
+
+The popover footer's **"Tunnel routes…"** button opens a window listing the
+cloudflared ingress rules from `~/.cloudflared/config.yml`. Each hostname has an
+on/off toggle; the catch-all (`http_status:404`) is always on. Toggling a route
+comments/uncomments it in the config (written through the dotfiles symlink) and
+reloads `com.prebenhafnor.cloudflared`. Changes appear as a git diff in dotfiles —
+commit them when you're happy.
+
 ## Development
 
 ```bash
