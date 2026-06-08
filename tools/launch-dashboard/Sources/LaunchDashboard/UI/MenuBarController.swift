@@ -9,7 +9,9 @@ final class MenuBarController {
     init(onStart: @escaping (String) -> Void,
          onStop: @escaping (String) -> Void,
          onRestart: @escaping (String) -> Void,
-         onLoad: @escaping (String) -> Void) {
+         onLoad: @escaping (String) -> Void,
+         onOpenURL: @escaping (URL) -> Void,
+         onOpenTunnelRoutes: @escaping () -> Void) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         popover = NSPopover()
         popover.behavior = .transient
@@ -17,7 +19,9 @@ final class MenuBarController {
         popover.contentViewController = NSHostingController(
             rootView: ServicesView(vm: vm,
                                    onStart: onStart, onStop: onStop,
-                                   onRestart: onRestart, onLoad: onLoad))
+                                   onRestart: onRestart, onLoad: onLoad,
+                                   onOpenURL: onOpenURL,
+                                   onOpenTunnelRoutes: onOpenTunnelRoutes))
         statusItem.button?.image = NSImage(systemSymbolName: "gauge.with.dots.needle.50percent",
                                            accessibilityDescription: nil)
         statusItem.button?.target = self

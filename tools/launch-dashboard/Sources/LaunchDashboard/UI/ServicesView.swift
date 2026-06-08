@@ -105,6 +105,9 @@ struct ServicesView: View {
             legendDot(.red, "Crashed")
             legendDot(.yellow, "Stopped")
             legendDot(.gray, "Not loaded")
+            Spacer()
+            Button("Tunnel routes…") { onOpenTunnelRoutes() }
+                .font(.caption2)
         }
         .font(.caption2).foregroundStyle(.secondary)
         .padding(.horizontal, 8).padding(.vertical, 6)
