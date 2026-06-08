@@ -30,7 +30,12 @@ final class TunnelRoutesViewModel: ObservableObject {
                     self.status = "\(enabled ? "Enabled" : "Disabled") \(host) · tunnel reloaded"
                 }
             } catch {
-                DispatchQueue.main.async { self.status = "Error: \(error.localizedDescription)" }
+                // Re-sync from disk so the toggle snaps back to actual state on failure.
+                let current = try? self.controller.rules()
+                DispatchQueue.main.async {
+                    if let current { self.rules = current }
+                    self.status = "Error: \(error.localizedDescription)"
+                }
             }
         }
     }
