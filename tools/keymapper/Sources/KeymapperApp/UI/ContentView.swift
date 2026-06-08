@@ -74,13 +74,9 @@ struct ContentView: View {
                 Section(header: SectionHeader(title: "Managed", count: vm.editedManaged.count)) {
                     ManagedSection(vm: vm)
                 }
-                // Reference section placeholder — replaced in Task 6.
                 let ref = vm.keymap?.reference ?? []
                 Section(header: SectionHeader(title: "Reference (read-only)", count: ref.count)) {
-                    Text("(Reference bindings — coming in Task 6)")
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                    ReferenceSection(vm: vm)
                 }
             }
             .padding(.vertical, 12)
