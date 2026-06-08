@@ -31,9 +31,7 @@ struct ContentView: View {
         }
         // Cheatsheet export sheet (D15).
         .sheet(isPresented: $showCheatsheet) {
-            Text("Cheatsheet — Task 7")
-                .padding()
-                .frame(width: 400, height: 300)
+            CheatsheetPanel(vm: vm)
         }
     }
 
