@@ -31,6 +31,11 @@ enum IngressConfigParser {
         while i < lines.count {
             let ln = analyze(lines[i])
             if !ln.commented && ln.content == "ingress:" { inIngress = true; i += 1; continue }
+            // Leaving the ingress block: a new unindented top-level key (e.g. originRequest:).
+            if inIngress && !ln.commented && ln.indent.isEmpty
+                && ln.content.hasSuffix(":") && !ln.content.hasPrefix("-") {
+                inIngress = false
+            }
             guard inIngress else { i += 1; continue }
 
             if ln.content.hasPrefix("- service:") {
@@ -47,22 +52,25 @@ enum IngressConfigParser {
                 var j = i + 1
                 var svc = ""
                 var svcCommented = ln.commented
+                var serviceLine: Int? = nil
                 while j < lines.count {
                     let nx = analyze(lines[j])
                     if nx.content.hasPrefix("service:") {
                         svc = nx.content.dropFirst("service:".count).trimmingCharacters(in: .whitespaces)
                         svcCommented = nx.commented
+                        serviceLine = j
                         break
                     }
-                    if nx.content.hasPrefix("- ") { break }  // next rule began; malformed pair
+                    if nx.content.hasPrefix("- ") { break }  // next rule began; this rule has no service
                     j += 1
                 }
-                let end = min(j, lines.count - 1)
+                let end = serviceLine ?? i   // no service found → rule spans only the hostname line
                 rules.append(IngressRule(hostname: host, service: svc,
                                          enabled: !ln.commented && !svcCommented,
                                          isCatchAll: false,
                                          lineRange: i...end))
-                i = j + 1; continue
+                i = end + 1                  // resume after the rule's real last line (never skips the next rule)
+                continue
             }
             i += 1
         }

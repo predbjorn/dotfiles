@@ -34,4 +34,19 @@ final class IngressConfigParserTests: XCTestCase {
         XCTAssertNil(catchAll?.hostname)
         XCTAssertEqual(catchAll?.service, "http_status:404")
     }
+
+    func testParseHostRuleWithoutServiceDoesNotSwallowNextRule() {
+        let text = """
+        ingress:
+          - hostname: broken.example.com
+          - hostname: good.example.com
+            service: http://localhost:1234
+          - service: http_status:404
+        """
+        let rules = IngressConfigParser.parse(text)
+        // The malformed first rule must not consume the following rule.
+        XCTAssertEqual(rules.first { $0.hostname == "broken.example.com" }?.service, "")
+        XCTAssertEqual(rules.first { $0.hostname == "good.example.com" }?.service, "http://localhost:1234")
+        XCTAssertNotNil(rules.first { $0.isCatchAll })
+    }
 }
