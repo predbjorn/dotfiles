@@ -49,4 +49,30 @@ final class IngressConfigParserTests: XCTestCase {
         XCTAssertEqual(rules.first { $0.hostname == "good.example.com" }?.service, "http://localhost:1234")
         XCTAssertNotNil(rules.first { $0.isCatchAll })
     }
+
+    func testToggleDisablesAnActiveRule() {
+        let out = IngressConfigParser.toggle(sample, hostname: "local3000.prebenhafnor.com")
+        let rule = IngressConfigParser.parse(out).first { $0.hostname == "local3000.prebenhafnor.com" }
+        XCTAssertEqual(rule?.enabled, false)
+        // Untouched rules keep their state.
+        XCTAssertEqual(IngressConfigParser.parse(out).first { $0.hostname == "daemon.prebenhafnor.com" }?.enabled, true)
+    }
+
+    func testToggleEnablesADisabledRule() {
+        let out = IngressConfigParser.toggle(sample, hostname: "local8001.prebenhafnor.com")
+        let rule = IngressConfigParser.parse(out).first { $0.hostname == "local8001.prebenhafnor.com" }
+        XCTAssertEqual(rule?.enabled, true)
+    }
+
+    func testToggleRoundTripIsIdentity() {
+        let off = IngressConfigParser.toggle(sample, hostname: "local3000.prebenhafnor.com")
+        let backOn = IngressConfigParser.toggle(off, hostname: "local3000.prebenhafnor.com")
+        XCTAssertEqual(backOn, sample)  // byte-identical after off→on
+    }
+
+    func testToggleNeverTouchesCatchAll() {
+        let out = IngressConfigParser.toggle(sample, hostname: "http_status:404")
+        XCTAssertEqual(out, sample)  // no host rule matches; no-op
+        XCTAssertEqual(IngressConfigParser.parse(out).first { $0.isCatchAll }?.enabled, true)
+    }
 }

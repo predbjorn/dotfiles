@@ -76,4 +76,33 @@ enum IngressConfigParser {
         }
         return rules
     }
+
+    /// Flip the enabled state of the host rule matching `hostname`. Returns the new file text.
+    /// No-op if the hostname isn't a (non-catch-all) host rule.
+    static func toggle(_ text: String, hostname: String) -> String {
+        var lines = text.components(separatedBy: "\n")
+        guard let rule = parse(text).first(where: { $0.hostname == hostname }), !rule.isCatchAll
+        else { return text }
+        let shouldComment = rule.enabled  // enabled → comment out; disabled → uncomment
+        for idx in rule.lineRange {
+            lines[idx] = shouldComment ? commentLine(lines[idx]) : uncommentLine(lines[idx])
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func commentLine(_ raw: String) -> String {
+        let ws = raw.prefix { $0 == " " || $0 == "\t" }
+        let rest = raw.dropFirst(ws.count)
+        if rest.first == "#" { return raw }  // already commented
+        return "\(ws)# \(rest)"
+    }
+
+    private static func uncommentLine(_ raw: String) -> String {
+        let ws = raw.prefix { $0 == " " || $0 == "\t" }
+        var rest = String(raw.dropFirst(ws.count))
+        guard rest.first == "#" else { return raw }
+        rest.removeFirst()
+        if rest.first == " " { rest.removeFirst() }
+        return "\(ws)\(rest)"
+    }
 }
