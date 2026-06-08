@@ -17,7 +17,10 @@ struct ContentView: View {
                 InlineBanner(text: err, style: .error) { vm.saveError = nil }
             }
             if !vm.skhdInSync {
-                DriftBanner { try? vm.makeItLive() }
+                DriftBanner {
+                    do { try vm.makeItLive() }
+                    catch { vm.saveError = error.localizedDescription }
+                }
             }
             Divider()
             scrollBody
