@@ -85,7 +85,7 @@ struct ServicesView: View {
             Spacer()
             Menu("⋯") {
                 if let url = target?.publicURL { Button("Open \(url.host ?? url.absoluteString)") { onOpenURL(url) } }
-                if let url = target?.localURL { Button("Open \(url.host ?? "local"):\(url.port.map(String.init) ?? "")") { onOpenURL(url) } }
+                if let url = target?.localURL { Button("Open \(url.host ?? "local")\(url.port.map { ":\($0)" } ?? "")") { onOpenURL(url) } }
                 if target?.publicURL != nil || target?.localURL != nil { Divider() }
                 if s.state == .notLoaded { Button("Load") { onLoad(s.label) } }
                 if s.state != .running { Button("Start") { onStart(s.label) } }
