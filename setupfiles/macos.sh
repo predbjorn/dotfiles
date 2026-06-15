@@ -29,7 +29,7 @@ sudo nvram SystemAudioVolume=" "
 defaults write com.apple.finder QuitMenuItem -bool true
 
 # Finder: disable window animations and Get Info animations
-defaults write com.apple.finder DisableAllAnimations -bool true
+defaults write com.apple.finder DisableAllAnimations -bool false
 defaults write com.apple.finder ShowStatusBar -bool false
 # Set Desktop as the default location for new Finder windows
 # For other paths, use `PfLo` and `file:///full/path/here/`
@@ -173,7 +173,7 @@ defaults write com.apple.screencapture location -string "$HOME/screenshots"
 defaults write com.apple.dock launchanim -bool false
 
 # Speed up Mission Control animations
-defaults write com.apple.universalaccess reduceMotion -bool true
+defaults write com.apple.universalaccess reduceMotion -bool false
 defaults write com.apple.dock expose-animation-duration -float 0
 
 
