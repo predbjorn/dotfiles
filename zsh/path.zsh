@@ -41,7 +41,10 @@ export NVM_COMPLETION=true
 # pyenv (python)
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init --path)"
+# --no-rehash: skip the per-shell `pyenv rehash`. A stale ~/.pyenv/shims/.pyenv-shim
+# lock (left by a Ctrl+C'd rehash) makes startup hang 60s otherwise. Run `pyenv rehash`
+# manually after installing a new Python version or a package that adds CLI entry points.
+eval "$(pyenv init --path --no-rehash)"
 
 export CLOUDSDK_PYTHON=/Users/predbjorn/.pyenv/versions/3.12.9/bin/python3
 
