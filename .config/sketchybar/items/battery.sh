@@ -18,3 +18,6 @@ sketchybar --add item battery right \
 	background.drawing=on \
 	script="$PLUGIN_DIR/power.sh" \
 	--subscribe battery power_source_change
+
+# Macs without an internal battery (mini/Studio/etc.) — hide the widget entirely
+pmset -g batt | grep -q "InternalBattery" || sketchybar --set battery drawing=off
