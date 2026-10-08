@@ -250,6 +250,7 @@ Tapping space alone (< 200ms) types a normal space.
 - Crops the 4K master per display (3840×1600 ultrawide, plus matching slices for the portrait screens)
 - Runs every 10 min via a launchd agent (`.config/launchd/com.predbjorn.wallpaper.plist`, installed by `sync.sh`); logs to `~/Library/Logs/wallpaper.log`
 - `hyper + p` re-rolls today's set; `wallpaper.py --generate` forces a new set
+- Requires System Settings → Wallpaper → **Show on all Spaces** — otherwise per-Space wallpapers override the one the script sets
 
 ### Window Arrangement
 
