@@ -43,19 +43,21 @@ load_dotenv(Path.home() / ".dotfiles/.env")
 
 BASE_PROMPT = (
     "Generate a single image only, no text response. "
-    "A wide 21:9 ultrawide desktop wallpaper in the flat vector illustration style of the video game Firewatch. "
-    "A layered parallax landscape seen from a forest trail: in the far distance a single tall snow-capped mountain peak; "
-    "in front of it, rolling ridgelines of mountains and pine-covered hills, each layer one flat solid colour, "
-    "getting darker and more saturated as they come closer. {feature} "
-    "In the foreground, dark near-black silhouettes of tall pine and spruce trees framing the left and right edges, "
-    "and a strip of grassy ground with a few rocks at the bottom. "
-    "Atmospheric perspective: distant layers are pale and hazy, merging with the sky colour. "
-    "Soft, simple sky gradient from top to horizon, a large round sun disc low over the ridges, "
-    "two or three soft flat pill-shaped clouds, one tiny bird as a simple \"v\". "
-    "Snow on the peak is drawn as flat jagged light shapes, not white but a pale tint of the sky colour. "
-    "Clean geometric shapes, crisp edges, no outlines, no textures, no gradients inside shapes, no grain, "
-    "no people, no text. Minimal and poster-like, 5-7 flat colour layers only. "
-    "Calm, quiet, breathing-space mood. Leave the centre of the sky open and uncluttered. "
+    "A wide 21:9 ultrawide desktop wallpaper in the style of the Firewatch video game key art and Olly Moss's "
+    "Firewatch posters: a richly detailed, layered vector landscape of the Wyoming wilderness. "
+    "Deep parallax with 12 to 15 distinct depth layers receding into the distance. "
+    "Far back: tall mountain ranges with sharp faceted peaks, each mountain shaded with flat light and shadow facets. "
+    "Middle: many overlapping ridges blanketed in dense pine forest, every forest layer made of hundreds of individual "
+    "jagged, pointed pine and spruce silhouettes along its edge, with soft bands of atmospheric haze and mist "
+    "between the layers so each layer separates from the next. {feature} "
+    "Foreground: large, detailed near-black pine trees with visible branch tiers framing the left and right edges, "
+    "and a rocky ridge with grass and scattered boulders along the bottom. "
+    "Sky: a smooth vertical gradient with a large glowing sun low over the ridges, gentle radiating light, "
+    "a few long thin layered clouds, and a loose flock of small birds. "
+    "Shapes are clean vector silhouettes with crisp edges and no outlines; colour comes from a strong single-hue "
+    "analogous palette that shifts from light and hazy in the distance to dark and saturated up close. "
+    "Dramatic, cinematic, quiet and lonely mood. High detail, intricate tree lines, poster quality. "
+    "No people, no text, no logo, no title. "
     "Full-bleed artwork reaching every edge: no borders, no frame, no margins.\n\n"
     "Palette: {palette}"
 )
@@ -63,36 +65,45 @@ BASE_PROMPT = (
 RECOLOUR_PROMPT = (
     "Generate a single image only, no text response. "
     "Recolour this exact illustration for a different time of day. Keep the composition, every shape, "
-    "every layer and the flat vector Firewatch style identical; only change the colours. {extra}\n\n"
+    "every tree, every layer and the level of detail identical; only change the colours and lighting. {extra}\n\n"
     "Palette: {palette}"
 )
 
+# The lookout tower is the Firewatch signature, so it appears in most scenes.
 FEATURES = [
-    "In the valley between the ridges, a still mountain lake reflecting the sky as flat colour bands.",
-    "A winding river cuts through the valley floor between the ridges.",
-    "The ridges open into a deep canyon with layered flat rock walls.",
-    "On a nearby ridge stands a small wooden fire lookout tower on stilts.",
-    "A wide open alpine meadow stretches across the middle distance.",
+    "On a rocky outcrop in the near-middle ground stands a tall wooden fire lookout tower on a lattice of stilts "
+    "with a small cabin on top, drawn as a detailed silhouette.",
+    "On a high ridge to one side stands a wooden fire lookout tower with a cabin on top, small against the mountains, "
+    "with a winding trail leading up to it.",
+    "A fire lookout tower stands on a hilltop above a still mountain lake that mirrors the forest and sky.",
+    "A winding river glints through the valley floor between the forested ridges, with a distant lookout tower "
+    "on a far hill.",
+    "The ridges open into a deep canyon with layered faceted rock walls, a lookout tower perched on the rim.",
+    "A wide open alpine meadow stretches across the middle distance, with a lone lookout tower beyond it.",
 ]
 
+# Each phase follows one of the classic Firewatch colourways.
 PALETTES = {
-    "dawn": "lavender-grey sky #8a7a9a fading to dusty pink #d79a9a at the horizon; far hills rose #c98a9a; "
-            "mid forest muted violet #8a6a8a; foreground pines dark slate purple #5a4a6a; "
-            "a pale peach glow #f5d0b0 in the valley.",
-    "day": "clear sky blue #6fa8d8 fading to pale #c8e2ee at the horizon; sun soft orange #ffc07a; "
-           "far peak sage green #6a9a6a; mid mountains forest green #3e6a52; foreground dark pine green #1e3a2e; "
-           "snow patches cream #f0ecc8; grassy ground muted green-grey #7a9a8a.",
-    "golden": "sky from dusty rose #c97a6e at the top to warm peach #f2b08a at the horizon; sun pale yellow #ffcf70; "
-              "far mountains mauve #a8667a; mid ridges plum #7a4a6a; near trees deep aubergine #2a1a2e; "
-              "snow patches pale pink #f5c9b8.",
-    "night": "deep indigo sky #1a1840 to violet #3a2a6a at the horizon; mountains glowing purple #7a5ab8 and #4a3a8a; "
-             "foreground near-black navy #0b0d16; moon pale #e9e6f2.",
+    "dawn": "soft rose-pink: sky pale peach #fbd9c4 near the horizon rising to pink #f4b8b0; pale sun #fff0e0; "
+            "far ridges dusty rose #e6a6a4; mid ridges coral #d0706f; forests crimson #a3324a; "
+            "foreground deep maroon #4a1028.",
+    "day": "warm amber and gold: sky bright amber #f6a623 at the top fading to pale yellow #fcd977 at the horizon; "
+           "sun cream #fff4c2; far ridges soft orange #f0a04a; mid ridges burnt orange #d0621f; "
+           "forests rust #93321a; foreground dark brown-red #3a0d06.",
+    "golden": "fiery red-orange sunset: sky orange #f26b2a at the top to warm yellow-orange #fbb04b at the horizon; "
+              "sun glowing yellow #ffe08a; far ridges salmon red #e8603a; mid ridges red #c42a2a; "
+              "forests deep crimson #7d1024; foreground near-black burgundy #2a0610.",
+    "night": "deep blue and violet night: sky navy #0b1a4a at the top to royal blue #2a4fa8, with a magenta-pink glow "
+             "#d24a8a along the horizon behind the mountains; far ridges violet #6a3aa8; mid ridges indigo #3a2a7a; "
+             "forests dark purple #241a4a; foreground near-black #0a0a1e.",
 }
 
 PHASE_EXTRA = {
-    "dawn": "The sun sits just at the horizon, pale and soft.",
-    "golden": "The sun is low and warm over the ridges.",
-    "night": "Replace the sun with a pale moon, add small white stars to the sky, and remove the bird.",
+    "dawn": "Early morning: the sun is just rising, soft and pale, with gentle mist in the valleys.",
+    "day": "",
+    "golden": "Late evening: the sun is low and blazing over the ridges.",
+    "night": "Replace the sun with a pale moon and add many small stars; the lookout tower cabin has one small "
+             "warm lit window if a tower is present. Birds become a few distant silhouettes or are removed.",
 }
 
 
