@@ -91,9 +91,7 @@ dotfiles/
 │   └── claude-worktree.sh      Git worktree + Claude session launcher
 │
 ├── script/                     Utility scripts
-│   ├── wallpaper.py            AI wallpaper generator (DALL-E 3)
-│   ├── wallpaper_gemini.py     AI wallpaper generator (Gemini)
-│   ├── setCronjobs.py          Installs wallpaper cron job
+│   ├── wallpaper.py            Firewatch-style wallpaper rotation (Gemini)
 │   ├── windowarr.sh            Yabai window/space arrangement helpers
 │   └── sync-brew.sh            Brewfile drift checker
 │
@@ -191,7 +189,7 @@ Symlinked configs take effect immediately on edit. Copied configs (sketchybar, f
 - `cmd + alt + 1-8` — focus spaces
 - `shift + alt + 1-9` — move window to space
 - `alt + f` — fullscreen, `alt + t` — float/center, `alt + g` — toggle gaps
-- `hyper + r` — re-run sync.sh, `hyper + p` — generate wallpaper
+- `hyper + r` — re-run sync.sh, `hyper + p` — re-roll today's wallpaper
 - `ctrl + shift + [key]` — focus specific apps (with force-move via `cmd` modifier)
 
 **Sketchybar** (`.config/sketchybar/`) — Custom status bar with Catppuccin Mocha theme. Widgets: workspace indicators, focused app, Spotify (with rich popup controls), calendar, brew updates, GitHub notifications, WiFi, battery, CPU usage, Svim mode. Includes a compiled C helper for CPU stats.
@@ -242,12 +240,16 @@ Tapping space alone (< 200ms) types a normal space.
 
 ## Scripts
 
-### AI Wallpaper Generators
+### AI Wallpaper
 
-- `script/wallpaper.py` — Generates dark forest landscapes in Catppuccin colors using DALL-E 3
-- `script/wallpaper_gemini.py` — Same concept using Google Gemini
-- `script/setCronjobs.py` — Installs a daily noon cron job for wallpaper generation
-- Triggered manually via `hyper + p` (skhd shortcut)
+`script/wallpaper.py` rotates flat-vector, Firewatch-style landscapes made with Gemini 3 Pro Image (Nano Banana Pro):
+
+- **Weekly**: generates a new landscape at 21:9 / 4K in four palettes (dawn, day, golden, night) sharing one composition, stored in `~/Pictures/wallpaperscript/sets/<year>-W<week>/`
+- **Daily**: picks one set from the library at random and keeps it all day
+- **Through the day**: shows the palette matching Oslo's sun (dawn → day → golden hour → night)
+- Crops the 4K master per display (3840×1600 ultrawide, plus matching slices for the portrait screens)
+- Runs every 10 min via a launchd agent (`.config/launchd/com.predbjorn.wallpaper.plist`, installed by `sync.sh`); logs to `~/Library/Logs/wallpaper.log`
+- `hyper + p` re-rolls today's set; `wallpaper.py --generate` forces a new set
 
 ### Window Arrangement
 

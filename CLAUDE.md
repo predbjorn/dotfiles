@@ -19,7 +19,7 @@ Personal macOS dotfiles repository (`~/.dotfiles`) that automates development en
 - **`.config/`** — All configuration files (zshrc, yabairc, skhdrc, karabiner.json, sketchybar/, .finicky.js, cloudflared/)
 - **`zsh/`** — Zsh modules loaded by .zshrc: `aliases.zsh`, `path.zsh`, `functions.zsh`, `.env.zsh` (secrets, gitignored)
 - **`bin/`** — Executable scripts: `focus_window_wrapper.sh` (yabai app focus), `claude-worktree.sh` (git worktree + claude)
-- **`script/`** — Utility scripts: `wallpaper.py` / `wallpaper_gemini.py` (AI wallpaper generators), `windowarr.sh` (yabai helpers), `setCronjobs.py`, `sync-brew.sh` (Brewfile drift checker)
+- **`script/`** — Utility scripts: `wallpaper.py` (weekly Gemini landscape sets, rotated by Oslo sun phase via launchd agent in `.config/launchd/`), `windowarr.sh` (yabai helpers), `sync-brew.sh` (Brewfile drift checker)
 - **`AppleScripts/`** — macOS automation (hacktime window arrangement, project launchers)
 - **`githubProjects/`** — Repo list + clone script + .env backup/restore
 - **`Brewfile`** / **`Brewfile.light`** — Homebrew package definitions (full vs minimal)

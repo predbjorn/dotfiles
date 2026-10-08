@@ -3,7 +3,7 @@
 
 # If script is run by skhd (not running with zsh)
 HOME=${HOME:-'/Users/predbjorn'}
-DOTFILES=${DOTFILES:-"$HOME/.DOTFILES"}
+DOTFILES=${DOTFILES:-"$HOME/.dotfiles"}
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
 
 #THEMES
@@ -52,3 +52,11 @@ rm -rf $XDG_CONFIG_HOME/sketchybar
 cp -r $DOTFILES/.config/sketchybar $XDG_CONFIG_HOME/sketchybar
 chmod -R +x $XDG_CONFIG_HOME/sketchybar
 brew services restart sketchybar
+# wallpaper rotation (launchd agent, runs script/wallpaper.py every 10 min)
+WALLPAPER_PLIST=$HOME/Library/LaunchAgents/com.predbjorn.wallpaper.plist
+PYTHON_BIN=$(pyenv which python 2>/dev/null || echo "$HOME/.pyenv/versions/3.12.9/bin/python")
+mkdir -p $HOME/Library/LaunchAgents
+launchctl bootout gui/$(id -u) $WALLPAPER_PLIST 2>/dev/null
+sed -e "s|__PYTHON__|$PYTHON_BIN|" -e "s|__DOTFILES__|$DOTFILES|" -e "s|__HOME__|$HOME|g" \
+	$DOTFILES/.config/launchd/com.predbjorn.wallpaper.plist > $WALLPAPER_PLIST
+launchctl bootstrap gui/$(id -u) $WALLPAPER_PLIST

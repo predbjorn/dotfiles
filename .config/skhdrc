@@ -146,7 +146,7 @@ ctrl + alt - r : yabai --restart-service
 
 hyper - q : yabai --stop-service
 hyper - r : cd ~/.dotfiles; sh setupfiles/sync.sh
-hyper - p : cd ~/.dotfiles; /Users/predbjorn/.pyenv/versions/3.12.9/bin/python script/wallpaper.py
+hyper - p : /Users/predbjorn/.pyenv/versions/3.12.9/bin/python ~/.dotfiles/script/wallpaper.py --reroll
 hyper - 1 : cd ~/.dotfiles; sh script/windowarr.sh
 
 
