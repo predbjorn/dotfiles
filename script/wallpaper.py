@@ -267,9 +267,14 @@ def screens():
 
 def crop_for(master_path, width, height, align):
     """Scale-and-crop the 4K master to a display; align is 0 (left) .. 1 (right)."""
-    out = master_path.with_name(f"{master_path.stem}_{width}x{height}.png")
+    # The master's mtime is part of the name: macOS caches wallpapers by path, so a
+    # regenerated set must not reuse the old file names.
+    stamp = int(master_path.stat().st_mtime)
+    out = master_path.with_name(f"{master_path.stem}_{width}x{height}_{stamp}.png")
     if out.exists():
         return out
+    for stale in master_path.parent.glob(f"{master_path.stem}_{width}x{height}*.png"):
+        stale.unlink()
     img = Image.open(master_path)
     scale = max(width / img.width, height / img.height)
     img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
