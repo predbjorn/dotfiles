@@ -12,7 +12,7 @@ sketchybar \
 	background.border_width="$BORDER_WIDTH" \
 	background.border_color="$COLOR" \
 	background.corner_radius="$CORNER_RADIUS" \
-	background.color="$BAR_COLOR" \
+	background.color="$ITEM_BG_COLOR" \
 	label.color="$COLOR" \
 	label.padding_left=10 \
 	label.padding_right=10 \

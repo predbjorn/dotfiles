@@ -30,7 +30,7 @@ sketchybar --add bracket spaces '/space.*/' \
 	--set spaces background.border_width="$BORDER_WIDTH" \
 	background.border_color="$RED" \
 	background.corner_radius="$CORNER_RADIUS" \
-	background.color="$BAR_COLOR" \
+	background.color="$ITEM_BG_COLOR" \
 	background.height=26 \
 	background.drawing=on
 

@@ -32,10 +32,10 @@ enum Routes {
                 let priority = prioritySet.isEmpty
                     ? snap : snap.filter { prioritySet.contains($0.label) }
                 let rows: [[String: Any]] = priority.map { s in
-                    ["label": s.label, "state": s.state.rawValue, "up": s.state == .running]
+                    ["label": s.label, "state": s.state.rawValue, "up": s.isUp]
                 }
                 let payload: [String: Any] = [
-                    "priorityDown": priority.filter { $0.state != .running }.count,
+                    "priorityDown": priority.filter { !$0.isUp }.count,
                     "priorityTotal": priority.count,
                     "priority": rows,
                 ]

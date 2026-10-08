@@ -23,7 +23,8 @@ final class AutoRestarter {
 
     /// Precondition: called only on the serial work queue (see AppDelegate). [FIX 10]
     func observe(_ statuses: [ServiceStatus]) {
-        for s in statuses where s.label != ownLabel {   // [FIX 12]
+        // Scheduled agents are re-run by launchd on their own schedule.
+        for s in statuses where s.label != ownLabel && s.schedule == nil {   // [FIX 12]
             var t = tracks[s.label] ?? Track(lastRunning: false,
                                              lastRestartAt: -.infinity,
                                              backoffSeconds: 1,

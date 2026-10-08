@@ -16,6 +16,6 @@ sketchybar --add item clock right \
 	background.padding_right=2 \
 	background.border_width="$BORDER_WIDTH" \
 	background.border_color="$COLOR" \
-	background.color="$BAR_COLOR" \
+	background.color="$ITEM_BG_COLOR" \
 	background.drawing=on \
 	script="$PLUGIN_DIR/clock.sh"

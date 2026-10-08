@@ -15,6 +15,8 @@ BAR_COLOR=0x00000000
 COMMENT=0xff565f89
 
 TRANSPARENT=0x00000000
+# Pill fill behind each item: BLACK at ~75% alpha so items stay readable on bright wallpapers
+ITEM_BG_COLOR=0xc024283b
 
 # General bar colors
 ICON_COLOR=$WHITE  # Color of all icons

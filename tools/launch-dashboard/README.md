@@ -125,7 +125,14 @@ LaunchAgent with a colored status dot:
 | green  | Running      |
 | red    | Crashed (crashed since the dashboard started watching) |
 | yellow | Stopped (loaded, not running) |
+| blue   | Scheduled — interval/calendar agent idle between runs, last exit 0 |
 | gray   | Not loaded   |
+
+**Scheduled agents** (`StartInterval` / `StartCalendarInterval` without `KeepAlive`, e.g.
+`com.predbjorn.wallpaper`) only run briefly, so between runs they show as **Scheduled**
+(blue, e.g. "every 10 min") and count as *up* in `/summary`. If the last run exited
+non-zero they show **Failed** (red) and count as down. Auto-restart never touches them —
+launchd re-runs them on schedule; their `⋯` menu offers **Run now** instead of Start.
 
 A badge on the menu-bar icon shows the count of currently-crashed services. The
 `⋯` menu on each row offers Load / Start / Stop / Restart as appropriate; failures

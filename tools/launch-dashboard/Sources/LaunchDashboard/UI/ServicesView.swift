@@ -88,7 +88,9 @@ struct ServicesView: View {
                 if let url = target?.localURL { Button("Open \(url.host ?? "local")\(url.port.map { ":\($0)" } ?? "")") { onOpenURL(url) } }
                 if target?.publicURL != nil || target?.localURL != nil { Divider() }
                 if s.state == .notLoaded { Button("Load") { onLoad(s.label) } }
-                if s.state != .running { Button("Start") { onStart(s.label) } }
+                if s.schedule != nil, s.state != .running, s.state != .notLoaded {
+                    Button("Run now") { onStart(s.label) }
+                } else if s.state != .running { Button("Start") { onStart(s.label) } }
                 if s.state == .running { Button("Stop") { onStop(s.label) } }
                 Button("Restart") { onRestart(s.label) }
             }
@@ -103,6 +105,7 @@ struct ServicesView: View {
         HStack(spacing: 12) {
             legendDot(.green, "Running")
             legendDot(.red, "Crashed")
+            legendDot(.blue, "Scheduled")
             legendDot(.yellow, "Stopped")
             legendDot(.gray, "Not loaded")
             Spacer()
@@ -122,6 +125,8 @@ struct ServicesView: View {
         switch s.state {
         case .running: return .green
         case .loadedNotRunning: return .yellow
+        case .scheduled: return .blue
+        case .failed: return .red
         case .notLoaded: return .gray
         case .unknown: return .orange
         }
@@ -132,6 +137,8 @@ struct ServicesView: View {
         switch s.state {
         case .running: return "Running"
         case .loadedNotRunning: return "Stopped"
+        case .scheduled: return "Scheduled"
+        case .failed: return "Failed"
         case .notLoaded: return "Not loaded"
         case .unknown: return "Unknown"
         }
@@ -139,6 +146,7 @@ struct ServicesView: View {
 
     private func detail(for s: ServiceStatus) -> String {
         var bits: [String] = [humanState(s)]
+        if let schedule = s.schedule { bits.append(schedule) }
         if let pid = s.pid { bits.append("pid \(pid)") }
         if let code = s.lastExitCode { bits.append("last exit \(code)") }
         return bits.joined(separator: " · ")

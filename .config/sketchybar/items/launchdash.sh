@@ -14,7 +14,7 @@ sketchybar --add item launchdash right \
 	background.padding_right=5 \
 	background.border_width="$BORDER_WIDTH" \
 	background.border_color="$COMMENT" \
-	background.color="$BAR_COLOR" \
+	background.color="$ITEM_BG_COLOR" \
 	background.drawing=on \
 	popup.height=24 \
 	popup.drawing=off \

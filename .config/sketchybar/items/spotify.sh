@@ -8,7 +8,7 @@ sketchybar --add item spotify q \
 	icon=󰎆 \
 	icon.color="$COLOR" \
 	icon.padding_left=10 \
-	background.color="$BAR_COLOR" \
+	background.color="$ITEM_BG_COLOR" \
 	background.height=26 \
 	background.corner_radius="$CORNER_RADIUS" \
 	background.border_width="$BORDER_WIDTH" \
