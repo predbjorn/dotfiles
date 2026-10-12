@@ -49,6 +49,7 @@ source "$ITEM_DIR/cpu.sh"
 source "$ITEM_DIR/memory.sh"
 source "$ITEM_DIR/storage.sh"
 source "$ITEM_DIR/launchdash.sh"
+source "$ITEM_DIR/yabai.sh"
 
 #################### Finalizing Setup ####################
 
