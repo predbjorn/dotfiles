@@ -68,6 +68,9 @@ alias claudtree='~/.dotfiles/bin/claude-worktree.sh'
 # Launch a second Claude desktop instance with an isolated profile dir so a
 # different account (e.g. Personal) can run alongside the default (NorsCare).
 alias claude-personal='open -n -a Claude --args --user-data-dir="$HOME/Library/Application Support/Claude-Personal"'
+# Login callbacks (claude://) always go to the main instance; this quits it
+# while you log in to Personal, then restarts it.
+alias claude-personal-login='~/.dotfiles/bin/claude-personal-login.sh'
 
 ## Correction: 
 
