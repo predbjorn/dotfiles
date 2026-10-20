@@ -160,6 +160,8 @@ defaults write com.apple.dock minimize-to-application -bool true
 defaults write com.apple.dock show-process-indicators -bool true
 
 defaults write com.apple.screencapture location -string "$HOME/screenshots"
+defaults write com.apple.iphonesimulator ScreenShotSaveLocation -string "$HOME/screenshots"
+defaults write com.android.Emulator set.savePath -string "$HOME/screenshots"
 
 # Wipe all (default) app icons from the Dock
 # This is only really useful when setting up a new Mac, or if you don’t use
