@@ -42,7 +42,7 @@ fi
 
 if ! personal_running; then
 	echo "Starting Claude Personal..."
-	open -n -a Claude --args --user-data-dir="$personal_dir"
+	"$(dirname "$0")/claude-personal.sh"
 fi
 
 echo
