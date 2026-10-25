@@ -29,13 +29,15 @@ personal_running() {
 pids=($(main_pids))
 if (( ${#pids} )); then
 	echo "Quitting main Claude (pid ${pids[*]})..."
+	# With sessions running, Claude vetoes the quit and asks for confirmation.
+	echo "If main Claude asks whether to quit with running sessions, confirm it."
 	kill -TERM "${pids[@]}"
-	for _ in {1..30}; do
+	for _ in {1..240}; do
 		[ -z "$(main_pids)" ] && break
 		sleep 0.5
 	done
 	if [ -n "$(main_pids)" ]; then
-		echo "Main Claude did not quit. Quit it manually and re-run."
+		echo "Main Claude did not quit within 2 minutes. Quit it with Cmd+Q and re-run."
 		exit 1
 	fi
 fi
