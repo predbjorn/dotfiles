@@ -60,3 +60,10 @@ launchctl bootout gui/$(id -u) $WALLPAPER_PLIST 2>/dev/null
 sed -e "s|__PYTHON__|$PYTHON_BIN|" -e "s|__DOTFILES__|$DOTFILES|" -e "s|__HOME__|$HOME|g" \
 	$DOTFILES/.config/launchd/com.predbjorn.wallpaper.plist > $WALLPAPER_PLIST
 launchctl bootstrap gui/$(id -u) $WALLPAPER_PLIST
+# daily brew upgrade (launchd agent, runs script/brew-upgrade.sh at 12:00)
+BREW_UPGRADE_PLIST=$HOME/Library/LaunchAgents/com.predbjorn.brew-upgrade.plist
+chmod +x $DOTFILES/script/brew-upgrade.sh
+launchctl bootout gui/$(id -u) $BREW_UPGRADE_PLIST 2>/dev/null
+sed -e "s|__DOTFILES__|$DOTFILES|" -e "s|__HOME__|$HOME|g" \
+	$DOTFILES/.config/launchd/com.predbjorn.brew-upgrade.plist > $BREW_UPGRADE_PLIST
+launchctl bootstrap gui/$(id -u) $BREW_UPGRADE_PLIST
