@@ -2,8 +2,8 @@
 
 COLOR="$CYAN"
 
-# Click runs the cleanup in the background so the bar never blocks
-# (the sweep over ~/Hacking takes minutes). Right-click previews instead.
+# Left-click opens DiskCleaner.app (overview, live cleanup progress, simulator
+# and emulator manager). Right-click runs the sweep silently in the background.
 sketchybar --add item diskclean right \
 	--set diskclean \
 	icon="󰃢" \
@@ -20,4 +20,4 @@ sketchybar --add item diskclean right \
 	background.border_color="$COLOR" \
 	background.color="$ITEM_BG_COLOR" \
 	background.drawing=on \
-	click_script="nohup \"$PLUGIN_DIR/diskclean.sh\" run >/dev/null 2>&1 &"
+	click_script="\"$PLUGIN_DIR/diskclean.sh\" click"
