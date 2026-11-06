@@ -54,7 +54,35 @@ run() {
 	idle
 }
 
+APP="$HOME/Applications/DiskCleaner.app"
+
+click() {
+	# Right-click, or no app installed: fall back to the silent background sweep.
+	if [ "${BUTTON:-left}" = "right" ] || [ ! -d "$APP" ]; then
+		nohup "$0" run >/dev/null 2>&1 &
+	else
+		open "$APP"
+	fi
+}
+
+# finish/fail are called by DiskCleaner.app when a sweep it ran ends.
+finish() {
+	set_state "$ICON_DONE" "$GREEN" "+${1:-0} GB"
+	sleep 10
+	idle
+}
+
+fail() {
+	set_state "$ICON_FAIL" "$RED" "failed"
+	sleep 6
+	idle
+}
+
 case "${1:-}" in
+click) click ;;
 run) run ;;
+busy) set_state "$ICON_BUSY" "$YELLOW" "cleaning…" ;;
+finish) finish "${2:-0}" ;;
+fail) fail ;;
 *) idle ;;
 esac
