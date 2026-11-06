@@ -16,4 +16,5 @@ sketchybar --add item storage right \
 	background.border_color="$COLOR" \
 	background.color="$ITEM_BG_COLOR" \
 	background.drawing=on \
-	script="$PLUGIN_DIR/storage.sh"
+	script="$PLUGIN_DIR/storage.sh" \
+	click_script="nohup \"$PLUGIN_DIR/spaceburst.sh\" >/dev/null 2>&1 &"
