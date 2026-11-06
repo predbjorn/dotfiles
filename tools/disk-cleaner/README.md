@@ -10,8 +10,22 @@ right-click still runs a silent background sweep).
 - **Cleanup** — runs `bin/disk-cleanup.sh --progress` (optionally `--dry-run` /
   `--deep`) and shows each step live with what it found/freed. Shares the
   sketchybar lock so bar and app never sweep at once, and updates the bar icon.
-- **Simulators & Emulators** — iOS simulators, simulator runtimes, Android AVDs and
-  SDK system images, each with size and a Delete button (confirmation first).
+- **Devices & Caches** — iOS simulators, simulator runtimes, Android AVDs and
+  SDK system images, Xcode DerivedData (per project/worktree) and Gradle caches,
+  each with size and a Delete button (confirmation first).
+- **Disk Map** — the [spaceburst](https://github.com/cfmatre/spaceburst) sunburst
+  of the whole Data volume, shown in a web view. Rescan from the toolbar (live
+  progress), or right-click a wedge to reveal it in Finder, copy its path or
+  rescan just that folder. Expects the repo at `~/Hacking/projects/spaceburst`
+  (override with `SPACEBURST`). Left-clicking the sketchybar storage item opens
+  this pane; right-click there still scans and opens the map in the browser.
+
+`open diskcleaner://<pane>` (`overview`, `cleanup`, `devices`, `map`) switches
+pane, also when the app is already running.
+
+The scan runs as Disk Cleaner, so for a complete map give the app Full Disk
+Access (the "N folders unreadable" link in the Disk Map header opens the setting).
+macOS may drop that grant after a rebuild, since the app is ad-hoc signed.
 
 ## Install
 
