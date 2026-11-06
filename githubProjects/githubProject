@@ -8,3 +8,4 @@ predbjorn/tren-web-cleint projects/tren/tren_client
 predbjorn/tren-web-server projects/tren/tren_server
 predbjorn/dotfiles ~/.dotfiles
 predbjorn/variables ~/.variables
+cfmatre/spaceburst projects/spaceburst

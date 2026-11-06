@@ -2,13 +2,14 @@ import AppKit
 import SwiftUI
 
 enum Pane: String, CaseIterable, Identifiable, Hashable {
-    case overview, cleanup, devices
+    case overview, cleanup, devices, map
     var id: Self { self }
     var title: String {
         switch self {
         case .overview: "Disk Overview"
         case .cleanup: "Cleanup"
         case .devices: "Devices & Caches"
+        case .map: "Disk Map"
         }
     }
     var icon: String {
@@ -16,6 +17,7 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .overview: "internaldrive"
         case .cleanup: "sparkles"
         case .devices: "iphone.gen3"
+        case .map: "chart.pie"
         }
     }
 }
@@ -35,6 +37,7 @@ struct DiskCleanerApp: App {
     @StateObject private var overview = OverviewModel()
     @StateObject private var runner = CleanupRunner()
     @StateObject private var devices = DevicesModel()
+    @StateObject private var diskMap = DiskMapModel()
 
     var body: some Scene {
         Window("Disk Cleaner", id: "main") {
@@ -42,6 +45,7 @@ struct DiskCleanerApp: App {
                 .environmentObject(overview)
                 .environmentObject(runner)
                 .environmentObject(devices)
+                .environmentObject(diskMap)
                 .frame(minWidth: 860, minHeight: 560)
                 .onAppear {
                     // Sizes on the overview go stale after a sweep or a delete.
@@ -57,7 +61,8 @@ struct DiskCleanerApp: App {
 struct ContentView: View {
     @EnvironmentObject var overview: OverviewModel
     @EnvironmentObject var runner: CleanupRunner
-    // `open -a DiskCleaner --args -pane devices` opens straight to a pane.
+    // `open -a DiskCleaner --args -pane devices` opens straight to a pane on launch;
+    // `open diskcleaner://map` switches pane even when the app is already running.
     @State private var pane: Pane = UserDefaults.standard.string(forKey: "pane").flatMap(Pane.init) ?? .overview
 
     var body: some View {
@@ -76,7 +81,11 @@ struct ContentView: View {
             case .overview: OverviewView(pane: $pane)
             case .cleanup: CleanupView()
             case .devices: DevicesView()
+            case .map: DiskMapView()
             }
+        }
+        .onOpenURL { url in
+            if let p = url.host().flatMap(Pane.init) { pane = p }
         }
         .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
             overview.refreshVolume()

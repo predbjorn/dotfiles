@@ -5,7 +5,7 @@ import SwiftUI
 enum Coverage {
     case script      // removed by every cleanup run
     case deep        // removed only with --deep
-    case devices     // manage from the Simulators & Emulators pane
+    case devices     // manage from the Devices & Caches pane
     case manual      // yours to sort out
 }
 
