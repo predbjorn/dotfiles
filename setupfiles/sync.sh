@@ -52,7 +52,7 @@ rm -rf $XDG_CONFIG_HOME/sketchybar
 cp -r $DOTFILES/.config/sketchybar $XDG_CONFIG_HOME/sketchybar
 chmod -R +x $XDG_CONFIG_HOME/sketchybar
 brew services restart sketchybar
-# DiskCleaner.app (opened by the sketchybar cleanup button); build once if missing
+# DiskCleaner.app (opened by the sketchybar storage item); build once if missing
 if [ ! -d "$HOME/Applications/DiskCleaner.app" ]; then
 	$DOTFILES/tools/disk-cleaner/scripts/install.sh
 fi

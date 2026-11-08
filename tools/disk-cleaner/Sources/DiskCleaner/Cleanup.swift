@@ -49,7 +49,7 @@ final class CleanupRunner: ObservableObject {
             return
         }
         if !acquireLock() {
-            error = "A cleanup is already running (started from the bar). Try again when it finishes."
+            error = "A cleanup is already running. Try again when it finishes."
             return
         }
         steps = []; log = []; total = 0; error = nil
@@ -58,7 +58,6 @@ final class CleanupRunner: ObservableObject {
         freeBefore = Volume.info()?.free
         startedAt = Date()
         isRunning = true
-        if !dryRun { Shell.spawn(Paths.barPlugin, ["busy"]) }
 
         var args = ["--progress"]
         if dryRun { args.append("--dry-run") }
@@ -135,18 +134,10 @@ final class CleanupRunner: ObservableObject {
         } else if status != 0 {
             error = status == 15 ? "Stopped." : "Cleanup exited with status \(status). See the log below."
         }
-        if !wasDryRun {
-            if error == nil {
-                let gb = max(0, Int((freed ?? 0) / 1_000_000_000))
-                Shell.spawn(Paths.barPlugin, ["finish", "\(gb)"])
-            } else {
-                Shell.spawn(Paths.barPlugin, ["fail"])
-            }
-        }
         onFinished?()
     }
 
-    // MARK: lock shared with the sketchybar plugin
+    // MARK: lock, so two sweeps never run at once
 
     private func acquireLock() -> Bool {
         let fm = FileManager.default
