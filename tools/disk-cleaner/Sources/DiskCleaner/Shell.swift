@@ -5,9 +5,8 @@ enum Paths {
     static let home = FileManager.default.homeDirectoryForCurrentUser.path
     static let dotfiles = ProcessInfo.processInfo.environment["DOTFILES"] ?? "\(home)/.dotfiles"
     static let engine = "\(dotfiles)/bin/disk-cleanup.sh"
-    static let barPlugin = "\(home)/.config/sketchybar/plugins/diskclean.sh"
-    /// Shared with the sketchybar plugin so the bar and the app never sweep at once.
-    static let lock = "/tmp/sketchybar-diskclean.lock"
+    /// Held while a sweep runs, so two never overlap.
+    static let lock = "/tmp/disk-cleaner.lock"
     static var androidSDK: String {
         let env = ProcessInfo.processInfo.environment
         return env["ANDROID_HOME"] ?? env["ANDROID_SDK_ROOT"] ?? "\(home)/Library/Android/sdk"
@@ -77,14 +76,6 @@ enum Shell {
         return ShellResult(status: p.terminationStatus,
                            out: String(decoding: outData, as: UTF8.self),
                            err: String(decoding: errData, as: UTF8.self))
-    }
-
-    /// Fire-and-forget (used to poke sketchybar).
-    static func spawn(_ exe: String, _ args: [String]) {
-        let p = makeProcess(exe, args)
-        p.standardOutput = FileHandle.nullDevice
-        p.standardError = FileHandle.nullDevice
-        try? p.run()
     }
 
     /// Size on disk in bytes via `du -sk` (follows nothing, so symlinks report ~0).
