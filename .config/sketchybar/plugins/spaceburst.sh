@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-# Click on the storage item: rescan the disk with spaceburst and open the
-# sunburst map. The scan takes ~2 minutes, so it runs in the background and
-# the storage label shows progress until the map opens.
+# Click on the storage item: open Disk Cleaner (disk overview, cleanup, devices
+# and the spaceburst map). Right-click (or no app installed) rescans the disk
+# with spaceburst here and opens the map in the browser instead. The scan takes ~2 minutes, so it runs in the background
+# and the storage label shows progress until the map opens.
 
 source "$HOME/.config/sketchybar/variables.sh"
 
@@ -19,6 +20,12 @@ restore() {
 		background.border_color="$BLUE" \
 		label="$(df -H / | tail -1 | awk '{print $4}')"
 }
+
+APP="$HOME/Applications/DiskCleaner.app"
+if [ "$BUTTON" != "right" ] && [ -d "$APP" ]; then
+	open "$APP"
+	exit 0
+fi
 
 # Ignore repeat clicks while a scan is already in flight.
 if ! mkdir "$LOCK" 2>/dev/null; then

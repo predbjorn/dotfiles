@@ -1,0 +1,666 @@
+import AppKit
+import SwiftUI
+
+struct SimDevice: Identifiable {
+    let udid: String
+    let name: String
+    let runtime: String
+    let runtimeID: String
+    let state: String
+    let available: Bool
+    let dataPath: String
+    var size: Int64?
+    let lastBooted: Date?
+    var id: String { udid }
+    var booted: Bool { state == "Booted" }
+}
+
+struct SimRuntime: Identifiable {
+    let identifier: String
+    let runtimeID: String
+    let name: String
+    let build: String
+    let size: Int64
+    let lastUsed: Date?
+    let deletable: Bool
+    let state: String
+    var id: String { identifier }
+}
+
+struct AndroidAVD: Identifiable {
+    let name: String
+    let displayName: String
+    let dir: String
+    let ini: String
+    let systemImage: String?
+    var size: Int64?
+    let running: Bool
+    var id: String { name }
+}
+
+struct SystemImage: Identifiable {
+    let path: String
+    let relative: String   // system-images/android-35/google_apis_playstore/arm64-v8a
+    var size: Int64?
+    var usedBy: [String]
+    var id: String { path }
+    var label: String {
+        relative.split(separator: "/").dropFirst().joined(separator: " · ")
+    }
+}
+
+/// A deletable folder in a build cache (one DerivedData project, one Gradle cache dir…).
+struct CacheItem: Identifiable {
+    let path: String
+    let title: String
+    let subtitle: String
+    let badge: (String, Color)?
+    var size: Int64?
+    var orphaned = false
+    var warning: String?
+    var id: String { path }
+}
+
+enum DeleteTarget: Identifiable {
+    case sim(SimDevice), unavailableSims(Int), runtime(SimRuntime, usedBy: Int), avd(AndroidAVD), image(SystemImage)
+    case cache(CacheItem), cacheGroup([CacheItem], label: String)
+
+    var id: String {
+        switch self {
+        case .sim(let d): "sim-\(d.udid)"
+        case .unavailableSims: "unavailable"
+        case .runtime(let r, _): "rt-\(r.identifier)"
+        case .avd(let a): "avd-\(a.name)"
+        case .image(let i): "img-\(i.path)"
+        case .cache(let c): "cache-\(c.path)"
+        case .cacheGroup(_, let label): "group-\(label)"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .sim(let d): "Delete simulator “\(d.name)”?"
+        case .unavailableSims(let n): "Delete \(n) unavailable simulator\(n == 1 ? "" : "s")?"
+        case .runtime(let r, _): "Delete runtime \(r.name)?"
+        case .avd(let a): "Delete emulator “\(a.displayName)”?"
+        case .image(let i): "Delete system image \(i.label)?"
+        case .cache(let c): "Delete \(c.title)?"
+        case .cacheGroup(let items, let label): "Delete \(items.count) \(label)?"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .sim(let d):
+            "\(d.runtime) · \(d.size.map(formatBytes) ?? "unknown size"). Its apps and data are removed permanently."
+                + (d.booted ? " It is running and will be shut down first." : "")
+        case .unavailableSims:
+            "These simulators belong to runtimes that are no longer installed. Runs `xcrun simctl delete unavailable`."
+        case .runtime(let r, let used):
+            "Frees \(formatBytes(r.size)). Xcode can download it again."
+                + (used > 0 ? " \(used) simulator\(used == 1 ? "" : "s") use this runtime and will become unavailable." : "")
+        case .avd(let a):
+            "\(a.size.map(formatBytes) ?? "unknown size"). The emulator's data and snapshots are removed permanently."
+        case .image(let i):
+            "Frees \(i.size.map(formatBytes) ?? "space"). Android Studio's SDK Manager can download it again."
+                + (i.usedBy.isEmpty ? "" : " Used by: \(i.usedBy.joined(separator: ", ")) — they won't boot until it's reinstalled.")
+        case .cache(let c):
+            "Frees \(c.size.map(formatBytes) ?? "space"). It is rebuilt or re-downloaded on the next build."
+                + (c.warning.map { " \($0)" } ?? "")
+        case .cacheGroup(let items, _):
+            "Frees \(formatBytes(items.compactMap(\.size).reduce(0, +))): "
+                + items.map(\.title).joined(separator: ", ") + "."
+        }
+    }
+}
+
+@MainActor
+final class DevicesModel: ObservableObject {
+    @Published var sims: [SimDevice] = []
+    @Published var runtimes: [SimRuntime] = []
+    @Published var avds: [AndroidAVD] = []
+    @Published var images: [SystemImage] = []
+    @Published var derivedData: [CacheItem] = []
+    @Published var gradle: [CacheItem] = []
+    @Published var loading = false
+    @Published var loaded = false
+    @Published var busy: Set<String> = []
+    @Published var error: String?
+
+    var onDeleted: (() -> Void)?
+
+    func load() {
+        guard !loading else { return }
+        loading = true
+        Task {
+            async let s = Self.loadSims()
+            async let r = Self.loadRuntimes()
+            async let a = Self.loadAVDs()
+            let (sims, runtimes, avds) = await (s, r, a)
+            self.sims = sims
+            self.runtimes = runtimes
+            self.avds = avds
+            self.images = await Self.loadImages(avds: avds)
+            self.derivedData = Self.loadDerivedData()
+            self.gradle = Self.loadGradle(daemonRunning: await Self.gradleDaemonRunning())
+            loading = false
+            loaded = true
+            // AVD and image sizes need du; fill them in after the list shows.
+            for avd in self.avds {
+                let size = await Shell.du(avd.dir)
+                if let i = self.avds.firstIndex(where: { $0.name == avd.name }) { self.avds[i].size = size }
+            }
+            for img in self.images {
+                let size = await Shell.du(img.path)
+                if let i = self.images.firstIndex(where: { $0.path == img.path }) { self.images[i].size = size }
+            }
+            await fillSizes(\.derivedData)
+            await fillSizes(\.gradle)
+        }
+    }
+
+    private func fillSizes(_ kp: ReferenceWritableKeyPath<DevicesModel, [CacheItem]>) async {
+        for item in self[keyPath: kp] {
+            let size = await Shell.du(item.path)
+            if let i = self[keyPath: kp].firstIndex(where: { $0.path == item.path }) { self[keyPath: kp][i].size = size }
+        }
+    }
+
+    func delete(_ target: DeleteTarget) {
+        busy.insert(target.id)
+        error = nil
+        Task {
+            let failure: String? = switch target {
+            case .sim(let d): await Self.deleteSim(d)
+            case .unavailableSims: Self.errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "delete", "unavailable"]))
+            case .runtime(let r, _):
+                Self.errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "runtime", "delete", r.identifier]))
+            case .avd(let a): await Self.removeAsync([a.dir, a.ini])
+            case .image(let i): await Self.removeAsync([i.path])
+            case .cache(let c): await Self.removeAsync([c.path])
+            case .cacheGroup(let items, _): await Self.removeAsync(items.map(\.path))
+            }
+            busy.remove(target.id)
+            if let failure { error = failure }
+            loading = false
+            load()
+            onDeleted?()
+        }
+    }
+
+    // MARK: loaders
+
+    nonisolated static func loadSims() async -> [SimDevice] {
+        let r = await Shell.run("/usr/bin/xcrun", ["simctl", "list", "devices", "-j"])
+        guard let json = try? JSONSerialization.jsonObject(with: Data(r.out.utf8)) as? [String: Any],
+              let devices = json["devices"] as? [String: [[String: Any]]] else { return [] }
+        let iso = ISO8601DateFormatter()
+        var out: [SimDevice] = []
+        for (runtimeID, list) in devices {
+            for d in list {
+                guard let udid = d["udid"] as? String else { continue }
+                let dataPath = d["dataPath"] as? String ?? ""
+                var size = (d["dataPathSize"] as? NSNumber)?.int64Value
+                if size == nil, !dataPath.isEmpty { size = await Shell.du(dataPath) }
+                out.append(SimDevice(
+                    udid: udid,
+                    name: d["name"] as? String ?? udid,
+                    runtime: runtimeName(runtimeID),
+                    runtimeID: runtimeID,
+                    state: d["state"] as? String ?? "",
+                    available: d["isAvailable"] as? Bool ?? true,
+                    dataPath: dataPath,
+                    size: size,
+                    lastBooted: (d["lastBootedAt"] as? String).flatMap(iso.date)))
+            }
+        }
+        return out.sorted { ($0.size ?? 0) > ($1.size ?? 0) }
+    }
+
+    nonisolated static func loadRuntimes() async -> [SimRuntime] {
+        let r = await Shell.run("/usr/bin/xcrun", ["simctl", "runtime", "list", "-j"])
+        guard let json = try? JSONSerialization.jsonObject(with: Data(r.out.utf8)) as? [String: [String: Any]]
+        else { return [] }
+        let iso = ISO8601DateFormatter()
+        return json.values.compactMap { d -> SimRuntime? in
+            guard let ident = d["identifier"] as? String else { return nil }
+            let platform = switch d["platformIdentifier"] as? String ?? "" {
+            case "com.apple.platform.iphonesimulator": "iOS"
+            case "com.apple.platform.appletvsimulator": "tvOS"
+            case "com.apple.platform.watchsimulator": "watchOS"
+            case "com.apple.platform.xrsimulator": "visionOS"
+            default: "Simulator"
+            }
+            return SimRuntime(
+                identifier: ident,
+                runtimeID: d["runtimeIdentifier"] as? String ?? "",
+                name: "\(platform) \(d["version"] as? String ?? "?")",
+                build: d["build"] as? String ?? "",
+                size: (d["sizeBytes"] as? NSNumber)?.int64Value ?? 0,
+                lastUsed: (d["lastUsedAt"] as? String).flatMap(iso.date),
+                deletable: d["deletable"] as? Bool ?? false,
+                state: d["state"] as? String ?? "")
+        }
+        .sorted { $0.size > $1.size }
+    }
+
+    nonisolated static func loadAVDs() async -> [AndroidAVD] {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(atPath: Paths.avdDir) else { return [] }
+        let ps = await Shell.run("/bin/ps", ["-axo", "command"]).out
+        let runningNames = Set(ps.split(separator: "\n").compactMap { line -> String? in
+            guard line.contains("qemu-system") || line.contains("emulator") else { return nil }
+            let tokens = line.split(separator: " ").map(String.init)
+            guard let i = tokens.firstIndex(of: "-avd"), i + 1 < tokens.count else { return nil }
+            return tokens[i + 1]
+        })
+        return entries.filter { $0.hasSuffix(".ini") }.sorted().compactMap { file in
+            let name = String(file.dropLast(4))
+            let ini = "\(Paths.avdDir)/\(file)"
+            let iniVals = parseIni(ini)
+            let dir = iniVals["path"] ?? "\(Paths.avdDir)/\(name).avd"
+            let config = parseIni("\(dir)/config.ini")
+            return AndroidAVD(
+                name: name,
+                displayName: config["avd.ini.displayname"] ?? name.replacingOccurrences(of: "_", with: " "),
+                dir: dir,
+                ini: ini,
+                systemImage: config["image.sysdir.1"].map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 },
+                size: nil,
+                running: runningNames.contains(name))
+        }
+    }
+
+    nonisolated static func loadImages(avds: [AndroidAVD]) async -> [SystemImage] {
+        let fm = FileManager.default
+        let root = "\(Paths.androidSDK)/system-images"
+        var out: [SystemImage] = []
+        // system-images/<api>/<tag>/<abi>
+        for api in (try? fm.contentsOfDirectory(atPath: root)) ?? [] where !api.hasPrefix(".") {
+            for tag in (try? fm.contentsOfDirectory(atPath: "\(root)/\(api)")) ?? [] where !tag.hasPrefix(".") {
+                for abi in (try? fm.contentsOfDirectory(atPath: "\(root)/\(api)/\(tag)")) ?? [] where !abi.hasPrefix(".") {
+                    let rel = "system-images/\(api)/\(tag)/\(abi)"
+                    let users = avds.filter { $0.systemImage == rel }.map(\.displayName)
+                    out.append(SystemImage(path: "\(root)/\(api)/\(tag)/\(abi)", relative: rel, size: nil, usedBy: users))
+                }
+            }
+        }
+        return out
+    }
+
+    nonisolated static func loadDerivedData() -> [CacheItem] {
+        let fm = FileManager.default
+        let root = "\(Paths.home)/Library/Developer/Xcode/DerivedData"
+        let shared = ["ModuleCache.noindex": "Module cache", "SDKStatCaches.noindex": "SDK stat cache",
+                      "CompilationCache.noindex": "Compilation cache"]
+        return ((try? fm.contentsOfDirectory(atPath: root)) ?? []).filter { !$0.hasPrefix(".") }.compactMap { entry in
+            let dir = "\(root)/\(entry)"
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue else { return nil }
+            if entry.hasSuffix(".noindex") {
+                return CacheItem(path: dir, title: shared[entry] ?? entry, subtitle: "shared by all projects", badge: nil)
+            }
+            // <Project>-<28-letter hash>; a custom -derivedDataPath has no hash.
+            let project = entry.replacingOccurrences(of: "-[a-z]{28}$", with: "", options: .regularExpression)
+            let info = NSDictionary(contentsOfFile: "\(dir)/info.plist")
+            guard let workspace = info?["WorkspacePath"] as? String else {
+                return project == entry
+                    ? CacheItem(path: dir, title: entry, subtitle: "custom derived data path", badge: nil)
+                    : CacheItem(path: dir, title: project, subtitle: "no workspace recorded (build never finished)",
+                                badge: ("Incomplete", .orange), orphaned: true)
+            }
+            var title = project
+            if let r = workspace.range(of: "/.claude/worktrees/") {
+                let worktree = workspace[r.upperBound...].split(separator: "/").first.map(String.init) ?? ""
+                title += " · \(worktree)"
+            }
+            let used = (info?["LastAccessedDate"] as? Date).map { "built \($0.formatted(.relative(presentation: .named)))" }
+            let orphaned = !fm.fileExists(atPath: workspace)
+            return CacheItem(
+                path: dir, title: title,
+                subtitle: [Paths.tilde((workspace as NSString).deletingLastPathComponent), used].compactMap { $0 }.joined(separator: " · "),
+                badge: orphaned ? ("Project gone", .orange) : nil,
+                orphaned: orphaned)
+        }
+    }
+
+    nonisolated static func loadGradle(daemonRunning: Bool) -> [CacheItem] {
+        let fm = FileManager.default
+        let caches = "\(Paths.home)/.gradle/caches"
+        let dists = "\(Paths.home)/.gradle/wrapper/dists"
+        let warning = daemonRunning ? "A Gradle daemon is running — run ./gradlew --stop first so an in-flight build doesn't break." : nil
+        func dirs(_ root: String) -> [String] {
+            ((try? fm.contentsOfDirectory(atPath: root)) ?? []).filter { e in
+                var isDir: ObjCBool = false
+                return !e.hasPrefix(".") && fm.fileExists(atPath: "\(root)/\(e)", isDirectory: &isDir) && isDir.boolValue
+            }.sorted()
+        }
+        let versionRx = "^[0-9]+(\\.[0-9]+)+$"
+        let cacheDirs = dirs(caches)
+        let distDirs = dirs(dists)
+        let distVersions = distDirs.map { $0.replacingOccurrences(of: "^gradle-|-(bin|all)$", with: "", options: .regularExpression) }
+        let versions = cacheDirs.filter { $0.range(of: versionRx, options: .regularExpression) != nil } + distVersions
+        let newest = versions.max { $0.compare($1, options: .numeric) == .orderedAscending }
+        let older: (String) -> (String, Color)? = { v in v != newest ? ("Older version", .orange) : nil }
+
+        var out: [CacheItem] = cacheDirs.map { e in
+            let path = "\(caches)/\(e)"
+            if e.range(of: versionRx, options: .regularExpression) != nil {
+                return CacheItem(path: path, title: "Gradle \(e) caches", subtitle: "transforms, compiled build scripts, metadata",
+                                 badge: older(e), warning: warning)
+            }
+            let (title, sub): (String, String) = switch e {
+            case let x where x.hasPrefix("build-cache"): ("Build cache", "task outputs reused across builds")
+            case let x where x.hasPrefix("modules"): ("Downloaded dependencies", "Maven/Google artifacts, re-downloaded on demand")
+            case let x where x.hasPrefix("transforms"): ("Artifact transforms", "shared transform outputs")
+            case let x where x.hasPrefix("jars"): ("Jar cache", "instrumented build-script jars")
+            case let x where x.hasPrefix("journal"): ("Journal", "cache bookkeeping")
+            default: (e, "~/.gradle/caches/\(e)")
+            }
+            return CacheItem(path: path, title: title, subtitle: sub, badge: nil, warning: warning)
+        }
+        out += zip(distDirs, distVersions).map { dir, v in
+            CacheItem(path: "\(dists)/\(dir)", title: "Gradle \(v) distribution", subtitle: "wrapper download (~/.gradle/wrapper/dists)",
+                      badge: older(v), warning: warning)
+        }
+        return out
+    }
+
+    nonisolated static func gradleDaemonRunning() async -> Bool {
+        await Shell.run("/usr/bin/pgrep", ["-f", "GradleDaemon"]).ok
+    }
+
+    // MARK: deleters
+
+    nonisolated static func deleteSim(_ d: SimDevice) async -> String? {
+        if d.booted { _ = await Shell.run("/usr/bin/xcrun", ["simctl", "shutdown", d.udid]) }
+        return errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "delete", d.udid]))
+    }
+
+    /// Big trees take seconds to delete; keep that off the main thread.
+    nonisolated static func removeAsync(_ paths: [String]) async -> String? {
+        await Task.detached(priority: .userInitiated) { remove(paths) }.value
+    }
+
+    nonisolated static func remove(_ paths: [String]) -> String? {
+        for p in paths where FileManager.default.fileExists(atPath: p) {
+            do { try FileManager.default.removeItem(atPath: p) } catch { return error.localizedDescription }
+        }
+        return nil
+    }
+
+    nonisolated static func errorText(_ r: ShellResult) -> String? {
+        r.ok ? nil : (r.err.isEmpty ? "Command failed (\(r.status))" : r.err.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    nonisolated static func runtimeName(_ id: String) -> String {
+        // com.apple.CoreSimulator.SimRuntime.iOS-26-5 → iOS 26.5
+        let tail = id.components(separatedBy: "SimRuntime.").last ?? id
+        var parts = tail.split(separator: "-").map(String.init)
+        guard !parts.isEmpty else { return tail }
+        let os = parts.removeFirst()
+        return parts.isEmpty ? os : "\(os) \(parts.joined(separator: "."))"
+    }
+
+    nonisolated static func parseIni(_ path: String) -> [String: String] {
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return [:] }
+        var out: [String: String] = [:]
+        for line in text.split(separator: "\n") {
+            let kv = line.split(separator: "=", maxSplits: 1)
+            guard kv.count == 2 else { continue }
+            out[kv[0].trimmingCharacters(in: .whitespaces)] = kv[1].trimmingCharacters(in: .whitespaces)
+        }
+        return out
+    }
+}
+
+// MARK: - View
+
+struct DevicesView: View {
+    @EnvironmentObject var model: DevicesModel
+    @State private var pending: DeleteTarget?
+
+    private var unavailable: Int { model.sims.filter { !$0.available }.count }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                if let error = model.error {
+                    Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        .textSelection(.enabled)
+                }
+
+                DeviceSection(title: "iOS Simulators", systemImage: "iphone",
+                              total: model.sims.compactMap(\.size).reduce(0, +),
+                              empty: model.sims.isEmpty, loading: !model.loaded) {
+                    if unavailable > 0 {
+                        Button("Delete \(unavailable) unavailable") { pending = .unavailableSims(unavailable) }
+                    }
+                } content: {
+                    ForEach(model.sims) { d in
+                        DeviceRow(
+                            icon: d.name.contains("iPad") ? "ipad" : (d.name.contains("Watch") ? "applewatch" : "iphone"),
+                            title: d.name,
+                            subtitle: [d.runtime, d.lastBooted.map { "booted \($0.formatted(.relative(presentation: .named)))" } ?? "never booted"]
+                                .joined(separator: " · "),
+                            badge: d.booted ? ("Running", .green) : (!d.available ? ("Unavailable", .orange) : nil),
+                            size: d.size,
+                            busy: model.busy.contains(DeleteTarget.sim(d).id),
+                            reveal: d.dataPath.isEmpty ? nil : (d.dataPath as NSString).deletingLastPathComponent
+                        ) { pending = .sim(d) }
+                    }
+                }
+
+                DeviceSection(title: "Simulator Runtimes", systemImage: "square.stack.3d.up",
+                              total: model.runtimes.map(\.size).reduce(0, +),
+                              empty: model.runtimes.isEmpty, loading: !model.loaded) {
+                    EmptyView()
+                } content: {
+                    ForEach(model.runtimes) { r in
+                        let users = model.sims.filter { $0.runtimeID == r.runtimeID }.count
+                        DeviceRow(
+                            icon: "shippingbox",
+                            title: r.name,
+                            subtitle: ["build \(r.build)", "\(users) simulator\(users == 1 ? "" : "s")",
+                                       r.lastUsed.map { "used \($0.formatted(.relative(presentation: .named)))" }]
+                                .compactMap { $0 }.joined(separator: " · "),
+                            badge: users == 0 ? ("Unused", .orange) : (r.state == "Ready" ? nil : (r.state, .orange)),
+                            size: r.size,
+                            busy: model.busy.contains("rt-\(r.identifier)"),
+                            reveal: nil,
+                            canDelete: r.deletable
+                        ) { pending = .runtime(r, usedBy: users) }
+                    }
+                }
+
+                DeviceSection(title: "Android Emulators", systemImage: "candybarphone",
+                              total: model.avds.compactMap(\.size).reduce(0, +),
+                              empty: model.avds.isEmpty, loading: !model.loaded) {
+                    EmptyView()
+                } content: {
+                    ForEach(model.avds) { a in
+                        DeviceRow(
+                            icon: "candybarphone",
+                            title: a.displayName,
+                            subtitle: a.systemImage.map { $0.split(separator: "/").dropFirst().joined(separator: " · ") } ?? a.name,
+                            badge: a.running ? ("Running", .green) : nil,
+                            size: a.size,
+                            busy: model.busy.contains("avd-\(a.name)"),
+                            reveal: a.dir,
+                            canDelete: !a.running,
+                            deleteHelp: a.running ? "Close the emulator first" : nil
+                        ) { pending = .avd(a) }
+                    }
+                }
+
+                DeviceSection(title: "Android System Images", systemImage: "opticaldisc",
+                              total: model.images.compactMap(\.size).reduce(0, +),
+                              empty: model.images.isEmpty, loading: !model.loaded) {
+                    EmptyView()
+                } content: {
+                    ForEach(model.images) { i in
+                        DeviceRow(
+                            icon: "opticaldisc",
+                            title: i.label,
+                            subtitle: i.usedBy.isEmpty ? "not used by any emulator" : "used by \(i.usedBy.joined(separator: ", "))",
+                            badge: i.usedBy.isEmpty ? ("Unused", .orange) : nil,
+                            size: i.size,
+                            busy: model.busy.contains("img-\(i.path)"),
+                            reveal: i.path
+                        ) { pending = .image(i) }
+                    }
+                }
+
+                CacheSection(title: "Xcode DerivedData", systemImage: "hammer",
+                             items: model.derivedData, loaded: model.loaded, busy: model.busy,
+                             groupLabel: "DerivedData folders whose project is gone", pending: $pending)
+
+                CacheSection(title: "Gradle", systemImage: "cube.box",
+                             items: model.gradle, loaded: model.loaded, busy: model.busy,
+                             groupLabel: "", pending: $pending)
+            }
+            .padding(20)
+        }
+        .navigationTitle("Devices & Build Caches")
+        .toolbar {
+            ToolbarItem {
+                if model.loading {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button { model.load() } label: { Label("Reload", systemImage: "arrow.clockwise") }
+                }
+            }
+        }
+        .onAppear { if !model.loaded { model.load() } }
+        .alert(pending?.title ?? "", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+               presenting: pending) { target in
+            Button("Delete", role: .destructive) { model.delete(target) }
+            Button("Cancel", role: .cancel) {}
+        } message: { target in
+            Text(target.message)
+        }
+    }
+}
+
+struct CacheSection: View {
+    let title: String
+    let systemImage: String
+    let items: [CacheItem]
+    let loaded: Bool
+    let busy: Set<String>
+    let groupLabel: String
+    @Binding var pending: DeleteTarget?
+
+    private var orphaned: [CacheItem] { items.filter(\.orphaned) }
+
+    var body: some View {
+        DeviceSection(title: title, systemImage: systemImage,
+                      total: items.compactMap(\.size).reduce(0, +),
+                      empty: items.isEmpty, loading: !loaded) {
+            if !orphaned.isEmpty {
+                Button("Delete \(orphaned.count) orphaned") { pending = .cacheGroup(orphaned, label: groupLabel) }
+            }
+        } content: {
+            ForEach(items.sorted { ($0.size ?? 0) > ($1.size ?? 0) }) { item in
+                DeviceRow(
+                    icon: "folder",
+                    title: item.title,
+                    subtitle: item.subtitle,
+                    badge: item.badge,
+                    size: item.size,
+                    busy: busy.contains(DeleteTarget.cache(item).id),
+                    reveal: item.path
+                ) { pending = .cache(item) }
+            }
+        }
+    }
+}
+
+struct DeviceSection<Actions: View, Content: View>: View {
+    let title: String
+    let systemImage: String
+    let total: Int64
+    let empty: Bool
+    let loading: Bool
+    @ViewBuilder let actions: Actions
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Label(title, systemImage: systemImage).font(.headline)
+                if total > 0 {
+                    Text(formatBytes(total)).foregroundStyle(.secondary).monospacedDigit()
+                }
+                Spacer()
+                actions
+            }
+            .padding(.bottom, 4)
+            if loading {
+                ProgressView().controlSize(.small).padding(8)
+            } else if empty {
+                Text("None found").foregroundStyle(.tertiary).padding(8)
+            } else {
+                content
+            }
+        }
+    }
+}
+
+struct DeviceRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let badge: (String, Color)?
+    let size: Int64?
+    let busy: Bool
+    let reveal: String?
+    var canDelete = true
+    var deleteHelp: String?
+    let onDelete: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).font(.title3).foregroundStyle(.secondary).frame(width: 24)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(title)
+                    if let badge {
+                        Text(badge.0)
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(badge.1.opacity(0.15), in: Capsule())
+                            .foregroundStyle(badge.1)
+                    }
+                }
+                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+            if let reveal, hovering {
+                Button { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: reveal) } label: {
+                    Image(systemName: "folder")
+                }
+                .buttonStyle(.borderless)
+                .help("Reveal in Finder")
+            }
+            Group {
+                if let size { Text(formatBytes(size)).monospacedDigit() } else { ProgressView().controlSize(.mini) }
+            }
+            .frame(width: 80, alignment: .trailing)
+            if busy {
+                ProgressView().controlSize(.small).frame(width: 76)
+            } else {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                }
+                .disabled(!canDelete)
+                .help(deleteHelp ?? (canDelete ? "Delete" : "Not deletable"))
+                .frame(width: 76)
+            }
+        }
+        .padding(.vertical, 6).padding(.horizontal, 8)
+        .background(hovering ? Color.primary.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .onHover { hovering = $0 }
+    }
+}
