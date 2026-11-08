@@ -5,8 +5,6 @@ enum Paths {
     static let home = FileManager.default.homeDirectoryForCurrentUser.path
     static let dotfiles = ProcessInfo.processInfo.environment["DOTFILES"] ?? "\(home)/.dotfiles"
     static let engine = "\(dotfiles)/bin/disk-cleanup.sh"
-    /// Held while a sweep runs, so two never overlap.
-    static let lock = "/tmp/disk-cleaner.lock"
     static var androidSDK: String {
         let env = ProcessInfo.processInfo.environment
         return env["ANDROID_HOME"] ?? env["ANDROID_SDK_ROOT"] ?? "\(home)/Library/Android/sdk"
