@@ -18,7 +18,8 @@ Personal macOS dotfiles repository (`~/.dotfiles`) that automates development en
 - **`setupfiles/`** — Individual setup scripts: `common.sh` (shared helpers), `zsh.sh`, `node.sh`, `python.sh`, `ruby.sh`, `npm.sh`, `sync.sh` (deploy configs), `init_script.sh`, `macos.sh`
 - **`.config/`** — All configuration files (zshrc, yabairc, skhdrc, karabiner.json, sketchybar/, .finicky.js, cloudflared/)
 - **`zsh/`** — Zsh modules loaded by .zshrc: `aliases.zsh`, `path.zsh`, `functions.zsh`, `.env.zsh` (secrets, gitignored)
-- **`bin/`** — Executable scripts: `focus_window_wrapper.sh` (yabai app focus), `claude-worktree.sh` (git worktree + claude)
+- **`bin/`** — Executable scripts: `focus_window_wrapper.sh` (yabai app focus), `claude-worktree.sh` (git worktree + claude), `disk-cleanup.sh` (cache cleanup engine; hourly via launchd agent in `.config/launchd/`, and from Disk Cleaner)
+- **`tools/disk-cleaner/`** — Disk Cleaner, a SwiftUI app opened from the sketchybar storage item (overview, live cleanup, devices & caches, spaceburst map)
 - **`script/`** — Utility scripts: `wallpaper.py` (weekly Gemini landscape sets, rotated by Oslo sun phase via launchd agent in `.config/launchd/`), `windowarr.sh` (yabai helpers), `sync-brew.sh` (Brewfile drift checker), `brew-upgrade.sh` (daily `brew upgrade` via launchd agent in `.config/launchd/`)
 - **`AppleScripts/`** — macOS automation (hacktime window arrangement, project launchers)
 - **`githubProjects/`** — Repo list + clone script + .env backup/restore

@@ -71,3 +71,9 @@ launchctl bootout gui/$(id -u) $BREW_UPGRADE_PLIST 2>/dev/null
 sed -e "s|__DOTFILES__|$DOTFILES|" -e "s|__HOME__|$HOME|g" \
 	$DOTFILES/.config/launchd/com.predbjorn.brew-upgrade.plist > $BREW_UPGRADE_PLIST
 launchctl bootstrap gui/$(id -u) $BREW_UPGRADE_PLIST
+# hourly disk cleanup (launchd agent, runs bin/disk-cleanup.sh)
+DISKCLEAN_PLIST=$HOME/Library/LaunchAgents/com.predbjorn.diskclean.plist
+launchctl bootout gui/$(id -u) $DISKCLEAN_PLIST 2>/dev/null
+sed -e "s|__DOTFILES__|$DOTFILES|" -e "s|__HOME__|$HOME|g" \
+	$DOTFILES/.config/launchd/com.predbjorn.diskclean.plist > $DISKCLEAN_PLIST
+launchctl bootstrap gui/$(id -u) $DISKCLEAN_PLIST

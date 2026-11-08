@@ -41,7 +41,7 @@ let knownLocations: [Location] = {
 
         Location(group: "Android", label: "Emulators (AVDs)", path: Paths.avdDir, coverage: .devices),
         Location(group: "Android", label: "SDK system images", path: "\(sdk)/system-images", coverage: .devices),
-        Location(group: "Android", label: "Gradle caches", path: "\(h)/.gradle/caches", coverage: .script),
+        Location(group: "Android", label: "Gradle caches", path: "\(h)/.gradle/caches", coverage: .deep),
         Location(group: "Android", label: "Gradle wrapper dists", path: "\(h)/.gradle/wrapper/dists", coverage: .manual),
 
         Location(group: "JavaScript", label: "npm cache", path: "\(h)/.npm/_cacache", coverage: .script),

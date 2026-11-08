@@ -48,10 +48,6 @@ final class CleanupRunner: ObservableObject {
             error = "Cleanup script not found at \(Paths.tilde(Paths.engine))"
             return
         }
-        if !acquireLock() {
-            error = "A cleanup is already running. Try again when it finishes."
-            return
-        }
         steps = []; log = []; total = 0; error = nil
         finishedAt = nil; freeAfter = nil
         wasDryRun = dryRun
@@ -104,7 +100,11 @@ final class CleanupRunner: ObservableObject {
             closeCurrent()
             steps.append(Step(id: steps.count, label: value))
         case "result":
-            if let i = steps.indices.last { steps[i].mb = Int(value) }
+            if let i = steps.indices.last {
+                steps[i].mb = Int(value)
+                // Part of the step was skipped (in use), the rest is being removed.
+                if steps[i].status == .skipped { steps[i].status = .running; steps[i].finished = nil }
+            }
         case "note":
             if let i = steps.indices.last {
                 steps[i].note = value
@@ -114,6 +114,10 @@ final class CleanupRunner: ObservableObject {
             log.append(line)
         }
     }
+
+    /// The engine's own lock is shared with the hourly LaunchAgent; it exits 0 with
+    /// this line when another run holds it.
+    private var skippedBecauseBusy: Bool { log.contains { $0.hasSuffix("already running, skipped") } }
 
     private func closeCurrent() {
         if let i = steps.indices.last, steps[i].status == .running {
@@ -128,28 +132,15 @@ final class CleanupRunner: ObservableObject {
         finishedAt = Date()
         freeAfter = Volume.info()?.free
         process = nil
-        releaseLock()
         if let launchError {
             error = launchError
+        } else if skippedBecauseBusy {
+            error = "Another cleanup is already running (probably the hourly one). Try again when it finishes."
         } else if status != 0 {
             error = status == 15 ? "Stopped." : "Cleanup exited with status \(status). See the log below."
         }
         onFinished?()
     }
-
-    // MARK: lock, so two sweeps never run at once
-
-    private func acquireLock() -> Bool {
-        let fm = FileManager.default
-        // A lock older than two hours is a leftover from a crashed run.
-        if let attrs = try? fm.attributesOfItem(atPath: Paths.lock),
-           let created = attrs[.creationDate] as? Date, Date().timeIntervalSince(created) > 7200 {
-            try? fm.removeItem(atPath: Paths.lock)
-        }
-        return (try? fm.createDirectory(atPath: Paths.lock, withIntermediateDirectories: false)) != nil
-    }
-
-    private func releaseLock() { try? FileManager.default.removeItem(atPath: Paths.lock) }
 }
 
 // MARK: - View
@@ -286,20 +277,22 @@ struct CleanupView: View {
     private var explainer: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("What the cleanup does").font(.headline)
-            Text("Runs \(Paths.tilde(Paths.engine)). Everything it removes is rebuilt or re-downloaded on demand, and it never touches repo state, simulators, the Trash, or anything you authored. Symlinked caches (moved to another drive) are skipped.")
+            Text("Runs \(Paths.tilde(Paths.engine)). Everything it removes is rebuilt or re-downloaded on demand, and it never touches repo state, simulators, the Trash, or anything you authored. Symlinked caches (moved to another drive) are skipped, and so is build output touched in the last 24 hours or in use by a running Xcode or Gradle build. It also runs hourly in the background (with a 4-hour window).")
                 .foregroundStyle(.secondary)
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                ForEach(["Xcode DerivedData", "Gradle caches", "Xcode DeviceSupport", "CoreSimulator logs",
+                ForEach(["Xcode DerivedData (per project, idle ones only)", "Xcode DeviceSupport", "CoreSimulator logs",
                          "npm cache", "App updater leftovers + CocoaPods cache",
                          "Project build output in ~/Hacking (Gradle, iOS, .next, __pycache__…)",
-                         "Docker build cache (if Docker is running)", "pnpm store prune", "Stale git worktree entries"],
+                         "Docker build cache older than 3 days (if Docker is running)", "pnpm store prune",
+                         "Claude worktrees whose PR is merged or closed (clean, idle, nothing unpushed)",
+                         "Stale git worktree entries"],
                         id: \.self) { item in
                     GridRow {
                         Image(systemName: "checkmark.circle").foregroundStyle(.green)
                         Text(item)
                     }
                 }
-                ForEach(["HuggingFace models, torch cache, Codex runtimes, Yarn cache"], id: \.self) { item in
+                ForEach(["Gradle caches, HuggingFace models, torch cache, Codex runtimes, Yarn cache"], id: \.self) { item in
                     GridRow {
                         Image(systemName: "plus.circle").foregroundStyle(.orange)
                         Text("\(item) — only with Deep")
