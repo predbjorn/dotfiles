@@ -12,7 +12,15 @@ browser instead.
   `--deep`) and shows each step live with what it found/freed.
 - **Devices & Caches** — iOS simulators, simulator runtimes, Android AVDs and
   SDK system images, Xcode DerivedData (per project/worktree) and Gradle caches,
-  each with size and a Delete button (confirmation first).
+  each with size and a Delete button (confirmation first). Rows show **who uses
+  them** so you can tell what's safe to delete: Gradle caches/distributions list
+  the repos whose `gradle/wrapper/gradle-wrapper.properties` pins that version
+  (main checkout + worktree count, expand for names; `Unused` / `Worktrees only`
+  badges), iOS runtimes list the projects whose deployment target they satisfy
+  (`Only runtime for N` vs `Replaceable`), and simulators/AVDs note the repo
+  they're named for and any `~/.simq/policy.json` pin. `~/Hacking` (or
+  `$HACKING`) is scanned with `find`, skipping `node_modules`, `Pods`, build
+  dirs and hidden dirs other than `.claude`/`.worktrees`.
 - **Disk Map** — the [spaceburst](https://github.com/cfmatre/spaceburst) sunburst
   of the whole Data volume, shown in a web view. Rescan from the toolbar (live
   progress), or right-click a wedge to reveal it in Finder, copy its path or

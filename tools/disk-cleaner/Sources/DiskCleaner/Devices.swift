@@ -19,6 +19,8 @@ struct SimRuntime: Identifiable {
     let identifier: String
     let runtimeID: String
     let name: String
+    let version: String
+    let platform: String
     let build: String
     let size: Int64
     let lastUsed: Date?
@@ -58,6 +60,8 @@ struct CacheItem: Identifiable {
     var size: Int64?
     var orphaned = false
     var warning: String?
+    /// Expandable lines under the row (who uses it).
+    var details: [String] = []
     var id: String { path }
 }
 
@@ -122,6 +126,7 @@ final class DevicesModel: ObservableObject {
     @Published var images: [SystemImage] = []
     @Published var derivedData: [CacheItem] = []
     @Published var gradle: [CacheItem] = []
+    @Published var scan: ProjectScan?
     @Published var loading = false
     @Published var loaded = false
     @Published var busy: Set<String> = []
@@ -136,13 +141,15 @@ final class DevicesModel: ObservableObject {
             async let s = Self.loadSims()
             async let r = Self.loadRuntimes()
             async let a = Self.loadAVDs()
-            let (sims, runtimes, avds) = await (s, r, a)
+            async let p = ProjectScan.load()
+            let (sims, runtimes, avds, scan) = await (s, r, a, p)
             self.sims = sims
             self.runtimes = runtimes
             self.avds = avds
-            self.images = await Self.loadImages(avds: avds)
+            self.scan = scan
+            self.images = await Self.loadImages(avds: avds, simq: scan.simq)
             self.derivedData = Self.loadDerivedData()
-            self.gradle = Self.loadGradle(daemonRunning: await Self.gradleDaemonRunning())
+            self.gradle = Self.loadGradle(daemonRunning: await Self.gradleDaemonRunning(), scan: scan)
             loading = false
             loaded = true
             // AVD and image sizes need du; fill them in after the list shows.
@@ -231,10 +238,13 @@ final class DevicesModel: ObservableObject {
             case "com.apple.platform.xrsimulator": "visionOS"
             default: "Simulator"
             }
+            let version = d["version"] as? String ?? "?"
             return SimRuntime(
                 identifier: ident,
                 runtimeID: d["runtimeIdentifier"] as? String ?? "",
-                name: "\(platform) \(d["version"] as? String ?? "?")",
+                name: "\(platform) \(version)",
+                version: version,
+                platform: platform,
                 build: d["build"] as? String ?? "",
                 size: (d["sizeBytes"] as? NSNumber)?.int64Value ?? 0,
                 lastUsed: (d["lastUsedAt"] as? String).flatMap(iso.date),
@@ -271,7 +281,7 @@ final class DevicesModel: ObservableObject {
         }
     }
 
-    nonisolated static func loadImages(avds: [AndroidAVD]) async -> [SystemImage] {
+    nonisolated static func loadImages(avds: [AndroidAVD], simq: SimqPolicy?) async -> [SystemImage] {
         let fm = FileManager.default
         let root = "\(Paths.androidSDK)/system-images"
         var out: [SystemImage] = []
@@ -281,6 +291,7 @@ final class DevicesModel: ObservableObject {
                 for abi in (try? fm.contentsOfDirectory(atPath: "\(root)/\(api)/\(tag)")) ?? [] where !abi.hasPrefix(".") {
                     let rel = "system-images/\(api)/\(tag)/\(abi)"
                     let users = avds.filter { $0.systemImage == rel }.map(\.displayName)
+                        + (simq?.androidImage == rel ? ["simq pin"] : [])
                     out.append(SystemImage(path: "\(root)/\(api)/\(tag)/\(abi)", relative: rel, size: nil, usedBy: users))
                 }
             }
@@ -324,7 +335,7 @@ final class DevicesModel: ObservableObject {
         }
     }
 
-    nonisolated static func loadGradle(daemonRunning: Bool) -> [CacheItem] {
+    nonisolated static func loadGradle(daemonRunning: Bool, scan: ProjectScan) -> [CacheItem] {
         let fm = FileManager.default
         let caches = "\(Paths.home)/.gradle/caches"
         let dists = "\(Paths.home)/.gradle/wrapper/dists"
@@ -341,27 +352,36 @@ final class DevicesModel: ObservableObject {
         let distVersions = distDirs.map { $0.replacingOccurrences(of: "^gradle-|-(bin|all)$", with: "", options: .regularExpression) }
         let versions = cacheDirs.filter { $0.range(of: versionRx, options: .regularExpression) != nil } + distVersions
         let newest = versions.max { $0.compare($1, options: .numeric) == .orderedAscending }
-        let older: (String) -> (String, Color)? = { v in v != newest ? ("Older version", .orange) : nil }
+        // Who pins this version in gradle/wrapper/gradle-wrapper.properties under ~/Hacking.
+        func item(path: String, title: String, what: String, key: String, version: String) -> CacheItem {
+            let usage = scan.gradleUsage(key)
+            let newestNote = version == newest ? "newest installed" : nil
+            return CacheItem(path: path, title: title,
+                             subtitle: [usage.summary, newestNote, what].compactMap { $0 }.joined(separator: " · "),
+                             badge: usage.badge, warning: warning, details: usage.details)
+        }
+        let shared = "shared by every Gradle build (\(scan.gradleCheckouts) checkouts in ~/Hacking)"
 
         var out: [CacheItem] = cacheDirs.map { e in
             let path = "\(caches)/\(e)"
             if e.range(of: versionRx, options: .regularExpression) != nil {
-                return CacheItem(path: path, title: "Gradle \(e) caches", subtitle: "transforms, compiled build scripts, metadata",
-                                 badge: older(e), warning: warning)
+                return item(path: path, title: "Gradle \(e) caches", what: "transforms, compiled build scripts, metadata",
+                            key: e, version: e)
             }
             let (title, sub): (String, String) = switch e {
-            case let x where x.hasPrefix("build-cache"): ("Build cache", "task outputs reused across builds")
-            case let x where x.hasPrefix("modules"): ("Downloaded dependencies", "Maven/Google artifacts, re-downloaded on demand")
-            case let x where x.hasPrefix("transforms"): ("Artifact transforms", "shared transform outputs")
-            case let x where x.hasPrefix("jars"): ("Jar cache", "instrumented build-script jars")
-            case let x where x.hasPrefix("journal"): ("Journal", "cache bookkeeping")
+            case let x where x.hasPrefix("build-cache"): ("Build cache", "task outputs reused across builds · \(shared)")
+            case let x where x.hasPrefix("modules"): ("Downloaded dependencies", "Maven/Google artifacts, re-downloaded on demand · \(shared)")
+            case let x where x.hasPrefix("transforms"): ("Artifact transforms", "shared transform outputs · \(shared)")
+            case let x where x.hasPrefix("jars"): ("Jar cache", "instrumented build-script jars · \(shared)")
+            case let x where x.hasPrefix("journal"): ("Journal", "cache bookkeeping · \(shared)")
             default: (e, "~/.gradle/caches/\(e)")
             }
             return CacheItem(path: path, title: title, subtitle: sub, badge: nil, warning: warning)
         }
         out += zip(distDirs, distVersions).map { dir, v in
-            CacheItem(path: "\(dists)/\(dir)", title: "Gradle \(v) distribution", subtitle: "wrapper download (~/.gradle/wrapper/dists)",
-                      badge: older(v), warning: warning)
+            let flavor = dir.hasSuffix("-all") ? "all" : "bin"
+            return item(path: "\(dists)/\(dir)", title: "Gradle \(v) distribution\(flavor == "all" ? " (all)" : "")",
+                        what: "wrapper download", key: "\(v)-\(flavor)", version: v)
         }
         return out
     }
@@ -422,6 +442,29 @@ struct DevicesView: View {
 
     private var unavailable: Int { model.sims.filter { !$0.available }.count }
 
+    /// Which projects this iOS runtime can run (deployment target ≤ runtime version), and
+    /// whether it's the only installed runtime that can.
+    private func runtimeUsage(_ r: SimRuntime) -> (text: String, badge: (String, Color)?, details: [String])? {
+        guard r.platform == "iOS", let scan = model.scan, !scan.iosTargets.isEmpty else { return nil }
+        let usage = scan.iosUsage(version: r.version, runtimeID: r.runtimeID)
+        if usage.checkouts.isEmpty {
+            return (usage.pinnedBy != nil ? usage.summary : "older than every project's deployment target",
+                    usage.pinnedBy != nil ? usage.badge : ("Too old for all projects", .orange), usage.details)
+        }
+        let others = model.runtimes.filter { $0.platform == "iOS" && $0.identifier != r.identifier }
+        let soleFor = usage.checkouts.filter { c in
+            !others.contains { scan.iosTargets[c]!.compare($0.version, options: .numeric) != .orderedDescending }
+        }
+        let text = "deployment target fits · " + usage.summary
+        let soleRepos = Set(soleFor.map(\.repoPath)).count
+        let built = usage.recent.count
+        let badge: (String, Color) = soleFor.isEmpty
+            ? ("Replaceable", .yellow)
+            : ("Only runtime for \(soleRepos) repo\(soleRepos == 1 ? "" : "s")"
+               + (built > 0 ? " · \(built) built in \(Usage.recentDays) d" : ""), .green)
+        return (text, badge, usage.details)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -441,9 +484,11 @@ struct DevicesView: View {
                         DeviceRow(
                             icon: d.name.contains("iPad") ? "ipad" : (d.name.contains("Watch") ? "applewatch" : "iphone"),
                             title: d.name,
-                            subtitle: [d.runtime, d.lastBooted.map { "booted \($0.formatted(.relative(presentation: .named)))" } ?? "never booted"]
-                                .joined(separator: " · "),
-                            badge: d.booted ? ("Running", .green) : (!d.available ? ("Unavailable", .orange) : nil),
+                            subtitle: [d.runtime, model.scan?.repo(named: d.name).map { "named for \($0)" },
+                                       d.lastBooted.map { "booted \($0.formatted(.relative(presentation: .named)))" } ?? "never booted"]
+                                .compactMap { $0 }.joined(separator: " · "),
+                            badge: d.booted ? ("Running", .green) : (!d.available ? ("Unavailable", .orange)
+                                : (model.scan?.simq?.iosPool.contains(d.udid) == true ? ("simq pool", .blue) : nil)),
                             size: d.size,
                             busy: model.busy.contains(DeleteTarget.sim(d).id),
                             reveal: d.dataPath.isEmpty ? nil : (d.dataPath as NSString).deletingLastPathComponent
@@ -458,13 +503,17 @@ struct DevicesView: View {
                 } content: {
                     ForEach(model.runtimes) { r in
                         let users = model.sims.filter { $0.runtimeID == r.runtimeID }.count
+                        let projects = runtimeUsage(r)
                         DeviceRow(
                             icon: "shippingbox",
                             title: r.name,
                             subtitle: ["build \(r.build)", "\(users) simulator\(users == 1 ? "" : "s")",
+                                       projects.map(\.text),
                                        r.lastUsed.map { "used \($0.formatted(.relative(presentation: .named)))" }]
                                 .compactMap { $0 }.joined(separator: " · "),
-                            badge: users == 0 ? ("Unused", .orange) : (r.state == "Ready" ? nil : (r.state, .orange)),
+                            badge: r.state != "Ready" ? (r.state, .orange)
+                                : (projects?.badge ?? (users == 0 ? ("Unused", .orange) : nil)),
+                            details: projects?.details ?? [],
                             size: r.size,
                             busy: model.busy.contains("rt-\(r.identifier)"),
                             reveal: nil,
@@ -482,8 +531,11 @@ struct DevicesView: View {
                         DeviceRow(
                             icon: "candybarphone",
                             title: a.displayName,
-                            subtitle: a.systemImage.map { $0.split(separator: "/").dropFirst().joined(separator: " · ") } ?? a.name,
-                            badge: a.running ? ("Running", .green) : nil,
+                            subtitle: ([a.systemImage.map { $0.split(separator: "/").dropFirst().joined(separator: " · ") } ?? a.name]
+                                       + [model.scan?.repo(named: a.displayName).map { "named for \($0)" }].compactMap { $0 })
+                                .joined(separator: " · "),
+                            badge: a.running ? ("Running", .green)
+                                : (model.scan?.simq?.androidPool.contains(a.name) == true ? ("simq pool", .blue) : nil),
                             size: a.size,
                             busy: model.busy.contains("avd-\(a.name)"),
                             reveal: a.dir,
@@ -567,6 +619,7 @@ struct CacheSection: View {
                     title: item.title,
                     subtitle: item.subtitle,
                     badge: item.badge,
+                    details: item.details,
                     size: item.size,
                     busy: busy.contains(DeleteTarget.cache(item).id),
                     reveal: item.path
@@ -612,6 +665,7 @@ struct DeviceRow: View {
     let title: String
     let subtitle: String
     let badge: (String, Color)?
+    var details: [String] = []
     let size: Int64?
     let busy: Bool
     let reveal: String?
@@ -619,8 +673,24 @@ struct DeviceRow: View {
     var deleteHelp: String?
     let onDelete: () -> Void
     @State private var hovering = false
+    @State private var expanded = false
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            row
+            if expanded, !details.isEmpty {
+                Text(details.joined(separator: "\n"))
+                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .padding(.leading, 44).padding(.bottom, 4)
+            }
+        }
+        .padding(.vertical, 6).padding(.horizontal, 8)
+        .background(hovering ? Color.primary.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .onHover { hovering = $0 }
+    }
+
+    private var row: some View {
         HStack(spacing: 12) {
             Image(systemName: icon).font(.title3).foregroundStyle(.secondary).frame(width: 24)
             VStack(alignment: .leading, spacing: 1) {
@@ -634,7 +704,16 @@ struct DeviceRow: View {
                             .foregroundStyle(badge.1)
                     }
                 }
-                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 4) {
+                    if !details.isEmpty {
+                        Button { expanded.toggle() } label: {
+                            Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.caption2)
+                        }
+                        .buttonStyle(.borderless)
+                        .help(expanded ? "Hide who uses it" : "Show who uses it")
+                    }
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1).help(subtitle)
+                }
             }
             Spacer()
             if let reveal, hovering {
@@ -659,8 +738,5 @@ struct DeviceRow: View {
                 .frame(width: 76)
             }
         }
-        .padding(.vertical, 6).padding(.horizontal, 8)
-        .background(hovering ? Color.primary.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 6))
-        .onHover { hovering = $0 }
     }
 }
