@@ -133,7 +133,7 @@ nuke "App updater leftovers"  "$HOME/Library/Caches"/*.ShipIt "$HOME/Library/Cac
 # Gradle/Xcode/Next output — never a bare directory that merely reads "build".
 step "Project build output"
 if [ -d "$HACKING" ]; then
-  note "scanning $HACKING…"
+  note "scanning ${HACKING}…"
   BUILD_LIST="$(mktemp -t diskclean)"
   (
     cd "$HACKING" || exit 0

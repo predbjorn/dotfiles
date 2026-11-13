@@ -19,6 +19,8 @@ struct SimRuntime: Identifiable {
     let identifier: String
     let runtimeID: String
     let name: String
+    let version: String
+    let platform: String
     let build: String
     let size: Int64
     let lastUsed: Date?
@@ -57,17 +59,22 @@ struct CacheItem: Identifiable {
     let badge: (String, Color)?
     var size: Int64?
     var orphaned = false
+    /// Safe to sweep in a group: nothing is working in it right now (or nothing uses it).
+    var idle = false
     var warning: String?
+    /// Expandable lines under the row (who uses it).
+    var details: [String] = []
     var id: String { path }
 }
 
 enum DeleteTarget: Identifiable {
-    case sim(SimDevice), unavailableSims(Int), runtime(SimRuntime, usedBy: Int), avd(AndroidAVD), image(SystemImage)
+    case sim(SimDevice), simCaches(SimDevice), unavailableSims(Int), runtime(SimRuntime, usedBy: Int), avd(AndroidAVD), image(SystemImage)
     case cache(CacheItem), cacheGroup([CacheItem], label: String)
 
     var id: String {
         switch self {
         case .sim(let d): "sim-\(d.udid)"
+        case .simCaches(let d): "simcache-\(d.udid)"
         case .unavailableSims: "unavailable"
         case .runtime(let r, _): "rt-\(r.identifier)"
         case .avd(let a): "avd-\(a.name)"
@@ -80,6 +87,7 @@ enum DeleteTarget: Identifiable {
     var title: String {
         switch self {
         case .sim(let d): "Delete simulator “\(d.name)”?"
+        case .simCaches(let d): "Clear caches of “\(d.name)”?"
         case .unavailableSims(let n): "Delete \(n) unavailable simulator\(n == 1 ? "" : "s")?"
         case .runtime(let r, _): "Delete runtime \(r.name)?"
         case .avd(let a): "Delete emulator “\(a.displayName)”?"
@@ -94,6 +102,9 @@ enum DeleteTarget: Identifiable {
         case .sim(let d):
             "\(d.runtime) · \(d.size.map(formatBytes) ?? "unknown size"). Its apps and data are removed permanently."
                 + (d.booted ? " It is running and will be shut down first." : "")
+        case .simCaches:
+            "Empties Library/Caches and tmp inside the simulator (system and app caches). "
+                + "Installed apps, their data and settings stay."
         case .unavailableSims:
             "These simulators belong to runtimes that are no longer installed. Runs `xcrun simctl delete unavailable`."
         case .runtime(let r, let used):
@@ -122,6 +133,8 @@ final class DevicesModel: ObservableObject {
     @Published var images: [SystemImage] = []
     @Published var derivedData: [CacheItem] = []
     @Published var gradle: [CacheItem] = []
+    @Published var scratch: [CacheItem] = []
+    @Published var scan: ProjectScan?
     @Published var loading = false
     @Published var loaded = false
     @Published var busy: Set<String> = []
@@ -136,13 +149,17 @@ final class DevicesModel: ObservableObject {
             async let s = Self.loadSims()
             async let r = Self.loadRuntimes()
             async let a = Self.loadAVDs()
-            let (sims, runtimes, avds) = await (s, r, a)
+            async let p = ProjectScan.load()
+            async let act = Activity.load()
+            let (sims, runtimes, avds, scan, activity) = await (s, r, a, p, act)
             self.sims = sims
             self.runtimes = runtimes
             self.avds = avds
-            self.images = await Self.loadImages(avds: avds)
-            self.derivedData = Self.loadDerivedData()
-            self.gradle = Self.loadGradle(daemonRunning: await Self.gradleDaemonRunning())
+            self.scan = scan
+            self.images = await Self.loadImages(avds: avds, simq: scan.simq)
+            self.derivedData = Self.loadDerivedData(activity: activity)
+            self.scratch = Self.loadScratchBuilds(activity: activity)
+            self.gradle = Self.loadGradle(daemonRunning: await Self.gradleDaemonRunning(), scan: scan)
             loading = false
             loaded = true
             // AVD and image sizes need du; fill them in after the list shows.
@@ -155,6 +172,7 @@ final class DevicesModel: ObservableObject {
                 if let i = self.images.firstIndex(where: { $0.path == img.path }) { self.images[i].size = size }
             }
             await fillSizes(\.derivedData)
+            await fillSizes(\.scratch)
             await fillSizes(\.gradle)
         }
     }
@@ -172,6 +190,7 @@ final class DevicesModel: ObservableObject {
         Task {
             let failure: String? = switch target {
             case .sim(let d): await Self.deleteSim(d)
+            case .simCaches(let d): await Self.clearSimCaches(d)
             case .unavailableSims: Self.errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "delete", "unavailable"]))
             case .runtime(let r, _):
                 Self.errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "runtime", "delete", r.identifier]))
@@ -231,10 +250,13 @@ final class DevicesModel: ObservableObject {
             case "com.apple.platform.xrsimulator": "visionOS"
             default: "Simulator"
             }
+            let version = d["version"] as? String ?? "?"
             return SimRuntime(
                 identifier: ident,
                 runtimeID: d["runtimeIdentifier"] as? String ?? "",
-                name: "\(platform) \(d["version"] as? String ?? "?")",
+                name: "\(platform) \(version)",
+                version: version,
+                platform: platform,
                 build: d["build"] as? String ?? "",
                 size: (d["sizeBytes"] as? NSNumber)?.int64Value ?? 0,
                 lastUsed: (d["lastUsedAt"] as? String).flatMap(iso.date),
@@ -271,7 +293,7 @@ final class DevicesModel: ObservableObject {
         }
     }
 
-    nonisolated static func loadImages(avds: [AndroidAVD]) async -> [SystemImage] {
+    nonisolated static func loadImages(avds: [AndroidAVD], simq: SimqPolicy?) async -> [SystemImage] {
         let fm = FileManager.default
         let root = "\(Paths.androidSDK)/system-images"
         var out: [SystemImage] = []
@@ -281,6 +303,7 @@ final class DevicesModel: ObservableObject {
                 for abi in (try? fm.contentsOfDirectory(atPath: "\(root)/\(api)/\(tag)")) ?? [] where !abi.hasPrefix(".") {
                     let rel = "system-images/\(api)/\(tag)/\(abi)"
                     let users = avds.filter { $0.systemImage == rel }.map(\.displayName)
+                        + (simq?.androidImage == rel ? ["simq pin"] : [])
                     out.append(SystemImage(path: "\(root)/\(api)/\(tag)/\(abi)", relative: rel, size: nil, usedBy: users))
                 }
             }
@@ -288,7 +311,7 @@ final class DevicesModel: ObservableObject {
         return out
     }
 
-    nonisolated static func loadDerivedData() -> [CacheItem] {
+    nonisolated static func loadDerivedData(activity: Activity) -> [CacheItem] {
         let fm = FileManager.default
         let root = "\(Paths.home)/Library/Developer/Xcode/DerivedData"
         let shared = ["ModuleCache.noindex": "Module cache", "SDKStatCaches.noindex": "SDK stat cache",
@@ -316,15 +339,62 @@ final class DevicesModel: ObservableObject {
             }
             let used = (info?["LastAccessedDate"] as? Date).map { "built \($0.formatted(.relative(presentation: .named)))" }
             let orphaned = !fm.fileExists(atPath: workspace)
+            let inUse = !orphaned && (activity.inUse(Activity.checkoutDir(containing: workspace))
+                                      || activity.derivedDataPaths.contains(Activity.normalize(dir)))
             return CacheItem(
                 path: dir, title: title,
-                subtitle: [Paths.tilde((workspace as NSString).deletingLastPathComponent), used].compactMap { $0 }.joined(separator: " · "),
-                badge: orphaned ? ("Project gone", .orange) : nil,
-                orphaned: orphaned)
+                subtitle: [Paths.tilde((workspace as NSString).deletingLastPathComponent), used,
+                           inUse ? nil : (orphaned ? nil : "no session or build running there")]
+                    .compactMap { $0 }.joined(separator: " · "),
+                badge: orphaned ? ("Project gone", .orange) : (inUse ? ("In use", .green) : ("Idle", .secondary)),
+                orphaned: orphaned, idle: !orphaned && !inUse)
         }
     }
 
-    nonisolated static func loadGradle(daemonRunning: Bool) -> [CacheItem] {
+    /// Xcode builds Claude sessions put in their scratchpad (`xcodebuild -derivedDataPath
+    /// /private/tmp/claude-<uid>/<project>/<session>/scratchpad/dd`). macOS only clears /tmp on reboot.
+    nonisolated static func loadScratchBuilds(activity: Activity) -> [CacheItem] {
+        let fm = FileManager.default
+        let root = "/private/tmp/claude-\(getuid())"
+        func subdirs(_ p: String) -> [String] {
+            ((try? fm.contentsOfDirectory(atPath: p)) ?? []).filter { e in
+                var isDir: ObjCBool = false
+                return fm.fileExists(atPath: "\(p)/\(e)", isDirectory: &isDir) && isDir.boolValue
+            }
+        }
+        var out: [CacheItem] = []
+        for project in subdirs(root) {
+            for session in subdirs("\(root)/\(project)") {
+                let scratch = "\(root)/\(project)/\(session)/scratchpad"
+                for e in subdirs(scratch) {
+                    let dir = "\(scratch)/\(e)"
+                    guard ["Build", "SourcePackages", "ModuleCache.noindex", "info.plist"]
+                        .contains(where: { fm.fileExists(atPath: "\(dir)/\($0)") }) else { continue }
+                    let info = NSDictionary(contentsOfFile: "\(dir)/info.plist")
+                    let workspace = info?["WorkspacePath"] as? String
+                    // "-Users-me-Hacking-projects-tren--claude-worktrees-loving-cray-a87046"
+                    let worktree = project.components(separatedBy: "--claude-worktrees-").dropFirst().first
+                    let inUse = activity.derivedDataPaths.contains(dir)
+                        || workspace.map { activity.inUse(Activity.checkoutDir(containing: $0)) } ?? false
+                        || worktree.map { activity.inUse(worktree: $0) } ?? false
+                    let name = workspace.map { (($0 as NSString).lastPathComponent as NSString).deletingPathExtension }
+                    let title = [name, worktree].compactMap { $0 }.joined(separator: " · ")
+                    let built = (info?["LastAccessedDate"] as? Date
+                                 ?? (try? fm.attributesOfItem(atPath: dir))?[.modificationDate] as? Date)
+                        .map { "built \($0.formatted(.relative(presentation: .named)))" }
+                    out.append(CacheItem(
+                        path: dir, title: title.isEmpty ? project : title,
+                        subtitle: ["Claude scratchpad", built, inUse ? nil : "no session or build running there"]
+                            .compactMap { $0 }.joined(separator: " · "),
+                        badge: inUse ? ("In use", .green) : ("Idle", .secondary),
+                        idle: !inUse))
+                }
+            }
+        }
+        return out
+    }
+
+    nonisolated static func loadGradle(daemonRunning: Bool, scan: ProjectScan) -> [CacheItem] {
         let fm = FileManager.default
         let caches = "\(Paths.home)/.gradle/caches"
         let dists = "\(Paths.home)/.gradle/wrapper/dists"
@@ -341,27 +411,36 @@ final class DevicesModel: ObservableObject {
         let distVersions = distDirs.map { $0.replacingOccurrences(of: "^gradle-|-(bin|all)$", with: "", options: .regularExpression) }
         let versions = cacheDirs.filter { $0.range(of: versionRx, options: .regularExpression) != nil } + distVersions
         let newest = versions.max { $0.compare($1, options: .numeric) == .orderedAscending }
-        let older: (String) -> (String, Color)? = { v in v != newest ? ("Older version", .orange) : nil }
+        // Who pins this version in gradle/wrapper/gradle-wrapper.properties under ~/Hacking.
+        func item(path: String, title: String, what: String, key: String, version: String) -> CacheItem {
+            let usage = scan.gradleUsage(key)
+            let newestNote = version == newest ? "newest installed" : nil
+            return CacheItem(path: path, title: title,
+                             subtitle: [usage.summary, newestNote, what].compactMap { $0 }.joined(separator: " · "),
+                             badge: usage.badge, idle: usage.isUnused, warning: warning, details: usage.details)
+        }
+        let shared = "shared by every Gradle build (\(scan.gradleCheckouts) checkouts in ~/Hacking)"
 
         var out: [CacheItem] = cacheDirs.map { e in
             let path = "\(caches)/\(e)"
             if e.range(of: versionRx, options: .regularExpression) != nil {
-                return CacheItem(path: path, title: "Gradle \(e) caches", subtitle: "transforms, compiled build scripts, metadata",
-                                 badge: older(e), warning: warning)
+                return item(path: path, title: "Gradle \(e) caches", what: "transforms, compiled build scripts, metadata",
+                            key: e, version: e)
             }
             let (title, sub): (String, String) = switch e {
-            case let x where x.hasPrefix("build-cache"): ("Build cache", "task outputs reused across builds")
-            case let x where x.hasPrefix("modules"): ("Downloaded dependencies", "Maven/Google artifacts, re-downloaded on demand")
-            case let x where x.hasPrefix("transforms"): ("Artifact transforms", "shared transform outputs")
-            case let x where x.hasPrefix("jars"): ("Jar cache", "instrumented build-script jars")
-            case let x where x.hasPrefix("journal"): ("Journal", "cache bookkeeping")
+            case let x where x.hasPrefix("build-cache"): ("Build cache", "task outputs reused across builds · \(shared)")
+            case let x where x.hasPrefix("modules"): ("Downloaded dependencies", "Maven/Google artifacts, re-downloaded on demand · \(shared)")
+            case let x where x.hasPrefix("transforms"): ("Artifact transforms", "shared transform outputs · \(shared)")
+            case let x where x.hasPrefix("jars"): ("Jar cache", "instrumented build-script jars · \(shared)")
+            case let x where x.hasPrefix("journal"): ("Journal", "cache bookkeeping · \(shared)")
             default: (e, "~/.gradle/caches/\(e)")
             }
             return CacheItem(path: path, title: title, subtitle: sub, badge: nil, warning: warning)
         }
         out += zip(distDirs, distVersions).map { dir, v in
-            CacheItem(path: "\(dists)/\(dir)", title: "Gradle \(v) distribution", subtitle: "wrapper download (~/.gradle/wrapper/dists)",
-                      badge: older(v), warning: warning)
+            let flavor = dir.hasSuffix("-all") ? "all" : "bin"
+            return item(path: "\(dists)/\(dir)", title: "Gradle \(v) distribution\(flavor == "all" ? " (all)" : "")",
+                        what: "wrapper download", key: "\(v)-\(flavor)", version: v)
         }
         return out
     }
@@ -375,6 +454,14 @@ final class DevicesModel: ObservableObject {
     nonisolated static func deleteSim(_ d: SimDevice) async -> String? {
         if d.booted { _ = await Shell.run("/usr/bin/xcrun", ["simctl", "shutdown", d.udid]) }
         return errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "delete", d.udid]))
+    }
+
+    /// Empty the simulator's own Library/Caches and tmp; apps and their data stay.
+    nonisolated static func clearSimCaches(_ d: SimDevice) async -> String? {
+        let fm = FileManager.default
+        let dirs = ["\(d.dataPath)/Library/Caches", "\(d.dataPath)/tmp"]
+        let paths = dirs.flatMap { dir in ((try? fm.contentsOfDirectory(atPath: dir)) ?? []).map { "\(dir)/\($0)" } }
+        return await removeAsync(paths)
     }
 
     /// Big trees take seconds to delete; keep that off the main thread.
@@ -422,6 +509,29 @@ struct DevicesView: View {
 
     private var unavailable: Int { model.sims.filter { !$0.available }.count }
 
+    /// Which projects this iOS runtime can run (deployment target ≤ runtime version), and
+    /// whether it's the only installed runtime that can.
+    private func runtimeUsage(_ r: SimRuntime) -> (text: String, badge: (String, Color)?, details: [String])? {
+        guard r.platform == "iOS", let scan = model.scan, !scan.iosTargets.isEmpty else { return nil }
+        let usage = scan.iosUsage(version: r.version, runtimeID: r.runtimeID)
+        if usage.checkouts.isEmpty {
+            return (usage.pinnedBy != nil ? usage.summary : "older than every project's deployment target",
+                    usage.pinnedBy != nil ? usage.badge : ("Too old for all projects", .orange), usage.details)
+        }
+        let others = model.runtimes.filter { $0.platform == "iOS" && $0.identifier != r.identifier }
+        let soleFor = usage.checkouts.filter { c in
+            !others.contains { scan.iosTargets[c]!.compare($0.version, options: .numeric) != .orderedDescending }
+        }
+        let text = "deployment target fits · " + usage.summary
+        let soleRepos = Set(soleFor.map(\.repoPath)).count
+        let built = usage.recent.count
+        let badge: (String, Color) = soleFor.isEmpty
+            ? ("Replaceable", .yellow)
+            : ("Only runtime for \(soleRepos) repo\(soleRepos == 1 ? "" : "s")"
+               + (built > 0 ? " · \(built) built in \(Usage.recentDays) d" : ""), .green)
+        return (text, badge, usage.details)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -441,11 +551,17 @@ struct DevicesView: View {
                         DeviceRow(
                             icon: d.name.contains("iPad") ? "ipad" : (d.name.contains("Watch") ? "applewatch" : "iphone"),
                             title: d.name,
-                            subtitle: [d.runtime, d.lastBooted.map { "booted \($0.formatted(.relative(presentation: .named)))" } ?? "never booted"]
-                                .joined(separator: " · "),
-                            badge: d.booted ? ("Running", .green) : (!d.available ? ("Unavailable", .orange) : nil),
+                            subtitle: [d.runtime, model.scan?.repo(named: d.name).map { "named for \($0)" },
+                                       d.lastBooted.map { "booted \($0.formatted(.relative(presentation: .named)))" } ?? "never booted"]
+                                .compactMap { $0 }.joined(separator: " · "),
+                            badge: d.booted ? ("Running", .green) : (!d.available ? ("Unavailable", .orange)
+                                : (model.scan?.simq?.iosPool.contains(d.udid) == true ? ("simq pool", .blue) : nil)),
+                            secondary: d.dataPath.isEmpty ? nil : RowAction(
+                                label: "Clear caches", systemImage: "sparkles", enabled: !d.booted,
+                                help: d.booted ? "Shut the simulator down first" : "Empty its Library/Caches and tmp; apps and data stay"
+                            ) { pending = .simCaches(d) },
                             size: d.size,
-                            busy: model.busy.contains(DeleteTarget.sim(d).id),
+                            busy: model.busy.contains(DeleteTarget.sim(d).id) || model.busy.contains(DeleteTarget.simCaches(d).id),
                             reveal: d.dataPath.isEmpty ? nil : (d.dataPath as NSString).deletingLastPathComponent
                         ) { pending = .sim(d) }
                     }
@@ -458,13 +574,17 @@ struct DevicesView: View {
                 } content: {
                     ForEach(model.runtimes) { r in
                         let users = model.sims.filter { $0.runtimeID == r.runtimeID }.count
+                        let projects = runtimeUsage(r)
                         DeviceRow(
                             icon: "shippingbox",
                             title: r.name,
                             subtitle: ["build \(r.build)", "\(users) simulator\(users == 1 ? "" : "s")",
+                                       projects.map(\.text),
                                        r.lastUsed.map { "used \($0.formatted(.relative(presentation: .named)))" }]
                                 .compactMap { $0 }.joined(separator: " · "),
-                            badge: users == 0 ? ("Unused", .orange) : (r.state == "Ready" ? nil : (r.state, .orange)),
+                            badge: r.state != "Ready" ? (r.state, .orange)
+                                : (projects?.badge ?? (users == 0 ? ("Unused", .orange) : nil)),
+                            details: projects?.details ?? [],
                             size: r.size,
                             busy: model.busy.contains("rt-\(r.identifier)"),
                             reveal: nil,
@@ -482,8 +602,11 @@ struct DevicesView: View {
                         DeviceRow(
                             icon: "candybarphone",
                             title: a.displayName,
-                            subtitle: a.systemImage.map { $0.split(separator: "/").dropFirst().joined(separator: " · ") } ?? a.name,
-                            badge: a.running ? ("Running", .green) : nil,
+                            subtitle: ([a.systemImage.map { $0.split(separator: "/").dropFirst().joined(separator: " · ") } ?? a.name]
+                                       + [model.scan?.repo(named: a.displayName).map { "named for \($0)" }].compactMap { $0 })
+                                .joined(separator: " · "),
+                            badge: a.running ? ("Running", .green)
+                                : (model.scan?.simq?.androidPool.contains(a.name) == true ? ("simq pool", .blue) : nil),
                             size: a.size,
                             busy: model.busy.contains("avd-\(a.name)"),
                             reveal: a.dir,
@@ -513,11 +636,21 @@ struct DevicesView: View {
 
                 CacheSection(title: "Xcode DerivedData", systemImage: "hammer",
                              items: model.derivedData, loaded: model.loaded, busy: model.busy,
-                             groupLabel: "DerivedData folders whose project is gone", pending: $pending)
+                             groups: [.init(button: "orphaned", label: "DerivedData folders whose project is gone", filter: \.orphaned),
+                                      .init(button: "idle", label: "idle DerivedData folders (no session or build in their worktree)",
+                                            filter: \.idle)],
+                             pending: $pending)
+
+                CacheSection(title: "Claude Scratch Builds", systemImage: "terminal",
+                             items: model.scratch, loaded: model.loaded, busy: model.busy,
+                             groups: [.init(button: "idle", label: "idle scratch builds (no session or build in their worktree)",
+                                            filter: \.idle)],
+                             pending: $pending)
 
                 CacheSection(title: "Gradle", systemImage: "cube.box",
                              items: model.gradle, loaded: model.loaded, busy: model.busy,
-                             groupLabel: "", pending: $pending)
+                             groups: [.init(button: "unused", label: "Gradle versions no project pins", filter: \.idle)],
+                             pending: $pending)
             }
             .padding(20)
         }
@@ -548,17 +681,30 @@ struct CacheSection: View {
     let items: [CacheItem]
     let loaded: Bool
     let busy: Set<String>
-    let groupLabel: String
+    let groups: [Group]
     @Binding var pending: DeleteTarget?
 
-    private var orphaned: [CacheItem] { items.filter(\.orphaned) }
+    /// A "Delete N <button>" action in the header for the items matching `filter`.
+    struct Group {
+        let button: String
+        let label: String
+        let filter: KeyPath<CacheItem, Bool>
+    }
 
     var body: some View {
         DeviceSection(title: title, systemImage: systemImage,
                       total: items.compactMap(\.size).reduce(0, +),
                       empty: items.isEmpty, loading: !loaded) {
-            if !orphaned.isEmpty {
-                Button("Delete \(orphaned.count) orphaned") { pending = .cacheGroup(orphaned, label: groupLabel) }
+            HStack {
+                ForEach(groups, id: \.button) { g in
+                    let matched = items.filter { $0[keyPath: g.filter] }
+                    if !matched.isEmpty {
+                        let size = matched.compactMap(\.size).reduce(0, +)
+                        Button("Delete \(matched.count) \(g.button)" + (size > 0 ? " (\(formatBytes(size)))" : "")) {
+                            pending = .cacheGroup(matched, label: g.label)
+                        }
+                    }
+                }
             }
         } content: {
             ForEach(items.sorted { ($0.size ?? 0) > ($1.size ?? 0) }) { item in
@@ -567,6 +713,7 @@ struct CacheSection: View {
                     title: item.title,
                     subtitle: item.subtitle,
                     badge: item.badge,
+                    details: item.details,
                     size: item.size,
                     busy: busy.contains(DeleteTarget.cache(item).id),
                     reveal: item.path
@@ -607,11 +754,22 @@ struct DeviceSection<Actions: View, Content: View>: View {
     }
 }
 
+/// An extra button on a row, left of Delete.
+struct RowAction {
+    let label: String
+    let systemImage: String
+    var enabled = true
+    var help: String?
+    let action: () -> Void
+}
+
 struct DeviceRow: View {
     let icon: String
     let title: String
     let subtitle: String
     let badge: (String, Color)?
+    var details: [String] = []
+    var secondary: RowAction?
     let size: Int64?
     let busy: Bool
     let reveal: String?
@@ -619,8 +777,24 @@ struct DeviceRow: View {
     var deleteHelp: String?
     let onDelete: () -> Void
     @State private var hovering = false
+    @State private var expanded = false
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            row
+            if expanded, !details.isEmpty {
+                Text(details.joined(separator: "\n"))
+                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .padding(.leading, 44).padding(.bottom, 4)
+            }
+        }
+        .padding(.vertical, 6).padding(.horizontal, 8)
+        .background(hovering ? Color.primary.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .onHover { hovering = $0 }
+    }
+
+    private var row: some View {
         HStack(spacing: 12) {
             Image(systemName: icon).font(.title3).foregroundStyle(.secondary).frame(width: 24)
             VStack(alignment: .leading, spacing: 1) {
@@ -634,7 +808,16 @@ struct DeviceRow: View {
                             .foregroundStyle(badge.1)
                     }
                 }
-                Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 4) {
+                    if !details.isEmpty {
+                        Button { expanded.toggle() } label: {
+                            Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.caption2)
+                        }
+                        .buttonStyle(.borderless)
+                        .help(expanded ? "Hide who uses it" : "Show who uses it")
+                    }
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1).help(subtitle)
+                }
             }
             Spacer()
             if let reveal, hovering {
@@ -648,6 +831,11 @@ struct DeviceRow: View {
                 if let size { Text(formatBytes(size)).monospacedDigit() } else { ProgressView().controlSize(.mini) }
             }
             .frame(width: 80, alignment: .trailing)
+            if let secondary, !busy {
+                Button(action: secondary.action) { Label(secondary.label, systemImage: secondary.systemImage) }
+                    .disabled(!secondary.enabled)
+                    .help(secondary.help ?? secondary.label)
+            }
             if busy {
                 ProgressView().controlSize(.small).frame(width: 76)
             } else {
@@ -659,8 +847,5 @@ struct DeviceRow: View {
                 .frame(width: 76)
             }
         }
-        .padding(.vertical, 6).padding(.horizontal, 8)
-        .background(hovering ? Color.primary.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 6))
-        .onHover { hovering = $0 }
     }
 }
