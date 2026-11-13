@@ -44,8 +44,11 @@ public struct Deployer {
             try FileManager.default.removeItem(at: skhdDeployed)
         }
         try FileManager.default.copyItem(at: skhdRepo, to: skhdDeployed)
-        let r = try runner.run(skhdPath, ["--reload"])
-        if r.exitCode != 0 { throw DeployError.reloadFailed(r.stderr) }
+        // `skhd --reload` requires a writable pid-file that launchctl-launched skhd may not create.
+        // Sending SIGUSR1 directly via pkill is equivalent and always works when skhd is running.
+        let r = try runner.run("/usr/bin/pkill", ["-SIGUSR1", "skhd"])
+        // pkill exits 1 if no process matched — skhd not running is fine (file is already copied).
+        if r.exitCode != 0 && r.exitCode != 1 { throw DeployError.reloadFailed(r.stderr) }
     }
 }
 

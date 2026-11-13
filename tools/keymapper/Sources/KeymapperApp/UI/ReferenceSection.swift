@@ -68,12 +68,7 @@ struct ReferenceRow: View {
                     .foregroundStyle(.red)
                     .font(.caption)
             }
-            Text(chordLabel)
-                .font(.system(.body, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+            ChordBadge(chord: binding.chord, tint: Color(nsColor: .secondaryLabelColor))
             Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.caption)
             VStack(alignment: .leading, spacing: 2) {
                 Text(binding.displayName).font(.body).foregroundStyle(.primary)
@@ -95,14 +90,6 @@ struct ReferenceRow: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    private var chordLabel: String {
-        switch binding.chord.layer {
-        case .spaceLeader: return "space \(binding.chord.key)"
-        case .spaceFLeader: return "space f \(binding.chord.key)"
-        case .karabinerModifier, .skhdModifier: return SkhdChord.render(binding.chord)
-        }
     }
 
     private var sourceLabel: String {
