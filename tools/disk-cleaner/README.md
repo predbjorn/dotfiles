@@ -21,6 +21,12 @@ browser instead.
   they're named for and any `~/.simq/policy.json` pin. `~/Hacking` (or
   `$HACKING`) is scanned with `find`, skipping `node_modules`, `Pods`, build
   dirs and hidden dirs other than `.claude`/`.worktrees`.
+  DerivedData and **Claude Scratch Builds** (`xcodebuild -derivedDataPath` inside
+  `/private/tmp/claude-<uid>/*/*/scratchpad`) are marked `In use` when any process
+  has its working directory in that worktree (`lsof`) or an xcodebuild is writing
+  there; the header's **Delete N idle** removes only the rest. Gradle has
+  **Delete N unused** (versions nothing pins), and stopped simulators get
+  **Clear caches** (their `Library/Caches` + `tmp`; apps and data stay).
 - **Disk Map** — the [spaceburst](https://github.com/cfmatre/spaceburst) sunburst
   of the whole Data volume, shown in a web view. Rescan from the toolbar (live
   progress), or right-click a wedge to reveal it in Finder, copy its path or

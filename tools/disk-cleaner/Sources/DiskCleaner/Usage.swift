@@ -254,3 +254,50 @@ struct ProjectScan {
         return c
     }
 }
+
+/// What's being worked on right now: every process's working directory (lsof) and the
+/// `-derivedDataPath` of running xcodebuilds. A worktree with a live Claude session, dev
+/// server or build in it counts as in use.
+struct Activity {
+    var cwds: [String] = []
+    var derivedDataPaths: Set<String> = []
+
+    func inUse(_ dir: String) -> Bool {
+        cwds.contains { $0 == dir || $0.hasPrefix(dir + "/") }
+    }
+
+    /// In use by a worktree name only (for paths we can't reconstruct exactly).
+    func inUse(worktree name: String) -> Bool {
+        cwds.contains { $0.contains("/.claude/worktrees/\(name)/") || $0.hasSuffix("/.claude/worktrees/\(name)") }
+    }
+
+    nonisolated static func load() async -> Activity {
+        async let l = Shell.run("/usr/sbin/lsof", ["-a", "-d", "cwd", "-Fn"])
+        async let p = Shell.run("/bin/ps", ["-axo", "command"])
+        var a = Activity()
+        a.cwds = Array(Set(await l.out.split(separator: "\n").filter { $0.hasPrefix("n/") }.map { String($0.dropFirst()) }))
+        for line in await p.out.split(separator: "\n") where line.contains("-derivedDataPath") {
+            let t = line.split(separator: " ").map(String.init)
+            if let i = t.firstIndex(of: "-derivedDataPath"), i + 1 < t.count { a.derivedDataPaths.insert(normalize(t[i + 1])) }
+        }
+        return a
+    }
+
+    /// /tmp and /var are symlinks into /private; compare paths in one form.
+    nonisolated static func normalize(_ path: String) -> String {
+        let p = URL(fileURLWithPath: path).standardized.path
+        for prefix in ["/tmp/", "/var/"] where p.hasPrefix(prefix) { return "/private" + p }
+        return p.hasSuffix("/") ? String(p.dropLast()) : p
+    }
+
+    /// The checkout folder (nearest parent with `.git`) that holds `path`.
+    nonisolated static func checkoutDir(containing path: String) -> String {
+        let fm = FileManager.default
+        var dir = path
+        while dir.count > 1 {
+            if fm.fileExists(atPath: "\(dir)/.git") { return dir }
+            dir = (dir as NSString).deletingLastPathComponent
+        }
+        return (path as NSString).deletingLastPathComponent
+    }
+}
