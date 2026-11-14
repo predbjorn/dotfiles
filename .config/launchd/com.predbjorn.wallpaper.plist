@@ -10,7 +10,7 @@
 		<string>__DOTFILES__/script/wallpaper.py</string>
 	</array>
 	<key>StartInterval</key>
-	<integer>600</integer>
+	<integer>300</integer>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>StandardOutPath</key>
