@@ -133,6 +133,7 @@ mas "Pages", id: 409201541
 mas "Kindle", id: 302584613
 mas "Flow", id: 1423210932
 mas "Dropover", id: 1355679052
+mas "Plash", id: 1494023538
 
 # MUSIC
 cask "focusrite-control-2"

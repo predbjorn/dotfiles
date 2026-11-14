@@ -20,7 +20,7 @@ Personal macOS dotfiles repository (`~/.dotfiles`) that automates development en
 - **`zsh/`** — Zsh modules loaded by .zshrc: `aliases.zsh`, `path.zsh`, `functions.zsh`, `.env.zsh` (secrets, gitignored)
 - **`bin/`** — Executable scripts: `focus_window_wrapper.sh` (yabai app focus), `claude-worktree.sh` (git worktree + claude), `disk-cleanup.sh` (cache cleanup engine; hourly via launchd agent in `.config/launchd/`, and from Disk Cleaner)
 - **`tools/disk-cleaner/`** — Disk Cleaner, a SwiftUI app opened from the sketchybar storage item (overview, live cleanup, devices & caches, spaceburst map)
-- **`script/`** — Utility scripts: `wallpaper.py` (weekly Gemini landscape sets, rotated by Oslo sun phase via launchd agent in `.config/launchd/`), `windowarr.sh` (yabai helpers), `sync-brew.sh` (Brewfile drift checker), `brew-upgrade.sh` (daily `brew upgrade` via launchd agent in `.config/launchd/`)
+- **`script/`** — Utility scripts: `wallpaper.py` (weekly Gemini landscape sets, cross-faded by Oslo sun position via launchd agent in `.config/launchd/`; also feeds `live-wallpaper/index.html`, an animated version shown on the desktop by Plash from `~/Pictures/wallpaperscript/live/`), `windowarr.sh` (yabai helpers), `sync-brew.sh` (Brewfile drift checker), `brew-upgrade.sh` (daily `brew upgrade` via launchd agent in `.config/launchd/`)
 - **`AppleScripts/`** — macOS automation (hacktime window arrangement, project launchers)
 - **`githubProjects/`** — Repo list + clone script + .env backup/restore
 - **`Brewfile`** / **`Brewfile.light`** — Homebrew package definitions (full vs minimal)

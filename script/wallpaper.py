@@ -3,13 +3,17 @@
 Weekly: generate a new landscape with Gemini, rendered in four palettes
 (dawn, day, golden, night) sharing one composition.
 Daily: pick one landscape set at random from the library and keep it all day.
-Through the day: show the palette matching Oslo's sun position.
+Through the day: cross-fade between the palettes following Oslo's sun, so the
+desktop drifts night -> dawn -> day -> golden -> night instead of jumping.
+Also writes ~/Pictures/wallpaperscript/live/, a self-contained page that animates
+the same blend with clouds, mist, birds and stars (shown on the desktop by Plash).
 
-Run every 10 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
+Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
 
   wallpaper.py              generate if this week's set is missing, then apply
   wallpaper.py --generate   force a new set now
   wallpaper.py --reroll     pick a different set for today
+  wallpaper.py --at 07:30   show the blend for that time today (preview; changes nothing saved)
 """
 
 import argparse
@@ -25,7 +29,7 @@ from io import BytesIO
 from pathlib import Path
 
 from astral import LocationInfo
-from astral.sun import sun
+from astral.sun import dawn as nautical_dawn, dusk as nautical_dusk, sun
 from dotenv import load_dotenv
 from PIL import Image
 
@@ -35,6 +39,10 @@ OSLO = LocationInfo("Oslo", "Norway", "Europe/Oslo", 59.9139, 10.7522)
 LIBRARY = Path.home() / "Pictures/wallpaperscript/sets"
 STATE_FILE = LIBRARY.parent / "state.json"
 LOCK_FILE = LIBRARY.parent / ".wallpaper.lock"
+CURRENT_DIR = LIBRARY.parent / "current"  # blended per-display wallpapers
+LIVE_DIR = LIBRARY.parent / "live"  # page + state for the animated desktop
+LIVE_PAGE = Path(__file__).resolve().parent / "live-wallpaper/index.html"
+BLEND_STEPS = 20  # blend factor resolution; caps how many distinct wallpapers a fade makes
 PHASES = ["dawn", "day", "golden", "night"]
 RETRY_AFTER = datetime.timedelta(hours=1)
 
@@ -219,20 +227,53 @@ def pick_set(date, state):
     return _seeded_choice(date, [s for s in sets if s != yesterday] or sets)
 
 
-def current_phase(now):
-    s = sun(OSLO.observer, date=now.date(), tzinfo=OSLO.timezone)
+def _sun_times(date):
+    s = sun(OSLO.observer, date=date, tzinfo=OSLO.timezone)
     sunrise, sunset = s["sunrise"], s["sunset"]
-    # Around midsummer Oslo barely leaves civil twilight and astral wraps
-    # dawn/dusk to the wrong side of sunrise/sunset.
-    dawn = s["dawn"] if s["dawn"] < sunrise else sunrise - datetime.timedelta(minutes=45)
-    dusk = s["dusk"] if s["dusk"] > sunset else sunset + datetime.timedelta(minutes=45)
-    if now < dawn or now >= dusk:
-        return "night"
-    if now < sunrise + datetime.timedelta(hours=1):
-        return "dawn"
-    if now < sunset - datetime.timedelta(hours=1, minutes=30):
-        return "day"
-    return "golden"
+    try:  # around midsummer Oslo never gets 12 degrees below the horizon
+        first = nautical_dawn(OSLO.observer, date=date, tzinfo=OSLO.timezone, depression=12)
+        last = nautical_dusk(OSLO.observer, date=date, tzinfo=OSLO.timezone, depression=12)
+    except ValueError:
+        first = last = None
+    if first is None or not first < sunrise:
+        first = sunrise - datetime.timedelta(minutes=90)
+    if last is None or not last > sunset:
+        last = sunset + datetime.timedelta(minutes=90)
+    return first, sunrise, sunset, last
+
+
+def anchors(date):
+    """(time, phase) keyframes for one day; the wallpaper fades between neighbours."""
+    first, sunrise, sunset, last = _sun_times(date)
+    h = datetime.timedelta(hours=1)
+    noon = sunrise + (sunset - sunrise) / 2
+    keys = [
+        (first, "night"),
+        (sunrise, "dawn"),
+        (min(sunrise + h, noon), "dawn"),
+        (min(sunrise + 2 * h, noon), "day"),
+        (max(sunset - 2.5 * h, noon), "day"),
+        (max(sunset - h, noon), "golden"),
+        (sunset + datetime.timedelta(minutes=20), "golden"),
+        (last, "night"),
+    ]
+    out = []
+    for t, phase in keys:  # keep times monotonic when the day is short
+        out.append((max(t, out[-1][0]) if out else t, phase))
+    return out
+
+
+def blend_at(now):
+    """(from_phase, to_phase, t) where t in 0..1 is how far the fade has gone."""
+    # Yesterday too: around midsummer the evening fade runs past midnight.
+    for keys in (anchors(now.date() - datetime.timedelta(days=1)), anchors(now.date())):
+        for (t0, a), (t1, b) in zip(keys, keys[1:]):
+            if t0 <= now < t1:
+                if a == b:
+                    return a, a, 0.0
+                x = (now - t0) / (t1 - t0)
+                return a, b, x * x * (3 - 2 * x)  # smoothstep: ease in and out of each fade
+    return "night", "night", 0.0
 
 
 # --- displays ----------------------------------------------------------------
@@ -284,16 +325,127 @@ def crop_for(master_path, width, height, align):
     return out
 
 
-def apply(set_key, phase):
+def _display_crops(set_key, phase, displays):
     master = LIBRARY / set_key / f"{phase}.png"
-    displays = screens()
     main_x = displays[0]["x"]  # NSScreen.screens[0] is the main display
-    paths = []
+    out = []
     for d in displays:
         align = 0.5 if d["x"] == main_x else (0.0 if d["x"] < main_x else 1.0)
-        paths.append(str(crop_for(master, round(d["w"] * d["k"]), round(d["h"] * d["k"]), align)))
-    _jxa(JXA_SET % json.dumps(paths))
+        out.append(crop_for(master, round(d["w"] * d["k"]), round(d["h"] * d["k"]), align))
+    return out
+
+
+def apply(set_key, a, b, t, displays):
+    """Blend phases a -> b by t for every display and set them as the wallpaper."""
+    CURRENT_DIR.mkdir(exist_ok=True)
+    tag = f"{set_key}_{a}-{b}-{t:.2f}_{datetime.datetime.now():%H%M%S}"
+    paths = []
+    for i, (pa, pb) in enumerate(zip(_display_crops(set_key, a, displays), _display_crops(set_key, b, displays))):
+        if t == 0:
+            paths.append(pa)
+            continue
+        out = CURRENT_DIR / f"{i}_{tag}.png"
+        Image.blend(Image.open(pa).convert("RGB"), Image.open(pb).convert("RGB"), t).save(out)
+        paths.append(out)
+    _jxa(JXA_SET % json.dumps([str(p) for p in paths]))
+    for old in CURRENT_DIR.glob("*.png"):  # unique names per run: macOS caches wallpapers by path
+        if old not in paths:
+            old.unlink()
     return paths
+
+
+# --- live page ---------------------------------------------------------------
+
+def _small(path):
+    import numpy as np
+
+    img = Image.open(path).convert("RGB")
+    return np.asarray(img.resize((480, round(480 * img.height / img.width))), dtype=np.float32)
+
+
+def _phase_info(path):
+    """Where the sun/moon sits (fractions of the image) and the sky colours, for the page's effects."""
+    import numpy as np
+    from scipy.ndimage import uniform_filter
+
+    small = _small(path)
+    h, w, _ = small.shape
+    upper = small.mean(axis=2)[: int(h * 0.6)]
+    soft = uniform_filter(upper, size=5)  # stars are single pixels; the sun/moon is a disc
+    y, x = np.unravel_index(soft.argmax(), soft.shape)
+    ys, xs = np.nonzero(upper > upper.max() - 12)
+    near = (abs(ys - y) < h * 0.15) & (abs(xs - x) < w * 0.1)
+    if near.any():
+        x, y, radius = xs[near].mean(), ys[near].mean(), np.sqrt(near.sum() / np.pi)
+    else:
+        radius = w * 0.02
+    top = small[: max(1, h // 20)].reshape(-1, 3).mean(axis=0)
+    band = small[int(h * 0.45): int(h * 0.55)].reshape(-1, 3)
+    haze = band[band.sum(axis=1).argsort()[-len(band) // 10:]].mean(axis=0)
+    return {
+        "sun": [round(float(x) / w, 4), round(float(y) / h, 4), round(float(radius) / w, 4)],
+        "sky": [int(c) for c in top],
+        "haze": [int(c) for c in haze],
+    }
+
+
+def _skyline(paths):
+    """Per column (240 samples), the height where the mountains start, as a fraction from the top.
+
+    The first strong colour step from the top. Night works best: the sky is dark against lit ridges,
+    while at dawn pale peaks melt into the sky. Glows and clouds give false hits that sit too high and
+    differ per image, so with several images the lowest hit is the real ridge.
+    """
+    import numpy as np
+    from scipy.ndimage import median_filter, uniform_filter
+
+    lines = []
+    for path in paths:
+        small = _small(path)
+        h = small.shape[0]
+        sm = uniform_filter(small, size=(7, 7, 1))
+        step = np.abs(sm[4:] - sm[:-4]).sum(axis=2)[int(h * 0.05):]
+        hit = step > 40
+        first = np.where(hit.any(axis=0), hit.argmax(axis=0), int(h * 0.55)) + int(h * 0.05) + 2
+        lines.append(first[::2] / h)
+    ridge = median_filter(np.max(lines, axis=0), size=9, mode="nearest")
+    return [round(float(v), 3) for v in ridge]
+
+
+def write_live(set_key, display):
+    """Mirror today's set into LIVE_DIR so the page (and Plash) only needs that folder."""
+    LIVE_DIR.mkdir(exist_ok=True)
+    width, height = round(display["w"] * display["k"]), round(display["h"] * display["k"])
+    images, crops, keep = {}, {}, {"index.html", "state.js"}
+    for phase in PHASES:
+        crops[phase] = crop_for(LIBRARY / set_key / f"{phase}.png", width, height, 0.5)
+        name = f"{set_key}_{crops[phase].name}"
+        if not (LIVE_DIR / name).exists():
+            os.link(crops[phase], LIVE_DIR / name)  # hard link: no extra disk
+        images[phase] = name
+        keep.add(name)
+    info_file = LIBRARY / set_key / f"scene_{width}x{height}.json"
+    if info_file.exists():
+        info = json.loads(info_file.read_text())
+    else:
+        info = {phase: _phase_info(crops[phase]) for phase in PHASES}
+        info["skyline"] = _skyline([crops["night"]])
+        info_file.write_text(json.dumps(info))
+    for old in LIVE_DIR.iterdir():
+        if old.name not in keep:
+            old.unlink()
+    today = datetime.date.today()
+    days = [today - datetime.timedelta(days=1), today, today + datetime.timedelta(days=1)]
+    state = {
+        "set": set_key,
+        "images": images,
+        "scene": info,
+        "anchors": [[[int(t.timestamp() * 1000), phase] for t, phase in anchors(d)] for d in days],
+    }
+    (LIVE_DIR / "state.js").write_text(f"window.WALLPAPER = {json.dumps(state)};\n")
+    page = LIVE_DIR / "index.html"
+    if not page.exists() or page.read_bytes() != LIVE_PAGE.read_bytes():
+        shutil.copyfile(LIVE_PAGE, page)
 
 
 # --- main --------------------------------------------------------------------
@@ -302,6 +454,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--generate", action="store_true", help="force a new landscape set now")
     parser.add_argument("--reroll", action="store_true", help="pick a different set for today")
+    parser.add_argument("--at", help="preview the blend at HH:MM today (not saved to state)")
     args = parser.parse_args()
 
     LIBRARY.mkdir(parents=True, exist_ok=True)
@@ -329,12 +482,28 @@ def main():
             print("No landscape sets yet", file=sys.stderr)
             save_state(state)
             return
-        phase = current_phase(datetime.datetime.now(datetime.timezone.utc).astimezone())
-        signature = f"{today.isoformat()}/{set_key}/{phase}/{len(screens())}"
-        if signature != state.get("applied") or args.reroll or args.generate:
-            paths = apply(set_key, phase)
+        now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+        if args.at:
+            hour, minute = map(int, args.at.split(":"))
+            now = now.replace(hour=hour, minute=minute)
+        a, b, t = blend_at(now)
+        t = round(t * BLEND_STEPS) / BLEND_STEPS
+        if t == 1:
+            a, t = b, 0.0
+        displays = screens()
+        signature = f"{today.isoformat()}/{set_key}/{a}-{b}-{t:.2f}/{len(displays)}"
+        if signature != state.get("applied") or args.reroll or args.generate or args.at:
+            paths = apply(set_key, a, b, t, displays)
+            print(f"Wallpaper: {set_key} {a}->{b} {t:.2f} -> {[str(p) for p in paths]}")
+            if args.at:
+                state.pop("applied", None)  # the next normal run puts the real blend back
+                save_state(state)
+                return
             state["applied"] = signature
-            print(f"Wallpaper: {set_key} {phase} -> {paths}")
+        try:  # the live page is extra; never let it stop the still wallpaper
+            write_live(set_key, displays[0])
+        except Exception as e:
+            print(f"Live page update failed: {e}", file=sys.stderr)
         save_state(state)
 
 

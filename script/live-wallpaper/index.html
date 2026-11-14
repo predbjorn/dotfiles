@@ -1,0 +1,387 @@
+<!doctype html>
+<!--
+  Live wallpaper: today's landscape set from wallpaper.py, cross-faded by Oslo's sun,
+  with drifting clouds and mist, a breathing sun/moon glow, birds and twinkling stars.
+
+  wallpaper.py copies this page to ~/Pictures/wallpaperscript/live/ next to state.js
+  and the images; point Plash at that copy.
+
+  URL options (for previewing):  ?at=07:30  start at that time today
+                                 ?speed=600 run the clock 600x faster
+                                 ?debug=1   show the detected skyline and the clock
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Live wallpaper</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0a1e; }
+  .layer { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 10; }
+  #debug { position: fixed; z-index: 11; left: 12px; bottom: 12px; font: 13px ui-monospace, monospace;
+           color: #fff; background: #0008; padding: 6px 10px; border-radius: 6px; display: none; }
+</style>
+</head>
+<body>
+<img class="layer" id="dawn" alt=""><img class="layer" id="day" alt="">
+<img class="layer" id="golden" alt=""><img class="layer" id="night" alt="">
+<canvas id="fx"></canvas>
+<div id="debug"></div>
+<script>
+"use strict";
+const PHASES = ["dawn", "day", "golden", "night"];
+// How strongly each effect shows in each phase; the current blend mixes these.
+const LOOK = {
+  dawn:   { glow: 0.45, rays: 0.10, stars: 0.0, mist: 0.55, clouds: 0.45, birds: 1 },
+  day:    { glow: 0.45, rays: 0.12, stars: 0.0, mist: 0.25, clouds: 0.40, birds: 1 },
+  golden: { glow: 0.65, rays: 0.18, stars: 0.0, mist: 0.35, clouds: 0.45, birds: 1 },
+  night:  { glow: 0.35, rays: 0.0,  stars: 1.0, mist: 0.30, clouds: 0.22, birds: 0 },
+};
+
+const params = new URLSearchParams(location.search);
+const speed = Number(params.get("speed") || 1);
+const debug = params.has("debug");
+const fpsCap = Number(params.get("fps") || 30);
+const startReal = Date.now();
+let startClock = startReal;
+if (params.get("at")) {
+  const [h, m] = params.get("at").split(":").map(Number);
+  const d = new Date(); d.setHours(h, m, 0, 0); startClock = d.getTime();
+}
+const clock = () => startClock + (Date.now() - startReal) * speed;
+
+// --- state from wallpaper.py ----------------------------------------------------
+
+let W = null;          // window.WALLPAPER from state.js
+let loadedSet = null;
+
+function loadState() {
+  const s = document.createElement("script");
+  s.src = `state.js?${Date.now()}`;
+  s.onload = () => { s.remove(); W = window.WALLPAPER; if (W.set !== loadedSet) useSet(); };
+  s.onerror = () => s.remove();
+  document.head.appendChild(s);
+}
+
+function useSet() {
+  loadedSet = W.set;
+  for (const p of PHASES) document.getElementById(p).src = W.images[p];
+  buildSky();
+}
+
+// Same fade as wallpaper.py's blend_at, but continuous.
+function blendAt(ms) {
+  for (const keys of W.anchors) {
+    for (let i = 0; i + 1 < keys.length; i++) {
+      const [t0, a] = keys[i], [t1, b] = keys[i + 1];
+      if (t0 <= ms && ms < t1) {
+        if (a === b) return [a, a, 0];
+        const x = (ms - t0) / (t1 - t0);
+        return [a, b, x * x * (3 - 2 * x)];
+      }
+    }
+  }
+  return ["night", "night", 0];
+}
+
+// --- canvas & geometry ------------------------------------------------------------
+
+const cv = document.getElementById("fx");
+const ctx = cv.getContext("2d");
+let Wd = 0, Ht = 0, dpr = 1;
+let img = { scale: 1, ox: 0, oy: 0, w: 1, h: 1 };  // object-fit: cover mapping
+let skyPath = null;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  Wd = cv.width = Math.round(innerWidth * dpr);
+  Ht = cv.height = Math.round(innerHeight * dpr);
+  const el = document.getElementById("day");
+  const iw = el.naturalWidth || Wd, ih = el.naturalHeight || Ht;
+  const scale = Math.max(Wd / iw, Ht / ih);
+  img = { scale, w: iw * scale, h: ih * scale, ox: (Wd - iw * scale) / 2, oy: (Ht - ih * scale) / 2 };
+  buildSky();
+  seedStars();
+}
+const X = fx => img.ox + fx * img.w;
+const Y = fy => img.oy + fy * img.h;
+const U = () => img.w / 3840;  // 1 unit = 1px on the 3840-wide ultrawide
+
+function skyAt(fx) {
+  const line = W.scene.skyline;
+  const i = Math.max(0, Math.min(line.length - 1, fx * line.length));
+  const a = line[Math.floor(i)], b = line[Math.min(line.length - 1, Math.ceil(i))];
+  return a + (b - a) * (i % 1);
+}
+
+function buildSky() {
+  if (!W) return;
+  const line = W.scene.skyline;
+  skyPath = new Path2D();
+  skyPath.moveTo(X(0), Y(0));
+  line.forEach((v, i) => skyPath.lineTo(X((i + 0.5) / line.length), Y(v)));
+  skyPath.lineTo(X(1), Y(line[line.length - 1]));
+  skyPath.lineTo(X(1), Y(0));
+  skyPath.closePath();
+}
+
+// --- helpers ------------------------------------------------------------------------
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const mix = (a, b, t) => a + (b - a) * t;
+const mixRGB = (a, b, t) => a.map((v, i) => Math.round(mix(v, b[i], t)));
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const lighten = (c, t) => mixRGB(c, [255, 255, 255], t);
+const darken = (c, t) => mixRGB(c, [0, 0, 0], t);
+
+function sprite(w, h, draw) {
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+  draw(c.getContext("2d"), c.width, c.height);
+  return c;
+}
+
+// --- clouds: long thin flat streaks in the Firewatch style ---------------------------
+
+let clouds = [];
+function makeCloud(x) {
+  const len = rnd(500, 1400), th = rnd(8, 22);
+  return {
+    x: x ?? rnd(-0.3, 1), y: rnd(0.06, 0.34), len, th,
+    speed: rnd(3, 9),                       // units per second
+    alpha: rnd(0.35, 0.8),
+    strands: Array.from({ length: 1 + Math.floor(rnd(1, 4)) }, (_, i) => ({
+      dx: rnd(-0.25, 0.35) * len, dy: i * th * rnd(1.4, 2.2), l: len * rnd(0.35, 0.9), t: th * rnd(0.5, 1),
+    })),
+  };
+}
+function drawClouds(colour, strength, dt) {
+  const u = U();
+  ctx.fillStyle = rgba(colour, 1);
+  for (const c of clouds) {
+    c.x += (c.speed * u * dt) / img.w;
+    if (c.x * img.w > img.w + c.len * u * 1.5) Object.assign(c, makeCloud(-c.len * 1.6 / 3840));
+    ctx.globalAlpha = strength * c.alpha;
+    for (const s of c.strands) {
+      const x = X(c.x) + s.dx * u, y = Y(c.y) + s.dy * u;
+      ctx.beginPath();
+      ctx.roundRect(x, y, s.l * u, s.t * u, s.t * u / 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- mist: soft bands drifting through the valleys -----------------------------------
+
+let mistSprite = null, mistColour = null;
+const mistBands = [
+  { dy: 0.04, h: 0.10, speed: 6, off: 0, phase: 0 },
+  { dy: 0.13, h: 0.12, speed: -4, off: 0.4, phase: 2 },
+  { dy: 0.24, h: 0.14, speed: 9, off: 0.7, phase: 4 },
+];
+function buildMist(colour) {
+  mistColour = colour.join();
+  mistSprite = sprite(1200, 240, (g, w, h) => {
+    for (let i = 0; i < 90; i++) {
+      const x = rnd(0, w), y = rnd(h * 0.3, h * 0.7), r = rnd(40, 140);
+      for (const dx of [-w, 0, w]) {  // wrap so the sprite tiles seamlessly
+        const grad = g.createRadialGradient(x + dx, y, 0, x + dx, y, r);
+        grad.addColorStop(0, rgba(colour, 0.10));
+        grad.addColorStop(1, rgba(colour, 0));
+        g.fillStyle = grad;
+        g.beginPath(); g.ellipse(x + dx, y, r * 2.2, r * 0.6, 0, 0, Math.PI * 2); g.fill();
+      }
+    }
+  });
+}
+function drawMist(colour, strength, now) {
+  if (strength <= 0.01) return;
+  if (colour.join() !== mistColour) buildMist(colour);
+  const base = W.scene.skyline.reduce((a, b) => a + b) / W.scene.skyline.length;
+  const u = U(), tw = mistSprite.width * u * 3;
+  for (const b of mistBands) {
+    const h = b.h * img.h, y = Y(base + b.dy) - h / 2;
+    const shift = (((now / 1000) * b.speed * u + b.off * tw) % tw + tw) % tw;
+    ctx.globalAlpha = strength * (0.75 + 0.25 * Math.sin(now / 9000 + b.phase));
+    for (let x = -shift; x < Wd; x += tw) ctx.drawImage(mistSprite, x, y, tw, h);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- sun / moon glow and rays ---------------------------------------------------------
+
+function drawGlow(sun, colour, glow, rays, now) {
+  const [fx, fy, fr] = sun;
+  const x = X(fx), y = Y(fy), r = fr * img.w;
+  ctx.globalCompositeOperation = "screen";
+  const pulse = 0.85 + 0.15 * Math.sin(now / 5000);
+  const g = ctx.createRadialGradient(x, y, r * 0.8, x, y, r * 7);
+  g.addColorStop(0, rgba(colour, glow * pulse));
+  g.addColorStop(0.35, rgba(colour, glow * pulse * 0.25));
+  g.addColorStop(1, rgba(colour, 0));
+  ctx.fillStyle = g;
+  ctx.fillRect(x - r * 7, y - r * 7, r * 14, r * 14);
+  if (rays > 0.01) {
+    // Drawn small and scaled up, so the wedges get soft edges for free.
+    const q = 8, len = img.w * 0.45, spin = now / 120000;
+    if (!raysCanvas || raysCanvas.width !== Math.ceil(Wd / q)) {
+      raysCanvas = document.createElement("canvas");
+      raysCanvas.width = Math.ceil(Wd / q); raysCanvas.height = Math.ceil(Ht / q);
+    }
+    const g2 = raysCanvas.getContext("2d"), sx = x / q, sy = y / q;
+    g2.clearRect(0, 0, raysCanvas.width, raysCanvas.height);
+    const rg = g2.createRadialGradient(sx, sy, r / q, sx, sy, len / q);
+    rg.addColorStop(0, rgba(colour, rays));
+    rg.addColorStop(1, rgba(colour, 0));
+    g2.fillStyle = rg;
+    g2.filter = "blur(3px)";
+    for (let i = 0; i < 14; i++) {
+      const a = spin + (i / 14) * Math.PI * 2, wdt = 0.03 + 0.02 * Math.sin(i * 7.3 + now / 7000);
+      g2.beginPath(); g2.moveTo(sx, sy);
+      g2.arc(sx, sy, len / q, a - wdt, a + wdt);
+      g2.closePath(); g2.fill();
+    }
+    ctx.drawImage(raysCanvas, 0, 0, Wd, Ht);
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+// --- stars & shooting stars ------------------------------------------------------------
+
+let stars = [], shooting = null, nextShooting = 0;
+let raysCanvas = null;
+function seedStars() {
+  if (!W) return;
+  stars = [];
+  for (let i = 0; i < 260; i++) {
+    const fx = Math.random();
+    const fy = rnd(0.01, skyAt(fx) - 0.03);
+    if (fy > 0.01) stars.push({ fx, fy, r: rnd(0.5, 1.6), sp: rnd(0.4, 1.6), ph: rnd(0, 6.3) });
+  }
+}
+function drawStars(strength, now) {
+  if (strength <= 0.01) return;
+  const u = U();
+  ctx.fillStyle = "#fff";
+  for (const s of stars) {
+    ctx.globalAlpha = strength * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(now / 1000 * s.sp + s.ph)));
+    ctx.beginPath(); ctx.arc(X(s.fx), Y(s.fy), s.r * u * 1.4, 0, Math.PI * 2); ctx.fill();
+  }
+  if (!shooting && now > nextShooting) {
+    if (nextShooting) shooting = { x: rnd(0.1, 0.8), y: rnd(0.03, 0.18), a: rnd(0.25, 0.6), t: 0 };
+    nextShooting = now + rnd(45000, 150000);
+  }
+  if (shooting) {
+    shooting.t += 1 / 40;
+    const p = shooting.t, len = 260 * u;
+    const x = X(shooting.x) + p * 900 * u * Math.cos(shooting.a), y = Y(shooting.y) + p * 900 * u * Math.sin(shooting.a);
+    const g = ctx.createLinearGradient(x, y, x - len * Math.cos(shooting.a), y - len * Math.sin(shooting.a));
+    g.addColorStop(0, `rgba(255,255,255,${strength * (1 - p)})`);
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.globalAlpha = 1; ctx.strokeStyle = g; ctx.lineWidth = 2 * u;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - len * Math.cos(shooting.a), y - len * Math.sin(shooting.a)); ctx.stroke();
+    if (p >= 1) shooting = null;
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- birds: a loose flock crossing now and then -----------------------------------------
+
+let flock = null, nextFlock = 0;
+function spawnFlock(now) {
+  const dir = Math.random() < 0.5 ? 1 : -1, n = Math.floor(rnd(5, 13));
+  flock = {
+    dir, x: dir > 0 ? -0.05 : 1.05, y: rnd(0.12, 0.32), speed: rnd(45, 75),
+    birds: Array.from({ length: n }, (_, i) => ({
+      dx: -dir * (i * rnd(18, 34) + rnd(0, 20)), dy: (i % 2 ? 1 : -1) * i * rnd(5, 12) + rnd(-10, 10),
+      size: rnd(7, 12), flap: rnd(7, 10), ph: rnd(0, 6.3), bob: rnd(0, 6.3),
+    })),
+  };
+}
+function drawBirds(colour, strength, now, dt) {
+  if (!flock && strength > 0.5 && now > nextFlock) {
+    if (nextFlock) spawnFlock(now);
+    nextFlock = now + rnd(40000, 120000);
+  }
+  if (!flock) return;
+  const u = U();
+  flock.x += (flock.dir * flock.speed * u * dt) / img.w;
+  flock.y += Math.sin(now / 3000) * 0.00004;
+  ctx.strokeStyle = rgba(colour, 0.85 * Math.max(strength, 0.3));
+  ctx.lineWidth = 1.6 * u; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const b of flock.birds) {
+    const x = X(flock.x) + b.dx * u, y = Y(flock.y) + (b.dy + 4 * Math.sin(now / 900 + b.bob)) * u;
+    const s = b.size * u, wing = Math.sin(now / 1000 * b.flap + b.ph) * s * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(x - s, y - wing);
+    ctx.quadraticCurveTo(x - s * 0.45, y - wing * 0.2 - s * 0.15, x, y + s * 0.12);
+    ctx.quadraticCurveTo(x + s * 0.45, y - wing * 0.2 - s * 0.15, x + s, y - wing);
+    ctx.stroke();
+  }
+  const out = flock.dir > 0 ? flock.x > 1.15 : flock.x < -0.15;
+  if (out) flock = null;
+}
+
+// --- frame ---------------------------------------------------------------------------
+
+let last = performance.now(), lastSeg = "";
+const dbg = document.getElementById("debug");
+if (debug) dbg.style.display = "block";
+
+function frame(t) {
+  requestAnimationFrame(frame);
+  if (!W || t - last < 1000 / fpsCap - 2) return;
+  const dt = Math.min(0.2, ((t - last) / 1000) * Math.min(speed, 20));
+  last = t;
+  const ms = clock(), now = Date.now();  // only the light follows the fast clock; motion stays real-time
+  const [a, b, k] = blendAt(ms);
+
+  // Base images: phase a fully shown, phase b fading in on top.
+  const seg = `${a}-${b}`;
+  if (seg !== lastSeg) {
+    for (const p of PHASES) {
+      const el = document.getElementById(p);
+      el.style.zIndex = p === b && a !== b ? 2 : p === a ? 1 : 0;
+      el.style.opacity = p === a ? 1 : 0;
+    }
+    lastSeg = seg;
+  }
+  if (a !== b) document.getElementById(b).style.opacity = k;
+
+  const sa = W.scene[a], sb = W.scene[b];
+  const look = {};
+  for (const key of Object.keys(LOOK.day)) look[key] = mix(LOOK[a][key], LOOK[b][key], k);
+  const haze = mixRGB(sa.haze, sb.haze, k), sky = mixRGB(sa.sky, sb.sky, k);
+  const sun = [0, 1, 2].map(i => mix(sa.sun[i], sb.sun[i], k));
+  const glowColour = lighten(mixRGB(haze, [255, 240, 200], 0.4), 0.3);
+
+  ctx.clearRect(0, 0, Wd, Ht);
+  ctx.save();
+  ctx.clip(skyPath);  // stars and clouds stay behind the mountains
+  drawStars(look.stars, now);
+  drawClouds(lighten(mixRGB(sky, haze, 0.6), 0.35), look.clouds, dt);
+  ctx.restore();
+  drawGlow(sun, glowColour, look.glow, look.rays, now);
+  drawMist(lighten(haze, 0.25), look.mist, now);
+  drawBirds(darken(sky, 0.75), look.birds, now, dt);
+
+  if (debug) {
+    ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2; ctx.stroke(skyPath);
+    dbg.textContent = `${new Date(ms).toLocaleTimeString()}  ${a}→${b} ${k.toFixed(2)}  ${W.set}`;
+  }
+}
+
+window.addEventListener("resize", resize);
+document.getElementById("day").addEventListener("load", resize);
+loadState();
+setInterval(loadState, 60000);
+(function wait() {
+  if (!W) return setTimeout(wait, 100);
+  resize();
+  clouds = Array.from({ length: 7 }, () => makeCloud());
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -51,7 +51,7 @@ pip install --upgrade pip
 
 echo "Insatalling python packages (with pip)"
 ## Install Python packages
-pip install datetime openai requests python-dotenv google-genai pillow astral
+pip install datetime openai requests python-dotenv google-genai pillow astral numpy scipy
 
 # brew "python@3.11"
 # brew "python"
