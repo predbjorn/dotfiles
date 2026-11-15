@@ -1,7 +1,8 @@
 <!doctype html>
 <!--
   Live wallpaper: today's landscape set from wallpaper.py, cross-faded by Oslo's sun,
-  with drifting clouds and mist, a breathing sun/moon glow, birds and twinkling stars.
+  with drifting clouds and mist, a breathing sun/moon glow, birds and twinkling stars,
+  and Oslo's current weather: rain, snow, sleet, fog, overcast, wind and thunder.
 
   wallpaper.py copies this page to ~/Pictures/wallpaperscript/live/ next to state.js
   and the images; point Plash at that copy.
@@ -9,6 +10,9 @@
   URL options (for previewing):  ?at=07:30  start at that time today
                                  ?speed=600 run the clock 600x faster
                                  ?debug=1   show the detected skyline and the clock
+                                 ?weather=rain  try a weather: clear, overcast, fog, rain, snow,
+                                            sleet, windy, thunder, storm, blizzard
+                                            (&intensity=0..1, &wind=-15..15 m/s, + blows right)
 -->
 <html>
 <head>
@@ -18,6 +22,8 @@
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0a1e; }
   .layer { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
   canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 10; }
+  #flash { position: fixed; inset: 0; z-index: 9; background: #c9d2ff; opacity: 0; pointer-events: none;
+           mix-blend-mode: screen; }
   #debug { position: fixed; z-index: 11; left: 12px; bottom: 12px; font: 13px ui-monospace, monospace;
            color: #fff; background: #0008; padding: 6px 10px; border-radius: 6px; display: none; }
 </style>
@@ -26,6 +32,7 @@
 <img class="layer" id="dawn" alt=""><img class="layer" id="day" alt="">
 <img class="layer" id="golden" alt=""><img class="layer" id="night" alt="">
 <canvas id="fx"></canvas>
+<div id="flash"></div>
 <div id="debug"></div>
 <script>
 "use strict";
@@ -49,6 +56,28 @@ if (params.get("at")) {
   const d = new Date(); d.setHours(h, m, 0, 0); startClock = d.getTime();
 }
 const clock = () => startClock + (Date.now() - startReal) * speed;
+
+// Weather presets for ?weather= (the real weather comes from state.js, fetched from MET Norway).
+const WEATHER_PRESETS = {
+  clear:    { clouds: 0 },
+  overcast: { clouds: 1, wind_x: 3 },
+  fog:      { clouds: 1, fog: 1 },
+  rain:     { clouds: 1, kind: "rain", intensity: 0.6, wind_x: 3 },
+  snow:     { clouds: 1, kind: "snow", intensity: 0.6, wind_x: 1.5 },
+  sleet:    { clouds: 1, kind: "sleet", intensity: 0.6, wind_x: 3 },
+  windy:    { clouds: 0.55, wind_x: 13 },
+  thunder:  { clouds: 1, kind: "rain", intensity: 0.45, wind_x: 5, thunder: true },
+  storm:    { clouds: 1, kind: "rain", intensity: 1, wind_x: 12, thunder: true },
+  blizzard: { clouds: 1, kind: "snow", intensity: 1, wind_x: 12, fog: 0.5 },
+};
+function currentWeather() {
+  const preset = WEATHER_PRESETS[params.get("weather")];
+  const w = { clouds: 0.3, fog: 0, kind: null, intensity: 0, wind_x: 2, thunder: false,
+              ...(preset || (W && W.weather) || {}) };
+  if (params.get("intensity")) w.intensity = Number(params.get("intensity"));
+  if (params.get("wind")) w.wind_x = Number(params.get("wind"));
+  return w;
+}
 
 // --- state from wallpaper.py ----------------------------------------------------
 
@@ -144,10 +173,10 @@ function sprite(w, h, draw) {
 // --- clouds: long thin flat streaks in the Firewatch style ---------------------------
 
 let clouds = [];
-function makeCloud(x) {
-  const len = rnd(500, 1400), th = rnd(8, 22);
+function makeCloud(x, heavy = 0) {
+  const len = rnd(500, 1400) * (1 + heavy * 0.6), th = rnd(8, 22) * (1 + heavy * 1.8);
   return {
-    x: x ?? rnd(-0.3, 1), y: rnd(0.06, 0.34), len, th,
+    x: x ?? rnd(-0.3, 1), y: rnd(0.04, 0.34 + heavy * 0.08), len, th, heavy,
     speed: rnd(3, 9),                       // units per second
     alpha: rnd(0.35, 0.8),
     strands: Array.from({ length: 1 + Math.floor(rnd(1, 4)) }, (_, i) => ({
@@ -155,12 +184,19 @@ function makeCloud(x) {
     })),
   };
 }
-function drawClouds(colour, strength, dt) {
+function drawClouds(colour, strength, dt, wx) {
   const u = U();
+  // More and thicker clouds the more overcast it is; they drift with the wind.
+  const want = Math.round(7 + 9 * wx.clouds);
+  while (clouds.length < want) clouds.push(makeCloud(undefined, wx.clouds));
+  if (clouds.length > want) clouds.length = want;
+  const dir = wx.wind_x < 0 ? -1 : 1, push = 1 + Math.abs(wx.blow) / 2.5;
   ctx.fillStyle = rgba(colour, 1);
   for (const c of clouds) {
-    c.x += (c.speed * u * dt) / img.w;
-    if (c.x * img.w > img.w + c.len * u * 1.5) Object.assign(c, makeCloud(-c.len * 1.6 / 3840));
+    c.x += (dir * c.speed * push * u * dt) / img.w;
+    const span = (c.len * 1.6 * u) / img.w;
+    if (dir > 0 && c.x > 1 + span) Object.assign(c, makeCloud(-span, wx.clouds));
+    if (dir < 0 && c.x < -span) Object.assign(c, makeCloud(1 + span * 0.2, wx.clouds));
     ctx.globalAlpha = strength * c.alpha;
     for (const s of c.strands) {
       const x = X(c.x) + s.dx * u, y = Y(c.y) + s.dy * u;
@@ -195,6 +231,7 @@ function buildMist(colour) {
     }
   });
 }
+let mistTime = 0;  // advances faster in wind
 function drawMist(colour, strength, now) {
   if (strength <= 0.01) return;
   if (colour.join() !== mistColour) buildMist(colour);
@@ -202,7 +239,7 @@ function drawMist(colour, strength, now) {
   const u = U(), tw = mistSprite.width * u * 3;
   for (const b of mistBands) {
     const h = b.h * img.h, y = Y(base + b.dy) - h / 2;
-    const shift = (((now / 1000) * b.speed * u + b.off * tw) % tw + tw) % tw;
+    const shift = ((mistTime * b.speed * u + b.off * tw) % tw + tw) % tw;
     ctx.globalAlpha = strength * (0.75 + 0.25 * Math.sin(now / 9000 + b.phase));
     for (let x = -shift; x < Wd; x += tw) ctx.drawImage(mistSprite, x, y, tw, h);
   }
@@ -323,6 +360,222 @@ function drawBirds(colour, strength, now, dt) {
   if (out) flock = null;
 }
 
+// --- weather: rain, snow, fog, lightning ----------------------------------------------
+
+let drops = [];
+function makeDrop(wx, anywhere) {
+  const snow = wx.kind === "snow" || (wx.kind === "sleet" && Math.random() < 0.5);
+  return { snow, x: Math.random(), y: anywhere ? Math.random() : -0.05, z: rnd(0.3, 1), ph: rnd(0, 6.3), f: rnd(0.4, 1.2) };
+}
+function drawPrecip(colour, wx, dt, now) {
+  const want = wx.kind ? Math.round((wx.kind === "rain" ? 200 : 140) + 700 * wx.intensity) : 0;
+  while (drops.length < want) drops.push(makeDrop(wx, true));
+  if (drops.length > want) drops.length = want;
+  if (!want) return;
+  const u = U(), wind = wx.blow;
+  // Gusts sweep through the rain as denser curtains moving with the wind.
+  const curtain = Math.min(1, Math.abs(wx.wind_x) / 10), wave = now / 1000 * (0.3 + Math.abs(wind) * 0.05) * Math.sign(wind || 1);
+  ctx.lineCap = "round";
+  for (const d of drops) {
+    let vx, vy;
+    if (d.snow) {  // slow, swaying flakes
+      vy = (40 + 60 * d.z) * u;
+      vx = wind * 14 * u * d.z + Math.sin(now / 1000 * d.f + d.ph) * 18 * u;
+    } else {       // fast streaks, slanted by the wind
+      vy = (1100 + 700 * d.z) * u;
+      vx = wind * 45 * u;
+    }
+    d.x += (vx * dt) / Wd; d.y += (vy * dt) / Ht;
+    if (d.y > 1.02) Object.assign(d, makeDrop(wx, false));
+    if (d.x < -0.05) d.x += 1.1; else if (d.x > 1.05) d.x -= 1.1;
+    const x = d.x * Wd, y = d.y * Ht;
+    if (d.snow) {
+      ctx.globalAlpha = 0.45 + 0.45 * d.z;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(x, y, (1.4 + 2.6 * d.z) * u, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const len = (30 + 40 * d.z) * u / vy;
+      ctx.globalAlpha = (0.12 + 0.22 * d.z) * (1 - curtain * 0.6 * (0.5 + 0.5 * Math.sin(d.x * 9 - wave * 6)));
+      ctx.strokeStyle = rgba(colour, 1); ctx.lineWidth = (0.8 + 0.9 * d.z) * u;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - vx * len, y - vy * len); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// A grey cloud deck over the sky when overcast, so the painted sun or moon doesn't blaze through.
+function drawVeil(colour, amount) {
+  if (amount <= 0.01) return;
+  const g = ctx.createLinearGradient(0, 0, 0, Y(0.62));
+  g.addColorStop(0, rgba(colour, 0.55 * amount));
+  g.addColorStop(0.6, rgba(colour, 0.4 * amount));
+  g.addColorStop(1, rgba(colour, 0));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, Wd, Y(0.62));
+}
+
+function drawFog(colour, amount) {
+  if (amount <= 0.01) return;
+  const g = ctx.createLinearGradient(0, Ht * 0.15, 0, Ht);
+  g.addColorStop(0, rgba(colour, 0));
+  g.addColorStop(0.45, rgba(colour, 0.45 * amount));
+  g.addColorStop(1, rgba(colour, 0.65 * amount));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, Wd, Ht);
+}
+
+// --- wind: gusts, streaks of air, things blown across ----------------------------------
+
+// 0..1, wandering slowly: lulls and gusts.
+const gust = now => { const t = now / 1000;
+  return Math.max(0, Math.min(1, 0.5 + 0.28 * Math.sin(t * 0.23) + 0.16 * Math.sin(t * 0.71 + 1.7) + 0.08 * Math.sin(t * 1.9 + 4))); };
+const windiness = wx => Math.max(0, Math.min(1, (Math.abs(wx.wind_x) - 4) / 8));  // calm below 4 m/s, full at 12
+
+let streaks = [];
+function drawStreaks(colour, wx, dt, now) {
+  const w = windiness(wx), want = Math.round(22 * w * (0.4 + 0.6 * gust(now)));
+  if (streaks.length < want && Math.random() < dt * 9) {
+    const fx = Math.random();
+    streaks.push({ x: fx, y: rnd(0.04, Math.min(0.85, skyAt(fx) + 0.25)), len: rnd(300, 900), t: 0,
+                   dur: rnd(1.6, 3.2), amp: rnd(6, 22), k: rnd(2, 5), ph: rnd(0, 6.3) });
+  }
+  const u = U(), dir = Math.sign(wx.blow || 1);
+  ctx.lineCap = "round";
+  streaks = streaks.filter(s => {
+    s.t += dt;
+    s.x += (wx.blow * 55 * u * dt) / img.w;
+    const life = s.t / s.dur;
+    if (life >= 1) return false;
+    const x0 = X(s.x), y0 = Y(s.y), len = s.len * u;
+    const g = ctx.createLinearGradient(x0, 0, x0 - dir * len, 0);
+    const a = 0.5 * w * Math.sin(Math.PI * life);
+    g.addColorStop(0, rgba(colour, 0)); g.addColorStop(0.3, rgba(colour, a)); g.addColorStop(1, rgba(colour, 0));
+    ctx.strokeStyle = g; ctx.lineWidth = 3.2 * u;
+    ctx.beginPath();
+    for (let i = 0; i <= 24; i++) {  // a long wavy line, like air drawn in a Ghibli film
+      const f = i / 24, x = x0 - dir * len * f;
+      const y = y0 + Math.sin(f * s.k * Math.PI + s.ph + s.t * 3) * s.amp * u * f;
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+    return true;
+  });
+}
+
+// Leaves in autumn, spindrift off the snow in winter, needles otherwise.
+const LEAF_COLOURS = { autumn: [[214, 128, 43], [190, 70, 30], [230, 178, 58], [140, 58, 18]] };
+let leaves = [];
+function makeLeaf(wx, look, anywhere) {
+  const dir = Math.sign(wx.blow || 1), z = rnd(0.4, 1);
+  const palette = LEAF_COLOURS[look];
+  return { x: anywhere ? Math.random() : dir > 0 ? -0.03 : 1.03, y: rnd(0.3, 0.97), z,
+           rot: rnd(0, 6.3), spin: rnd(2, 7) * (Math.random() < 0.5 ? -1 : 1), ph: rnd(0, 6.3),
+           colour: palette ? palette[Math.floor(Math.random() * palette.length)] : null };
+}
+function drawLeaves(colour, wx, look, dt, now) {
+  const w = windiness(wx), want = Math.round((look === "winter" ? 90 : 45) * w);
+  while (leaves.length < want) leaves.push(makeLeaf(wx, look, leaves.length < want / 2));
+  if (leaves.length > want) leaves.length = want;
+  const u = U(), snow = look === "winter";
+  for (const l of leaves) {
+    const vx = wx.blow * (snow ? 90 : 70) * u * l.z * (0.7 + 0.6 * gust(now + l.ph * 900));
+    const vy = (Math.sin(now / 700 + l.ph) * 60 + (snow ? 6 : 22)) * u * l.z;
+    l.x += (vx * dt) / Wd; l.y += (vy * dt) / Ht; l.rot += l.spin * dt;
+    if (l.x < -0.05 || l.x > 1.05 || l.y > 1.02 || l.y < 0.2) Object.assign(l, makeLeaf(wx, look, false));
+    const x = l.x * Wd, y = l.y * Ht, sz = (snow ? 3 : 13) * u * (0.5 + l.z);
+    ctx.globalAlpha = snow ? 0.35 + 0.5 * l.z : 0.85;
+    if (snow) {  // a little smear of blown snow
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = sz; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - Math.sign(vx) * sz * 5, y - vy * 0.02); ctx.stroke();
+    } else {     // a tumbling leaf: flattened ellipse turning over
+      ctx.fillStyle = rgba(l.colour || colour, 1);
+      ctx.beginPath();
+      ctx.ellipse(x, y, sz, sz * 0.45 * Math.abs(Math.cos(l.rot * 0.7)) + 0.4 * u, l.rot, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- thunder: branching bolts behind the mountains, sheet lightning in the clouds -------
+
+let storm = null, nextStrike = 0;
+const flash = document.getElementById("flash");
+function boltPath(x, y, dirX, steps, width) {
+  const pts = [[x, y]], branches = [];
+  for (let i = 0; i < steps; i++) {
+    x += rnd(-0.012, 0.012) + dirX * 0.006; y += rnd(0.012, 0.03);
+    pts.push([x, y]);
+    if (y > skyAt(Math.max(0, Math.min(1, x))) + 0.02) break;  // gone behind the ridges
+    if (width > 1 && Math.random() < 0.14) {
+      branches.push(boltPath(x, y, (Math.random() < 0.5 ? -1 : 1) * rnd(1, 2.5), Math.floor(rnd(3, 9)), width * 0.45));
+    }
+  }
+  return { pts, width, branches };
+}
+function makeStrike(now) {
+  // Strike where the sky reaches deep, so the bolt has room before it vanishes behind the ridges.
+  const isBolt = Math.random() < 0.6;
+  const fx = Array.from({ length: 6 }, () => rnd(0.08, 0.92)).reduce((a, b) => (skyAt(b) > skyAt(a) ? b : a));
+  // A few strobes: lightning flickers as it re-strikes down the same channel.
+  const pulses = [0];
+  for (let i = 1, n = Math.floor(rnd(1, 4)); i <= n; i++) pulses.push(pulses[i - 1] + rnd(70, 190));
+  return { t0: now, x: fx, y: rnd(0.05, 0.25), pulses, isBolt,
+           bolt: isBolt ? boltPath(fx, rnd(0, 0.05), rnd(-1, 1), 60, 1) : null };
+}
+function strokeBolt(b, u, a) {
+  ctx.lineWidth = Math.max(1.2, b.width * 6 * u);
+  ctx.globalAlpha = Math.min(1, a * (b.width < 1 ? 0.7 : 1));
+  ctx.beginPath();
+  b.pts.forEach(([fx, fy], i) => (i ? ctx.lineTo(X(fx), Y(fy)) : ctx.moveTo(X(fx), Y(fy))));
+  ctx.stroke();
+  for (const br of b.branches) strokeBolt(br, u, a);
+}
+function drawThunder(wx, now) {
+  if (!wx.thunder) { flash.style.opacity = 0; storm = null; return; }
+  if (!storm && now > nextStrike) {
+    if (nextStrike) storm = makeStrike(now);
+    nextStrike = now + rnd(3500, 14000);
+  }
+  if (!storm) return;
+  const t = now - storm.t0;
+  let a = 0;
+  for (const p of storm.pulses) if (t >= p) a = Math.max(a, Math.exp(-(t - p) / 70) * (p ? rnd(0.6, 1) : 1));
+  if (t > storm.pulses[storm.pulses.length - 1] + 500) { storm = null; flash.style.opacity = 0; return; }
+  storm.a = a;
+  if (storm.bolt && a > 0.04) {  // drawn inside the sky clip, so it vanishes behind the ridges
+    const u = U();
+    ctx.globalCompositeOperation = "screen";
+    ctx.strokeStyle = "#f4f6ff"; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.shadowColor = "rgba(170,185,255,1)"; ctx.shadowBlur = 40 * u;
+    strokeBolt(storm.bolt, u, a);
+    ctx.shadowBlur = 0; ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+  }
+}
+// The lit cloud deck around the strike, and the land lighting up for a moment.
+function drawThunderGlow() {
+  if (!storm || !storm.a) return;
+  const a = storm.a, strength = storm.isBolt ? 1 : 0.55;
+  ctx.globalCompositeOperation = "screen";
+  const cx = X(storm.x), cy = Y(storm.y), r = img.w * 0.35;
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  g.addColorStop(0, `rgba(215,220,255,${0.6 * a * strength})`);
+  g.addColorStop(0.4, `rgba(170,180,240,${0.25 * a * strength})`);
+  g.addColorStop(1, "rgba(170,180,240,0)");
+  ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  ctx.globalCompositeOperation = "source-over";
+  flash.style.opacity = (0.32 * a * strength).toFixed(3);
+}
+
+// Overcast mutes the colours of the landscape images themselves.
+let lastMute = "";
+function muteImages(wx) {
+  const f = `saturate(${(1 - 0.35 * wx.clouds * (wx.kind ? 1.2 : 1)).toFixed(2)}) brightness(${(1 - 0.1 * wx.clouds - 0.08 * wx.intensity).toFixed(2)})`;
+  if (f === lastMute) return;
+  lastMute = f;
+  for (const p of PHASES) document.getElementById(p).style.filter = f;
+}
+
 // --- frame ---------------------------------------------------------------------------
 
 let last = performance.now(), lastSeg = "";
@@ -352,23 +605,45 @@ function frame(t) {
   const sa = W.scene[a], sb = W.scene[b];
   const look = {};
   for (const key of Object.keys(LOOK.day)) look[key] = mix(LOOK[a][key], LOOK[b][key], k);
+  // Weather: clouds hide the sun and stars, rain and snow keep the birds away, fog thickens the mist.
+  const wx = currentWeather();
+  wx.blow = wx.wind_x * (0.55 + 0.9 * gust(now));  // the wind right now, gusting around its mean
+  mistTime += dt * (1 + Math.abs(wx.blow) / 3);
+  const look2 = W.look || ({ 12: "winter", 1: "winter", 2: "winter", 3: "winter", 9: "autumn", 10: "autumn", 11: "autumn" })[new Date().getMonth() + 1];
+  look.glow *= 1 - 0.8 * wx.clouds;
+  look.rays *= 1 - wx.clouds;
+  look.stars *= 1 - 0.9 * wx.clouds;
+  look.clouds = Math.min(1, look.clouds * (1 + 0.9 * wx.clouds));
+  look.mist = Math.max(look.mist, 0.5 * wx.fog + 0.3 * wx.intensity);
+  if (wx.kind) look.birds = 0;
+  if (W.look === "rain") { look.clouds *= 0.3; look.birds = 0; }  // the image already has its cloud deck
+  muteImages(wx);
   const haze = mixRGB(sa.haze, sb.haze, k), sky = mixRGB(sa.sky, sb.sky, k);
   const sun = [0, 1, 2].map(i => mix(sa.sun[i], sb.sun[i], k));
   const glowColour = lighten(mixRGB(haze, [255, 240, 200], 0.4), 0.3);
 
   ctx.clearRect(0, 0, Wd, Ht);
+  drawVeil(mixRGB(sky, wx.thunder ? [90, 95, 115] : [150, 150, 160], 0.6), wx.clouds * wx.clouds * (wx.thunder ? 1.25 : 1));
   ctx.save();
   ctx.clip(skyPath);  // stars and clouds stay behind the mountains
   drawStars(look.stars, now);
-  drawClouds(lighten(mixRGB(sky, haze, 0.6), 0.35), look.clouds, dt);
+  const cloudColour = mixRGB(lighten(mixRGB(sky, haze, 0.6), 0.35), mixRGB(sky, [140, 140, 150], 0.5), 0.55 * wx.clouds);
+  drawClouds(cloudColour, look.clouds, dt, wx);
+  drawThunder(wx, now);  // the bolt, behind the mountains
   ctx.restore();
+  drawThunderGlow();
   drawGlow(sun, glowColour, look.glow, look.rays, now);
   drawMist(lighten(haze, 0.25), look.mist, now);
   drawBirds(darken(sky, 0.75), look.birds, now, dt);
+  drawFog(lighten(haze, 0.3), wx.fog);
+  drawStreaks(lighten(haze, 0.6), wx, dt, now);
+  drawPrecip(lighten(haze, 0.55), wx, dt, now);
+  drawLeaves(darken(sky, 0.7), wx, look2, dt, now);
 
   if (debug) {
     ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2; ctx.stroke(skyPath);
-    dbg.textContent = `${new Date(ms).toLocaleTimeString()}  ${a}→${b} ${k.toFixed(2)}  ${W.set}`;
+    dbg.textContent = `${new Date(ms).toLocaleTimeString()}  ${a}→${b} ${k.toFixed(2)}  ${W.set}  ` +
+      `${wx.symbol || params.get("weather") || ""} clouds ${wx.clouds} ${wx.kind || ""} ${wx.intensity || ""} wind ${wx.wind_x} (now ${wx.blow.toFixed(1)}) ${look2 || ""}`;
   }
 }
 
