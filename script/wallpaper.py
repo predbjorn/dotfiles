@@ -23,6 +23,8 @@ Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
                             make a winter (or spring/autumn/rain) copy of a set (4 Gemini images)
   wallpaper.py --show 2026-W42-rain
                             show that set for the rest of today
+  wallpaper.py --gallery    build and open ~/Pictures/wallpaperscript/gallery/: click through every
+                            set in any weather and time of day
 """
 
 import argparse
@@ -54,6 +56,8 @@ LOCK_FILE = LIBRARY.parent / ".wallpaper.lock"
 CURRENT_DIR = LIBRARY.parent / "current"  # blended per-display wallpapers
 LIVE_DIR = LIBRARY.parent / "live"  # page + state for the animated desktop
 LIVE_PAGE = Path(__file__).resolve().parent / "live-wallpaper/index.html"
+GALLERY_DIR = LIBRARY.parent / "gallery"  # click-through page of every set
+GALLERY_PAGE = Path(__file__).resolve().parent / "live-wallpaper/gallery.html"
 BLEND_STEPS = 20  # blend factor resolution; caps how many distinct wallpapers a fade makes
 PHASES = ["dawn", "day", "golden", "night"]
 WEATHER_FILE = LIBRARY.parent / "weather.json"
@@ -562,6 +566,49 @@ def weather(now):
     }
 
 
+def _scene(set_key, width, height, crops):
+    """Sun/moon, sky colours and skyline for the page's effects; cached per set and size."""
+    info_file = LIBRARY / set_key / f"scene_{width}x{height}.json"
+    if info_file.exists():
+        return json.loads(info_file.read_text())
+    info = {phase: _phase_info(crops[phase]) for phase in PHASES}
+    info["skyline"] = _skyline([crops["night"]])
+    info_file.write_text(json.dumps(info))
+    return info
+
+
+def _thumb(src, dst, width=640):
+    if not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime:
+        img = Image.open(src).convert("RGB")
+        img.resize((width, round(width * img.height / img.width)), Image.LANCZOS).save(dst, quality=85)
+    return dst
+
+
+def write_gallery(display):
+    """GALLERY_DIR: every set, animated by the live page in any weather and time of day."""
+    thumbs = GALLERY_DIR / "thumbs"
+    thumbs.mkdir(parents=True, exist_ok=True)
+    width, height = round(display["w"] * display["k"]), round(display["h"] * display["k"])
+    sets = {}
+    for key in complete_sets():
+        print(f"  {key}")
+        crops = {phase: crop_for(LIBRARY / key / f"{phase}.png", width, height, 0.5) for phase in PHASES}
+        meta = _meta(key)
+        sets[key] = {
+            "images": {phase: f"../sets/{key}/{crop.name}" for phase, crop in crops.items()},
+            "scene": _scene(key, width, height, crops),
+            "look": meta.get("weather") or meta.get("season"),
+            "feature": meta.get("feature", ""),
+            "thumb": f"thumbs/{_thumb(LIBRARY / key / 'day.png', thumbs / f'{key}.jpg').name}",
+        }
+    for old in thumbs.iterdir():
+        if old.stem not in sets:
+            old.unlink()
+    (GALLERY_DIR / "data.js").write_text(f"window.GALLERY = {json.dumps({'sets': sets})};\n")
+    shutil.copyfile(GALLERY_PAGE, GALLERY_DIR / "index.html")
+    return GALLERY_DIR / "index.html"
+
+
 def write_live(set_key, display, wx):
     """Mirror today's set into LIVE_DIR so the page (and Plash) only needs that folder."""
     LIVE_DIR.mkdir(exist_ok=True)
@@ -574,13 +621,7 @@ def write_live(set_key, display, wx):
             os.link(crops[phase], LIVE_DIR / name)  # hard link: no extra disk
         images[phase] = name
         keep.add(name)
-    info_file = LIBRARY / set_key / f"scene_{width}x{height}.json"
-    if info_file.exists():
-        info = json.loads(info_file.read_text())
-    else:
-        info = {phase: _phase_info(crops[phase]) for phase in PHASES}
-        info["skyline"] = _skyline([crops["night"]])
-        info_file.write_text(json.dumps(info))
+    info = _scene(set_key, width, height, crops)
     for old in LIVE_DIR.iterdir():
         if old.name not in keep:
             old.unlink()
@@ -610,11 +651,19 @@ def main():
     parser.add_argument("--convert", nargs=2, metavar=("SET", "LOOK"),
                         help=f"make a copy of a set in another look ({', '.join(LOOKS)}), shown first today")
     parser.add_argument("--show", metavar="SET", help="show this set for the rest of today")
+    parser.add_argument("--gallery", action="store_true",
+                        help="build and open a click-through gallery of every set in any weather and time")
     args = parser.parse_args()
     if args.convert and args.convert[1] not in LOOKS:
         parser.error(f"look must be one of {', '.join(LOOKS)}")
 
     LIBRARY.mkdir(parents=True, exist_ok=True)
+    if args.gallery:
+        print("Building gallery")
+        page = write_gallery(screens()[0])
+        subprocess.run(["open", page])
+        print(page)
+        return
     with open(LOCK_FILE, "w") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -13,6 +13,9 @@
                                  ?weather=rain  try a weather: clear, overcast, fog, rain, snow,
                                             sleet, windy, thunder, storm, blizzard
                                             (&intensity=0..1, &wind=-15..15 m/s, + blows right)
+                                 ?phase=night  hold one palette: dawn, day, golden, night
+                                 ?set=2026-W42  show another set (needs wallpaper.py --gallery,
+                                            which writes ../gallery/data.js)
 -->
 <html>
 <head>
@@ -87,7 +90,13 @@ let loadedSet = null;
 function loadState() {
   const s = document.createElement("script");
   s.src = `state.js?${Date.now()}`;
-  s.onload = () => { s.remove(); W = window.WALLPAPER; if (W.set !== loadedSet) useSet(); };
+  s.onload = () => {
+    s.remove();
+    W = window.WALLPAPER;
+    const g = window.GALLERY && window.GALLERY.sets[params.get("set")];
+    if (g) W = { ...W, set: params.get("set"), images: g.images, scene: g.scene, look: g.look };
+    if (W.set !== loadedSet) useSet();
+  };
   s.onerror = () => s.remove();
   document.head.appendChild(s);
 }
@@ -588,7 +597,8 @@ function frame(t) {
   const dt = Math.min(0.2, ((t - last) / 1000) * Math.min(speed, 20));
   last = t;
   const ms = clock(), now = Date.now();  // only the light follows the fast clock; motion stays real-time
-  const [a, b, k] = blendAt(ms);
+  const held = params.get("phase");
+  const [a, b, k] = PHASES.includes(held) ? [held, held, 0] : blendAt(ms);
 
   // Base images: phase a fully shown, phase b fading in on top.
   const seg = `${a}-${b}`;
@@ -649,7 +659,12 @@ function frame(t) {
 
 window.addEventListener("resize", resize);
 document.getElementById("day").addEventListener("load", resize);
-loadState();
+if (params.get("set")) {  // the gallery's data first, so the first state load can swap in the set
+  const g = document.createElement("script");
+  g.src = "../gallery/data.js";
+  g.onload = g.onerror = loadState;
+  document.head.appendChild(g);
+} else loadState();
 setInterval(loadState, 60000);
 (function wait() {
   if (!W) return setTimeout(wait, 100);
