@@ -3,7 +3,9 @@
 Library: landscape sets made on demand with Gemini, each rendered in four palettes
 (dawn, day, golden, night) sharing one composition, dressed for a season
 (snow in winter, golden larches in autumn, ...) or for rain. Nothing is generated
-automatically; the library is fixed and rotated.
+automatically; the library is fixed and rotated. It lives in the repo (wallpapers/, WebP),
+so a new Mac gets every set with the dotfiles; crops and analysis are rebuilt in
+~/Pictures/wallpaperscript/cache/.
 Daily: pick one landscape set at random from the library and keep it all day,
 preferring sets from the current season once there are a few. While it rains
 (or snows) in Oslo, a rain (or snow) set takes over if the library has one.
@@ -52,17 +54,21 @@ from PIL import Image
 # Watch spending: https://console.cloud.google.com/billing/01B85F-1A6511-809A4F?project=gen-lang-client-0292679403&authuser=1
 MODEL = "gemini-3-pro-image"
 OSLO = LocationInfo("Oslo", "Norway", "Europe/Oslo", 59.9139, 10.7522)
-LIBRARY = Path.home() / "Pictures/wallpaperscript/sets"
-STATE_FILE = LIBRARY.parent / "state.json"
-LOCK_FILE = LIBRARY.parent / ".wallpaper.lock"
-CURRENT_DIR = LIBRARY.parent / "current"  # blended per-display wallpapers
-LIVE_DIR = LIBRARY.parent / "live"  # page + state for the animated desktop
+# The sets live in the repo (wallpapers/<set>/{dawn,day,golden,night}.webp + meta.json + features.json),
+# so a new Mac gets them with the dotfiles. Everything derived from them goes under WORK.
+LIBRARY = Path(__file__).resolve().parents[1] / "wallpapers"
+WORK = Path.home() / "Pictures/wallpaperscript"
+CACHE = WORK / "cache"  # per set: screen-sized crops, scene analysis, effect masks
+STATE_FILE = WORK / "state.json"
+LOCK_FILE = WORK / ".wallpaper.lock"
+CURRENT_DIR = WORK / "current"  # blended per-display wallpapers
+LIVE_DIR = WORK / "live"  # page + state for the animated desktop
 LIVE_PAGE = Path(__file__).resolve().parent / "live-wallpaper/index.html"
-GALLERY_DIR = LIBRARY.parent / "gallery"  # click-through page of every set
+GALLERY_DIR = WORK / "gallery"  # click-through page of every set
 GALLERY_PAGE = Path(__file__).resolve().parent / "live-wallpaper/gallery.html"
 BLEND_STEPS = 20  # blend factor resolution; caps how many distinct wallpapers a fade makes
 PHASES = ["dawn", "day", "golden", "night"]
-WEATHER_FILE = LIBRARY.parent / "weather.json"
+WEATHER_FILE = WORK / "weather.json"
 # MET Norway asks for a User-Agent naming the client; keep it generic.
 WEATHER_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=59.91&lon=10.75"
 WEATHER_AGENT = "dotfiles-wallpaper/1.0"
@@ -231,12 +237,27 @@ def save_state(state):
     STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
+def master(key, phase):
+    """A set's full-size image for one phase (WebP: the repo stays small)."""
+    return LIBRARY / key / f"{phase}.webp"
+
+
+def cache_dir(key):
+    d = CACHE / key
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _save_master(img, path):
+    img.save(path, "WEBP", quality=95, method=6)
+
+
 def complete_sets():
     if not LIBRARY.exists():
         return []
     return sorted(
         p.name for p in LIBRARY.iterdir()
-        if p.is_dir() and all((p / f"{phase}.png").exists() for phase in PHASES)
+        if p.is_dir() and all(master(p.name, phase).exists() for phase in PHASES)
     )
 
 
@@ -293,16 +314,16 @@ def generate_set(key, look=None, source=None, terrain=None):
         print(f"Converting {source} to {look} as {key}")
         prompt = (WEATHER_CONVERT_PROMPT.format(scene=WEATHER_SCENE[look]) if look in WEATHER_SCENE
                   else CONVERT_PROMPT.format(scene=SEASON_SCENE[look]))
-        base = _generate_image(client, [prompt, Image.open(LIBRARY / source / "day.png")])
+        base = _generate_image(client, [prompt, Image.open(master(source, "day"))])
     else:
         terrain = terrain or _fresh_terrain()
         feature = TERRAINS[terrain]
         print(f"Generating {key} ({terrain}, {look})")
         scene = f"{feature} {SEASON_SCENE[look] if look in SEASON_SCENE else WEATHER_SCENE[look]}".strip()
         base = _generate_image(client, BASE_PROMPT.format(feature=scene, palette=PALETTES["day"]))
-    base.save(tmp / "day.png")
+    _save_master(base, tmp / "day.webp")
     for phase in ["dawn", "golden", "night"]:
-        recolour(client, base, look, phase).save(tmp / f"{phase}.png")
+        _save_master(recolour(client, base, look, phase), tmp / f"{phase}.webp")
 
     (tmp / "meta.json").write_text(json.dumps({
         "created": datetime.date.today().isoformat(),
@@ -453,10 +474,11 @@ def crop_for(master_path, width, height, align):
     # The master's mtime is part of the name: macOS caches wallpapers by path, so a
     # regenerated set must not reuse the old file names.
     stamp = int(master_path.stat().st_mtime)
-    out = master_path.with_name(f"{master_path.stem}_{width}x{height}_{stamp}.png")
+    folder = cache_dir(master_path.parent.name)
+    out = folder / f"{master_path.stem}_{width}x{height}_{stamp}.png"
     if out.exists():
         return out
-    for stale in master_path.parent.glob(f"{master_path.stem}_{width}x{height}*.png"):
+    for stale in folder.glob(f"{master_path.stem}_{width}x{height}*.png"):
         stale.unlink()
     img = Image.open(master_path)
     scale = max(width / img.width, height / img.height)
@@ -470,12 +492,12 @@ def crop_for(master_path, width, height, align):
 
 
 def _display_crops(set_key, phase, displays):
-    master = LIBRARY / set_key / f"{phase}.png"
+    source = master(set_key, phase)
     main_x = displays[0]["x"]  # NSScreen.screens[0] is the main display
     out = []
     for d in displays:
         align = 0.5 if d["x"] == main_x else (0.0 if d["x"] < main_x else 1.0)
-        out.append(crop_for(master, round(d["w"] * d["k"]), round(d["h"] * d["k"]), align))
+        out.append(crop_for(source, round(d["w"] * d["k"]), round(d["h"] * d["k"]), align))
     return out
 
 
@@ -622,7 +644,7 @@ def weather(now):
 
 def _scene(set_key, width, height, crops):
     """Sun/moon, sky colours and skyline for the page's effects; cached per set and size."""
-    info_file = LIBRARY / set_key / f"scene_{width}x{height}.json"
+    info_file = cache_dir(set_key) / f"scene_{width}x{height}.json"
     if info_file.exists():
         info = json.loads(info_file.read_text())
         if info.get("v") == SCENE_VERSION and info.get("features") == _features_file(set_key).exists():
@@ -632,7 +654,7 @@ def _scene(set_key, width, height, crops):
     # than clouds, rain or snow.
     source = _meta(set_key).get("source")
     if source in complete_sets():
-        night = crop_for(LIBRARY / source / "night.png", width, height, 0.5)
+        night = crop_for(master(source, "night"), width, height, 0.5)
         info["skyline"] = _skyline([night], [_phase_info(night)["sun"]])
     else:
         info["skyline"] = _skyline([crops["night"]], [info["night"]["sun"]])
@@ -675,7 +697,7 @@ def _features(set_key, detect=False):
     from google.genai import types
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    img = Image.open(LIBRARY / key / "day.png").convert("RGB")
+    img = Image.open(master(key, "day")).convert("RGB")
     img.thumbnail((1536, 1536))
     try:
         resp = client.models.generate_content(
@@ -731,7 +753,7 @@ def _masks(set_key, crops, width, height, skyline):
             continue
         mask = np.zeros((h, w), bool)
         for box in feats.get(kind, []):
-            y0, x0, y1, x1 = _to_crop(box, LIBRARY / set_key / "night.png", width, height)
+            y0, x0, y1, x1 = _to_crop(box, master(set_key, "night"), width, height)
             ys, xs = slice(int(y0 * h), int(np.ceil(y1 * h))), slice(int(x0 * w), int(np.ceil(x1 * w)))
             region = lum[ys, xs]
             if not region.size:
@@ -744,14 +766,14 @@ def _masks(set_key, crops, width, height, skyline):
         if mask.sum() > 20:
             name = f"{kind}_{width}x{height}.png"
             Image.fromarray((uniform_filter(mask.astype(np.float32), 3) * 255).astype(np.uint8)).save(
-                LIBRARY / set_key / name)
+                cache_dir(set_key) / name)
             ys, xs = np.nonzero(mask)
             out[kind] = {"mask": name, "box": [round(float(ys.min()) / h, 3), round(float(xs.min()) / w, 3),
                                                round(float(ys.max() + 1) / h, 3), round(float(xs.max() + 1) / w, 3)]}
     # Lights: warm, bright and small, below the ridge line. Copies share their source's layout, and their
     # own night can have false lights (orange autumn leaves) or hidden ones (rain), so use the source.
     source = _meta(set_key).get("source")
-    lit = crop_for(LIBRARY / source / "night.png", width, height, 0.5) if source in complete_sets() else crops["night"]
+    lit = crop_for(master(source, "night"), width, height, 0.5) if source in complete_sets() else crops["night"]
     big = np.asarray(Image.open(lit).convert("RGB").resize((960, round(960 * h / w))), np.float32)
     r, g, b = big[..., 0], big[..., 1], big[..., 2]
     glow = big.mean(axis=2)
@@ -789,16 +811,16 @@ def write_gallery(display):
     sets = {}
     for key in complete_sets():
         print(f"  {key}")
-        crops = {phase: crop_for(LIBRARY / key / f"{phase}.png", width, height, 0.5) for phase in PHASES}
+        crops = {phase: crop_for(master(key, phase), width, height, 0.5) for phase in PHASES}
         meta = _meta(key)
         sets[key] = {
-            "images": {phase: f"../sets/{key}/{crop.name}" for phase, crop in crops.items()},
+            "images": {phase: f"../cache/{key}/{crop.name}" for phase, crop in crops.items()},
             "scene": _scene(key, width, height, crops),
             "look": meta.get("weather") or meta.get("season"),
             "terrain": meta.get("terrain"),
-            "masks": _mask_paths(_scene(key, width, height, crops), f"../sets/{key}/"),
+            "masks": _mask_paths(_scene(key, width, height, crops), f"../cache/{key}/"),
             "feature": meta.get("feature", ""),
-            "thumb": f"thumbs/{_thumb(LIBRARY / key / 'day.png', thumbs / f'{key}.jpg').name}",
+            "thumb": f"thumbs/{_thumb(master(key, 'day'), thumbs / f'{key}.jpg').name}",
         }
     for old in thumbs.iterdir():
         if old.stem not in sets:
@@ -818,7 +840,7 @@ def write_live(set_key, display, wx):
     width, height = round(display["w"] * display["k"]), round(display["h"] * display["k"])
     images, crops, keep = {}, {}, {"index.html", "state.js"}
     for phase in PHASES:
-        crops[phase] = crop_for(LIBRARY / set_key / f"{phase}.png", width, height, 0.5)
+        crops[phase] = crop_for(master(set_key, phase), width, height, 0.5)
         name = f"{set_key}_{crops[phase].name}"
         if not (LIVE_DIR / name).exists():
             os.link(crops[phase], LIVE_DIR / name)  # hard link: no extra disk
@@ -829,7 +851,7 @@ def write_live(set_key, display, wx):
     for kind, name in masks.items():
         live_name = f"{set_key}_{name}"
         if not (LIVE_DIR / live_name).exists():
-            os.link(LIBRARY / set_key / name, LIVE_DIR / live_name)
+            os.link(cache_dir(set_key) / name, LIVE_DIR / live_name)
         masks[kind] = live_name
         keep.add(live_name)
     for old in LIVE_DIR.iterdir():
@@ -872,6 +894,7 @@ def main():
         parser.error(f"look must be one of {', '.join(LOOKS)}")
 
     LIBRARY.mkdir(parents=True, exist_ok=True)
+    WORK.mkdir(parents=True, exist_ok=True)
     if args.gallery:
         print("Building gallery")
         page = write_gallery(screens()[0])
