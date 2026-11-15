@@ -166,7 +166,10 @@ SEASON_OF_MONTH = {12: "winter", 1: "winter", 2: "winter", 3: "winter", 4: "spri
 SEASON_SCENE = {
     "winter": "Deep winter: thick snow blankets the ground, the rocks and every pine branch, the peaks are "
               "snow-capped and any lake or river is frozen white.",
-    "spring": "Late spring: fresh meadow grass and a few wildflowers, the last snow only on the highest peaks.",
+    "spring": "Late spring: fresh meadow grass and a scattering of tiny wildflowers, the last snow only on the "
+              "highest peaks. Paint it all in the image's existing palette: no bright green and no new colours; "
+              "the grass is a slightly lighter, softer shade of the same hue, the flowers are small pale specks, "
+              "and the foreground trees and ground stay dark silhouettes.",
     "summer": "",
     "autumn": "Autumn: golden larches and birches glow among the dark pines, and fallen leaves lie on the rocks.",
 }
@@ -197,7 +200,8 @@ LOOKS = [*SEASON_SCENE, *WEATHER_SCENE]
 KEEP_LOOK = {
     "winter": "Keep all the snow: it takes on the colour of the light but stays clearly paler than the forests, "
               "so the scene still reads as deep winter.",
-    "spring": "Keep the fresh grass and wildflowers.",
+    "spring": "Keep the fresh grass and tiny wildflowers, in the new palette's colours only: no green, "
+              "and the foreground stays dark.",
     "autumn": "Keep the golden larches and birches and the fallen leaves.",
     "rain": "Keep the rainy weather: the heavy cloud deck still hides the sun, the moon and the stars, "
             "with low clouds, mist and wet rocks; the light only tints the clouds.",
