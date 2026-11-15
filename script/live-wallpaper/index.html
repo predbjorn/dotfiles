@@ -2,7 +2,9 @@
 <!--
   Live wallpaper: today's landscape set from wallpaper.py, cross-faded by Oslo's sun,
   with drifting clouds and mist, a breathing sun/moon glow, birds and twinkling stars,
-  and Oslo's current weather: rain, snow, sleet, fog, overcast, wind and thunder.
+  glinting water, falling waterfalls, lit windows, a turning lighthouse beam, northern lights
+  on clear winter nights, and Oslo's current weather: rain, snow, sleet, fog, overcast, wind
+  and thunder.
 
   wallpaper.py copies this page to ~/Pictures/wallpaperscript/live/ next to state.js
   and the images; point Plash at that copy.
@@ -11,7 +13,7 @@
                                  ?speed=600 run the clock 600x faster
                                  ?debug=1   show the detected skyline and the clock
                                  ?weather=rain  try a weather: clear, overcast, fog, rain, snow,
-                                            sleet, windy, thunder, storm, blizzard
+                                            sleet, windy, thunder, storm, blizzard, aurora
                                             (&intensity=0..1, &wind=-15..15 m/s, + blows right)
                                  ?phase=night  hold one palette: dawn, day, golden, night
                                  ?set=2026-W42  show another set (needs wallpaper.py --gallery,
@@ -42,10 +44,10 @@
 const PHASES = ["dawn", "day", "golden", "night"];
 // How strongly each effect shows in each phase; the current blend mixes these.
 const LOOK = {
-  dawn:   { glow: 0.45, rays: 0.10, stars: 0.0, mist: 0.55, clouds: 0.45, birds: 1 },
-  day:    { glow: 0.45, rays: 0.12, stars: 0.0, mist: 0.25, clouds: 0.40, birds: 1 },
-  golden: { glow: 0.65, rays: 0.18, stars: 0.0, mist: 0.35, clouds: 0.45, birds: 1 },
-  night:  { glow: 0.35, rays: 0.0,  stars: 1.0, mist: 0.30, clouds: 0.22, birds: 0 },
+  dawn:   { glow: 0.45, rays: 0.10, stars: 0.0, mist: 0.55, clouds: 0.45, birds: 1, lights: 0.3 },
+  day:    { glow: 0.45, rays: 0.12, stars: 0.0, mist: 0.25, clouds: 0.40, birds: 1, lights: 0.0 },
+  golden: { glow: 0.65, rays: 0.18, stars: 0.0, mist: 0.35, clouds: 0.45, birds: 1, lights: 0.45 },
+  night:  { glow: 0.35, rays: 0.0,  stars: 1.0, mist: 0.30, clouds: 0.22, birds: 0, lights: 1.0 },
 };
 
 const params = new URLSearchParams(location.search);
@@ -72,6 +74,7 @@ const WEATHER_PRESETS = {
   thunder:  { clouds: 1, kind: "rain", intensity: 0.45, wind_x: 5, thunder: true },
   storm:    { clouds: 1, kind: "rain", intensity: 1, wind_x: 12, thunder: true },
   blizzard: { clouds: 1, kind: "snow", intensity: 1, wind_x: 12, fog: 0.5 },
+  aurora:   { clouds: 0, wind_x: 1, aurora: true },
 };
 function currentWeather() {
   const preset = WEATHER_PRESETS[params.get("weather")];
@@ -94,16 +97,23 @@ function loadState() {
     s.remove();
     W = window.WALLPAPER;
     const g = window.GALLERY && window.GALLERY.sets[params.get("set")];
-    if (g) W = { ...W, set: params.get("set"), images: g.images, scene: g.scene, look: g.look };
+    if (g) W = { ...W, set: params.get("set"), images: g.images, scene: g.scene, look: g.look,
+                 terrain: g.terrain, masks: g.masks || {} };
     if (W.set !== loadedSet) useSet();
   };
   s.onerror = () => s.remove();
   document.head.appendChild(s);
 }
 
+let maskImgs = {};  // water / waterfalls masks (white where the effect may draw)
 function useSet() {
   loadedSet = W.set;
   for (const p of PHASES) document.getElementById(p).src = W.images[p];
+  maskImgs = {};
+  for (const [kind, src] of Object.entries(W.masks || {})) {
+    const m = new Image(); m.src = src; maskImgs[kind] = m;
+  }
+  glints = []; falls = []; ripples = [];
   buildSky();
 }
 
@@ -576,6 +586,196 @@ function drawThunderGlow() {
   flash.style.opacity = (0.32 * a * strength).toFixed(3);
 }
 
+// --- water: glints along the sun/moon's path, slow ripples, rain rings ------------------
+
+// Effects for an area of the picture draw on their own canvas, cut to the area's mask, then
+// go onto the main canvas.
+const layers = {};
+function layer(name) {
+  const w = Math.ceil(Wd / 2), h = Math.ceil(Ht / 2);
+  let l = layers[name];
+  if (!l || l.width !== w || l.height !== h) {
+    l = layers[name] = document.createElement("canvas");
+    l.width = w; l.height = h;
+  }
+  const g = l.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
+  return [l, g];
+}
+function maskAndDraw(l, g, kind, mode) {
+  const m = maskImgs[kind];
+  g.globalCompositeOperation = "destination-in"; g.globalAlpha = 1;
+  g.drawImage(m, img.ox, img.oy, img.w, img.h);
+  g.globalCompositeOperation = "source-over";
+  ctx.globalCompositeOperation = mode;
+  ctx.drawImage(l, 0, 0, Wd, Ht);
+  ctx.globalCompositeOperation = "source-over";
+}
+const ready = kind => maskImgs[kind] && maskImgs[kind].complete && maskImgs[kind].naturalWidth;
+
+let glints = [], ripples = [];
+function drawWater(colour, sunX, strength, wx, dt, now) {
+  if (!ready("water") || !W.scene.water) return;
+  const [y0, x0, y1, x1] = W.scene.water.box, u = U();
+  const [l, g] = layer("water");
+  // Glints: short flashes of light, crowded along the sun's (or moon's) reflection.
+  const area = (y1 - y0) * (x1 - x0);
+  const calm = 1 - Math.min(1, Math.abs(wx.blow || 0) / 14);
+  if (Math.random() < dt * 60 * area * 4) {
+    const onPath = Math.random() < 0.6 && sunX > x0 && sunX < x1;
+    glints.push({ fx: onPath ? sunX + (Math.random() - 0.5) * 0.08 * (2 - calm) : rnd(x0, x1),
+                  fy: rnd(y0, y1), t: 0, dur: rnd(0.6, 2.2), len: rnd(8, 34) });
+  }
+  g.lineCap = "round";
+  g.strokeStyle = rgba(colour, 1);
+  glints = glints.filter(p => {
+    p.t += dt;
+    const life = p.t / p.dur;
+    if (life >= 1) return false;
+    g.globalAlpha = strength * Math.sin(Math.PI * life);
+    g.lineWidth = 2 * u;
+    const x = X(p.fx), y = Y(p.fy), len = p.len * u * (0.6 + 0.6 * (p.fy - y0) / (y1 - y0));
+    g.beginPath(); g.moveTo(x - len / 2, y); g.lineTo(x + len / 2, y); g.stroke();
+    return true;
+  });
+  // Ripples: faint horizontal lines swaying across the surface.
+  g.globalAlpha = 0.12 * strength;
+  g.lineWidth = 1.4 * u;
+  for (let i = 0; i < 14; i++) {
+    const fy = y0 + (y1 - y0) * ((i + 0.5) / 14), sway = Math.sin(now / 2600 + i * 1.7) * 0.03;
+    const fx = x0 + ((i * 0.37 + now / 90000 * (1 + i % 3)) % 1) * (x1 - x0) + sway;
+    const len = (60 + 40 * Math.sin(i * 2.3)) * u;
+    g.beginPath(); g.moveTo(X(fx) - len, Y(fy)); g.lineTo(X(fx) + len, Y(fy)); g.stroke();
+  }
+  // Raindrops landing: small rings spreading out.
+  if (wx.kind === "rain" || wx.kind === "sleet") {
+    const n = dt * 40 * area * 10 * (0.3 + wx.intensity);
+    for (let i = 0; i < n || Math.random() < n - i; i++) ripples.push({ fx: rnd(x0, x1), fy: rnd(y0, y1), t: 0 });
+  }
+  g.lineWidth = 1.2 * u;
+  ripples = ripples.filter(r => {
+    r.t += dt;
+    if (r.t > 0.9) return false;
+    const rx = (3 + 16 * r.t) * u * (0.5 + (r.fy - y0) / (y1 - y0));
+    g.globalAlpha = 0.5 * (1 - r.t / 0.9);
+    g.beginPath(); g.ellipse(X(r.fx), Y(r.fy), rx, rx * 0.28, 0, 0, Math.PI * 2); g.stroke();
+    return true;
+  });
+  g.globalAlpha = 1;
+  maskAndDraw(l, g, "water", "screen");
+}
+
+// --- waterfalls: streaks pouring down and spray at the foot -----------------------------
+
+let falls = [];
+function drawFalls(colour, dt, now) {
+  if (!ready("waterfalls") || !W.scene.waterfalls) return;
+  const [y0, x0, y1, x1] = W.scene.waterfalls.box, u = U();
+  const [l, g] = layer("falls");
+  while (falls.length < 70) falls.push({ fx: rnd(x0, x1), fy: rnd(y0 - 0.1, y1), len: rnd(40, 130), sp: rnd(0.8, 1.3) });
+  g.lineCap = "round";
+  g.strokeStyle = rgba(colour, 1);
+  for (const f of falls) {
+    f.fy += dt * 0.35 * f.sp * (0.3 + (f.fy - y0) / (y1 - y0));  // speeding up as it falls
+    if (f.fy > y1 + 0.05) { f.fy = y0 - rnd(0, 0.1); f.fx = rnd(x0, x1); }
+    g.globalAlpha = 0.45;
+    g.lineWidth = rnd(1.5, 3) * u;
+    const x = X(f.fx), y = Y(f.fy);
+    g.beginPath(); g.moveTo(x, y - f.len * u); g.lineTo(x, y); g.stroke();
+  }
+  g.globalAlpha = 1;
+  maskAndDraw(l, g, "waterfalls", "screen");
+  // Spray billowing at the foot, not cut to the mask.
+  const cx = X((x0 + x1) / 2), cy = Y(y1), w = Math.min(Math.max(X(x1) - X(x0), 30 * u), 90 * u);
+  for (let i = 0; i < 5; i++) {
+    const t = now / 1000 * 0.5 + i * 1.3, r = w * (0.6 + 0.3 * Math.sin(t * 1.3 + i));
+    const x = cx + Math.sin(t + i * 2) * w * 0.4, y = cy - r * 0.35 + Math.cos(t * 0.8 + i) * r * 0.1;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, rgba(colour, 0.1)); gr.addColorStop(1, rgba(colour, 0));
+    ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+}
+
+// --- lights: windows glowing at dusk and night, a lighthouse beam turning ----------------
+
+function drawLights(strength, now) {
+  const lights = W.scene.lights || [];
+  if (strength <= 0.02 || !lights.length) return;
+  const u = U(), t = now / 1000;
+  ctx.globalCompositeOperation = "screen";
+  lights.forEach(([fx, fy, fr], i) => {
+    const flicker = 0.82 + 0.1 * Math.sin(t * 6.3 + i * 4) + 0.08 * Math.sin(t * 17.9 + i);  // firelight
+    const x = X(fx), y = Y(fy), r = Math.max(fr * img.w, 6 * u) * 6;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(255,200,120,${0.55 * strength * flicker})`);
+    g.addColorStop(0.3, `rgba(255,170,90,${0.18 * strength * flicker})`);
+    g.addColorStop(1, "rgba(255,160,80,0)");
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  });
+  if (W.terrain === "coast") {
+    // The lamp is the highest light; its beam sweeps round every 9 seconds.
+    const [fx, fy] = lights.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const x = X(fx), y = Y(fy), a = (t / 9) * Math.PI * 2;
+    const reach = Math.cos(a), towards = Math.sin(a);  // towards > 0: pointing at us
+    const len = img.w * 0.5 * Math.abs(reach), spread = img.h * (0.012 + 0.05 * Math.abs(reach));
+    if (len > 4) {
+      const g = ctx.createLinearGradient(x, y, x + Math.sign(reach) * len, y);
+      g.addColorStop(0, `rgba(255,240,200,${0.4 * strength})`);
+      g.addColorStop(1, "rgba(255,240,200,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(x, y - 2 * u); ctx.lineTo(x + Math.sign(reach) * len, y - spread);
+      ctx.lineTo(x + Math.sign(reach) * len, y + spread); ctx.lineTo(x, y + 2 * u); ctx.closePath(); ctx.fill();
+    }
+    if (towards > 0.85) {  // a flash as it sweeps past us
+      const f = (towards - 0.85) / 0.15, r = 70 * u * (0.5 + f);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(255,248,225,${0.9 * strength * f})`);
+      g.addColorStop(1, "rgba(255,248,225,0)");
+      ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+// --- northern lights: green curtains rippling behind the mountains on clear winter nights --
+
+let auroraSprite = null;
+function auroraTonight(wx) {
+  if (wx.aurora) return true;
+  const d = new Date(), m = d.getMonth() + 1;
+  if (m > 3 && m < 9) return false;  // Oslo's summer nights are too bright
+  // About every third clear night, the same all night.
+  const seed = d.getFullYear() * 400 + m * 32 + d.getDate() - (d.getHours() < 12 ? 1 : 0);
+  return Math.abs(Math.sin(seed * 12.9898) * 43758.5453) % 1 < 0.35;
+}
+function drawAurora(strength, now) {
+  if (strength <= 0.02) return;
+  if (!auroraSprite) auroraSprite = sprite(1, 256, (g, w, h) => {
+    const gr = g.createLinearGradient(0, h, 0, 0);
+    gr.addColorStop(0, "rgba(120,255,170,0)");
+    gr.addColorStop(0.08, "rgba(110,255,170,0.95)");
+    gr.addColorStop(0.35, "rgba(60,220,170,0.5)");
+    gr.addColorStop(0.75, "rgba(150,90,220,0.18)");
+    gr.addColorStop(1, "rgba(150,90,220,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  });
+  const t = now / 1000, step = Math.max(2, Math.round(5 * dpr));
+  ctx.globalCompositeOperation = "screen";
+  for (let k = 0; k < 3; k++) {
+    for (let x = 0; x < Wd; x += step) {
+      const f = x / Wd;
+      const base = 0.3 + 0.04 * k + 0.05 * Math.sin(f * 2.2 + t * 0.04 + k * 2) + 0.02 * Math.sin(f * 7 - t * 0.1 + k);
+      const height = img.h * (0.24 + 0.08 * Math.sin(f * 4 + t * 0.07 + k * 3));
+      // Brighter folds drift along the curtain; it fades out towards both ends.
+      const fold = 0.55 + 0.45 * Math.sin(f * 14 + t * 0.35 + k * 5);
+      const ends = Math.sin(Math.PI * Math.min(1, Math.max(0, (f - 0.05 * k) / (0.75 + 0.1 * k))));
+      ctx.globalAlpha = strength * 0.28 * fold * ends;
+      ctx.drawImage(auroraSprite, x, Y(base) - height, step + 1, height);
+    }
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+}
+
 // Overcast mutes the colours of the landscape images themselves.
 let lastMute = "";
 function muteImages(wx) {
@@ -594,6 +794,7 @@ if (debug) dbg.style.display = "block";
 function frame(t) {
   requestAnimationFrame(frame);
   if (!W || t - last < 1000 / fpsCap - 2) return;
+  if (!Wd || !Ht) { resize(); return; }  // not laid out yet (hidden at start)
   const dt = Math.min(0.2, ((t - last) / 1000) * Math.min(speed, 20));
   last = t;
   const ms = clock(), now = Date.now();  // only the light follows the fast clock; motion stays real-time
@@ -637,13 +838,17 @@ function frame(t) {
   ctx.save();
   ctx.clip(skyPath);  // stars and clouds stay behind the mountains
   drawStars(look.stars, now);
+  if (auroraTonight(wx)) drawAurora(look.stars * (1 - wx.clouds) * (wx.kind ? 0 : 1), now);
   const cloudColour = mixRGB(lighten(mixRGB(sky, haze, 0.6), 0.35), mixRGB(sky, [140, 140, 150], 0.5), 0.55 * wx.clouds);
   drawClouds(cloudColour, look.clouds, dt, wx);
   drawThunder(wx, now);  // the bolt, behind the mountains
   ctx.restore();
   drawThunderGlow();
   drawGlow(sun, glowColour, look.glow, look.rays, now);
+  drawWater(lighten(glowColour, 0.2), sun[0], 0.75 * (1 - 0.6 * wx.clouds), wx, dt, now);
+  drawFalls(lighten(haze, 0.7), dt, now);
   drawMist(lighten(haze, 0.25), look.mist, now);
+  drawLights(look.lights, now);
   drawBirds(darken(sky, 0.75), look.birds, now, dt);
   drawFog(lighten(haze, 0.3), wx.fog);
   drawStreaks(lighten(haze, 0.6), wx, dt, now);

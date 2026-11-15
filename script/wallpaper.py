@@ -315,6 +315,7 @@ def generate_set(key, look=None, source=None, terrain=None):
     final = LIBRARY / key
     shutil.rmtree(final, ignore_errors=True)
     tmp.rename(final)
+    _features(key, detect=True)  # where the water and waterfalls are, for the live page
 
 
 # --- daily pick & phase ------------------------------------------------------
@@ -532,12 +533,13 @@ def _phase_info(path):
     }
 
 
-def _skyline(paths):
+def _skyline(paths, suns=()):
     """Per column (240 samples), the height where the mountains start, as a fraction from the top.
 
     The first strong colour step from the top. Night works best: the sky is dark against lit ridges,
     while at dawn pale peaks melt into the sky. Glows and clouds give false hits that sit too high and
-    differ per image, so with several images the lowest hit is the real ridge.
+    differ per image, so with several images the lowest hit is the real ridge. The sun/moon discs
+    (suns: [x, y, r] fractions, as from _phase_info) are skipped so they don't count as peaks.
     """
     import numpy as np
     from scipy.ndimage import median_filter, uniform_filter
@@ -549,7 +551,14 @@ def _skyline(paths):
         sm = uniform_filter(small, size=(7, 7, 1))
         step = np.abs(sm[4:] - sm[:-4]).sum(axis=2)[int(h * 0.05):]
         hit = step > 40
-        first = np.where(hit.any(axis=0), hit.argmax(axis=0), int(h * 0.55)) + int(h * 0.05) + 2
+        first = (np.where(hit.any(axis=0), hit.argmax(axis=0), int(h * 0.55)) + int(h * 0.05) + 2).astype(float)
+        ww = len(first)
+        for sx, sy, sr in suns:  # bridge straight across under the disc and its glow
+            r = max(sr * 5, 0.045) * ww
+            cols = np.abs(np.arange(ww) - sx * ww) < r
+            cols &= first < sy * h + r  # only where the hit is the disc itself
+            if cols.any() and not cols.all():
+                first[cols] = np.interp(np.flatnonzero(cols), np.flatnonzero(~cols), first[~cols])
         lines.append(first[::2] / h)
     ridge = median_filter(np.max(lines, axis=0), size=9, mode="nearest")
     return [round(float(v), 3) for v in ridge]
@@ -615,11 +624,154 @@ def _scene(set_key, width, height, crops):
     """Sun/moon, sky colours and skyline for the page's effects; cached per set and size."""
     info_file = LIBRARY / set_key / f"scene_{width}x{height}.json"
     if info_file.exists():
-        return json.loads(info_file.read_text())
+        info = json.loads(info_file.read_text())
+        if info.get("v") == SCENE_VERSION and info.get("features") == _features_file(set_key).exists():
+            return info
     info = {phase: _phase_info(crops[phase]) for phase in PHASES}
-    info["skyline"] = _skyline([crops["night"]])
+    # A season/weather copy has the same layout as its source, whose clear sky gives a cleaner skyline
+    # than clouds, rain or snow.
+    source = _meta(set_key).get("source")
+    if source in complete_sets():
+        night = crop_for(LIBRARY / source / "night.png", width, height, 0.5)
+        info["skyline"] = _skyline([night], [_phase_info(night)["sun"]])
+    else:
+        info["skyline"] = _skyline([crops["night"]], [info["night"]["sun"]])
+    info.update(_masks(set_key, crops, width, height, info["skyline"]))
+    info["v"] = SCENE_VERSION
+    info["features"] = _features_file(set_key).exists()  # recompute once detection has run
     info_file.write_text(json.dumps(info))
     return info
+
+
+SCENE_VERSION = 3  # bump when the scene analysis changes, to recompute cached scenes
+DETECT_MODEL = "gemini-3.8-flash"  # text answer only: a fraction of a cent per set
+DETECT_PROMPT = (
+    "This is a landscape illustration. Find (1) every open water surface that would show reflections or "
+    "waves, such as a lake, river, sea or fjord (not snow, not ice, not sky), and (2) every waterfall. "
+    'Answer JSON only: {"water": [[ymin, xmin, ymax, xmax], ...], "waterfalls": [[ymin, xmin, ymax, xmax], ...]} '
+    "with coordinates from 0 to 1000; use empty lists when there are none."
+)
+
+
+def _features_file(set_key):
+    """A season/weather copy shares its source's layout, so it uses the source's answer."""
+    source = _meta(set_key).get("source")
+    return LIBRARY / (source if source in complete_sets() else set_key) / "features.json"
+
+
+def _features(set_key, detect=False):
+    """Water and waterfall boxes (fractions of the master image): features.json in the set.
+
+    With detect, a missing file is filled by a Gemini vision call (done once, when a set is made);
+    the regular runs never call the API.
+    """
+    cache = _features_file(set_key)
+    key = cache.parent.name
+    if cache.exists():
+        return json.loads(cache.read_text())
+    if not detect:
+        return {"water": [], "waterfalls": []}
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    img = Image.open(LIBRARY / key / "day.png").convert("RGB")
+    img.thumbnail((1536, 1536))
+    try:
+        resp = client.models.generate_content(
+            model=DETECT_MODEL, contents=[DETECT_PROMPT, img],
+            config=types.GenerateContentConfig(response_mime_type="application/json"))
+        raw = json.loads(resp.text)
+    except Exception as e:  # no water animation is fine; try again next time
+        print(f"Feature detection failed for {key}: {e}", file=sys.stderr)
+        return {"water": [], "waterfalls": []}
+    out = {k: [[round(v / 1000, 4) for v in box] for box in raw.get(k, []) if len(box) == 4]
+           for k in ("water", "waterfalls")}
+    cache.write_text(json.dumps(out))
+    return out
+
+
+def _to_crop(box, master, width, height):
+    """[ymin, xmin, ymax, xmax] as master fractions -> the same in the centred crop."""
+    with Image.open(master) as im:
+        iw, ih = im.size
+    scale = max(width / iw, height / ih)
+    ox, oy = (iw * scale - width) / 2, (ih * scale - height) / 2
+    y0, x0, y1, x1 = box
+    f = lambda v, size, off, out: min(1, max(0, (v * size * scale - off) / out))
+    return [f(y0, ih, oy, height), f(x0, iw, ox, width), f(y1, ih, oy, height), f(x1, iw, ox, width)]
+
+
+def _masks(set_key, crops, width, height, skyline):
+    """Water and waterfall masks (small PNGs next to the crops) and lit windows/lamps at night.
+
+    Inside Gemini's boxes, water is the smooth part (no texture) and a waterfall the bright part.
+    Lights are small warm-yellow spots below the skyline in the night image.
+    """
+    import numpy as np
+    from scipy.ndimage import label, uniform_filter
+
+    out = {"lights": []}
+    night = _small(crops["night"])  # 480 wide
+    h, w = night.shape[:2]
+    look = _meta(set_key).get("season")
+    feats = _features(set_key)
+    lum = night.mean(axis=2)
+    # Water mirrors the sky: how far each pixel's colour is from the nearest sky colour, by day and by
+    # night (land can match one palette by chance, rarely both).
+    line = np.asarray(skyline)[((np.arange(w) + 0.5) / w * len(skyline)).astype(int)]
+    above = (np.arange(h)[:, None] / h) < line[None, :] - 0.02
+    sky_dist = np.zeros((h, w))
+    for img in (night, _small(crops["day"])):
+        sky = img[above]
+        sky = sky[np.argsort(sky.sum(axis=1))][:: max(1, len(sky) // 80)]
+        sky_dist = np.maximum(sky_dist, np.sqrt(((img[:, :, None, :] - sky[None, None]) ** 2).sum(-1)).min(-1))
+    for kind in ("water", "waterfalls"):
+        if look == "winter":  # frozen
+            continue
+        mask = np.zeros((h, w), bool)
+        for box in feats.get(kind, []):
+            y0, x0, y1, x1 = _to_crop(box, LIBRARY / set_key / "night.png", width, height)
+            ys, xs = slice(int(y0 * h), int(np.ceil(y1 * h))), slice(int(x0 * w), int(np.ceil(x1 * w)))
+            region = lum[ys, xs]
+            if not region.size:
+                continue
+            if kind == "water":
+                mask[ys, xs] |= sky_dist[ys, xs] < 15
+            else:  # brighter than the cliffs beside it, below the ridge (not the sky in the box)
+                brighter = region - np.median(region, axis=1, keepdims=True) > 25
+                mask[ys, xs] |= brighter & ~above[ys, xs]
+        if mask.sum() > 20:
+            name = f"{kind}_{width}x{height}.png"
+            Image.fromarray((uniform_filter(mask.astype(np.float32), 3) * 255).astype(np.uint8)).save(
+                LIBRARY / set_key / name)
+            ys, xs = np.nonzero(mask)
+            out[kind] = {"mask": name, "box": [round(float(ys.min()) / h, 3), round(float(xs.min()) / w, 3),
+                                               round(float(ys.max() + 1) / h, 3), round(float(xs.max() + 1) / w, 3)]}
+    # Lights: warm, bright and small, below the ridge line. Copies share their source's layout, and their
+    # own night can have false lights (orange autumn leaves) or hidden ones (rain), so use the source.
+    source = _meta(set_key).get("source")
+    lit = crop_for(LIBRARY / source / "night.png", width, height, 0.5) if source in complete_sets() else crops["night"]
+    big = np.asarray(Image.open(lit).convert("RGB").resize((960, round(960 * h / w))), np.float32)
+    r, g, b = big[..., 0], big[..., 1], big[..., 2]
+    glow = big.mean(axis=2)
+    warm = (r > 215) & (g > 160) & (b < 160) & (r - b > 80)
+    warm &= glow - uniform_filter(glow, size=21) > 45  # a lit spot in the dark, not orange foliage
+    rows = np.arange(big.shape[0])[:, None] / big.shape[0]
+    cols = ((np.arange(big.shape[1]) + 0.5) / big.shape[1] * len(skyline)).astype(int)
+    warm &= rows > np.asarray(skyline)[cols][None, :] - 0.02
+    labels, n = label(warm)
+    spots = []
+    for i in range(1, n + 1):
+        ys, xs = np.nonzero(labels == i)
+        if 1 <= len(ys) <= 80:
+            spots.append((len(ys), xs.mean() / big.shape[1], ys.mean() / big.shape[0]))
+    lights = []
+    for size, x, y in sorted(spots, reverse=True):  # neighbouring windows become one light
+        if all(abs(x - lx) > 0.02 or abs(y - ly) > 0.03 for lx, ly, _ in lights):
+            lights.append([round(float(x), 4), round(float(y), 4), round(float(min(0.004, 0.0012 * np.sqrt(size))), 4)])
+    out["lights"] = lights[:10]
+    return out
 
 
 def _thumb(src, dst, width=640):
@@ -644,6 +796,7 @@ def write_gallery(display):
             "scene": _scene(key, width, height, crops),
             "look": meta.get("weather") or meta.get("season"),
             "terrain": meta.get("terrain"),
+            "masks": _mask_paths(_scene(key, width, height, crops), f"../sets/{key}/"),
             "feature": meta.get("feature", ""),
             "thumb": f"thumbs/{_thumb(LIBRARY / key / 'day.png', thumbs / f'{key}.jpg').name}",
         }
@@ -653,6 +806,10 @@ def write_gallery(display):
     (GALLERY_DIR / "data.js").write_text(f"window.GALLERY = {json.dumps({'sets': sets})};\n")
     shutil.copyfile(GALLERY_PAGE, GALLERY_DIR / "index.html")
     return GALLERY_DIR / "index.html"
+
+
+def _mask_paths(scene, prefix):
+    return {k: prefix + scene[k]["mask"] for k in ("water", "waterfalls") if k in scene}
 
 
 def write_live(set_key, display, wx):
@@ -668,6 +825,13 @@ def write_live(set_key, display, wx):
         images[phase] = name
         keep.add(name)
     info = _scene(set_key, width, height, crops)
+    masks = _mask_paths(info, "")
+    for kind, name in masks.items():
+        live_name = f"{set_key}_{name}"
+        if not (LIVE_DIR / live_name).exists():
+            os.link(LIBRARY / set_key / name, LIVE_DIR / live_name)
+        masks[kind] = live_name
+        keep.add(live_name)
     for old in LIVE_DIR.iterdir():
         if old.name not in keep:
             old.unlink()
@@ -680,6 +844,8 @@ def write_live(set_key, display, wx):
         "anchors": [[[int(t.timestamp() * 1000), phase] for t, phase in anchors(d)] for d in days],
         "weather": wx,
         "look": _meta(set_key).get("weather") or _meta(set_key).get("season"),
+        "terrain": _meta(set_key).get("terrain"),
+        "masks": masks,
     }
     (LIVE_DIR / "state.js").write_text(f"window.WALLPAPER = {json.dumps(state)};\n")
     page = LIVE_DIR / "index.html"
