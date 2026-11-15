@@ -1,0 +1,11 @@
+{
+  "leases": [
+    {"device": "Sim-A", "kind": "ios", "session_id": "s-1", "project": "/Users/me/Hacking/projects/tren/.claude/worktrees/loving-cray", "since": 1000, "last_activity": 1600}
+  ],
+  "queues": {"ios": [{"session_id": "s-2", "project": "/Users/me/Hacking/NorsCare/nors", "since": 1500}], "android": []},
+  "reservations": {"Emu-A": {"session_id": "s-3", "until": 99999999999}},
+  "requests": [
+    {"id": 1, "status": "pending", "command": "xcrun simctl create X", "project": "/tmp"},
+    {"id": 2, "status": "approved", "command": "xcrun simctl delete Y", "project": "/tmp"}
+  ]
+}

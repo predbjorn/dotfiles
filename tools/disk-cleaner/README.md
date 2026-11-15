@@ -40,6 +40,25 @@ The scan runs as Disk Cleaner, so for a complete map give the app Full Disk
 Access (the "N folders unreadable" link in the Disk Map header opens the setting).
 macOS may drop that grant after a rebuild, since the app is ad-hoc signed.
 
+## simq
+
+When simq (`~/Hacking/simq`) is set up, the Devices pane reads its
+`$SIMQ_HOME/policy.json` and `state.json` (default `~/.simq`, read-only, no lock)
+and shows:
+
+- a summary line: sims/emulators held, sessions queued, pending requests;
+- pool sims/AVDs as `simq Sim-A · held|free|reserved`, with who holds it and how
+  long it has been idle. Delete is disabled while a session holds one, and
+  otherwise warns that removing it breaks the pool;
+- running sims/AVDs outside the pool as `Running · outside simq pool`;
+- `Pinned by simq` on the pinned iOS runtime and Android system image, and a
+  `simq pin` suffix on pinned Gradle versions. Gradle versions simq doesn't pin
+  get **Delete N not pinned by simq**.
+
+A missing `~/.simq` or a broken policy hides all of this. Tests:
+`swift test` (fixture in `Tests/DiskCleanerTests/Fixtures/simq`). To preview a
+state, run `open -a DiskCleaner --env SIMQ_HOME=/path/to/fixture`.
+
 ## Install
 
 ```bash
