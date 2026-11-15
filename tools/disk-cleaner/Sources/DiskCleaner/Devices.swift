@@ -11,6 +11,8 @@ struct SimDevice: Identifiable {
     let dataPath: String
     var size: Int64?
     let lastBooted: Date?
+    /// Name in the simq pool (e.g. "Sim-A"), if it's a pool device.
+    var simqPool: String?
     var id: String { udid }
     var booted: Bool { state == "Booted" }
 }
@@ -37,6 +39,7 @@ struct AndroidAVD: Identifiable {
     let systemImage: String?
     var size: Int64?
     let running: Bool
+    var simqPool: String?
     var id: String { name }
 }
 
@@ -59,6 +62,8 @@ struct CacheItem: Identifiable {
     let badge: (String, Color)?
     var size: Int64?
     var orphaned = false
+    /// A Gradle download simq doesn't pin (when simq is set up).
+    var simqUnpinned = false
     /// Safe to sweep in a group: nothing is working in it right now (or nothing uses it).
     var idle = false
     var warning: String?
@@ -86,10 +91,12 @@ enum DeleteTarget: Identifiable {
 
     var title: String {
         switch self {
+        case .sim(let d) where d.simqPool != nil: "Remove simq pool simulator “\(d.name)”?"
         case .sim(let d): "Delete simulator “\(d.name)”?"
         case .simCaches(let d): "Clear caches of “\(d.name)”?"
         case .unavailableSims(let n): "Delete \(n) unavailable simulator\(n == 1 ? "" : "s")?"
         case .runtime(let r, _): "Delete runtime \(r.name)?"
+        case .avd(let a) where a.simqPool != nil: "Remove simq pool emulator “\(a.displayName)”?"
         case .avd(let a): "Delete emulator “\(a.displayName)”?"
         case .image(let i): "Delete system image \(i.label)?"
         case .cache(let c): "Delete \(c.title)?"
@@ -100,7 +107,7 @@ enum DeleteTarget: Identifiable {
     var message: String {
         switch self {
         case .sim(let d):
-            "\(d.runtime) · \(d.size.map(formatBytes) ?? "unknown size"). Its apps and data are removed permanently."
+            (d.simqPool != nil ? Simq.poolDeleteWarning + "\n\n" : "") + "\(d.runtime) · \(d.size.map(formatBytes) ?? "unknown size"). Its apps and data are removed permanently."
                 + (d.booted ? " It is running and will be shut down first." : "")
         case .simCaches:
             "Empties Library/Caches and tmp inside the simulator (system and app caches). "
@@ -111,7 +118,7 @@ enum DeleteTarget: Identifiable {
             "Frees \(formatBytes(r.size)). Xcode can download it again."
                 + (used > 0 ? " \(used) simulator\(used == 1 ? "" : "s") use this runtime and will become unavailable." : "")
         case .avd(let a):
-            "\(a.size.map(formatBytes) ?? "unknown size"). The emulator's data and snapshots are removed permanently."
+            (a.simqPool != nil ? Simq.poolDeleteWarning + "\n\n" : "") + "\(a.size.map(formatBytes) ?? "unknown size"). The emulator's data and snapshots are removed permanently."
         case .image(let i):
             "Frees \(i.size.map(formatBytes) ?? "space"). Android Studio's SDK Manager can download it again."
                 + (i.usedBy.isEmpty ? "" : " Used by: \(i.usedBy.joined(separator: ", ")) — they won't boot until it's reinstalled.")
@@ -152,11 +159,11 @@ final class DevicesModel: ObservableObject {
             async let p = ProjectScan.load()
             async let act = Activity.load()
             let (sims, runtimes, avds, scan, activity) = await (s, r, a, p, act)
-            self.sims = sims
+            self.sims = sims.map { var d = $0; d.simqPool = scan.simq?.poolName(udid: d.udid); return d }
             self.runtimes = runtimes
-            self.avds = avds
+            self.avds = avds.map { var a = $0; a.simqPool = scan.simq?.poolName(avd: a.name); return a }
             self.scan = scan
-            self.images = await Self.loadImages(avds: avds, simq: scan.simq)
+            self.images = await Self.loadImages(avds: self.avds, simq: scan.simq)
             self.derivedData = Self.loadDerivedData(activity: activity)
             self.scratch = Self.loadScratchBuilds(activity: activity)
             self.gradle = Self.loadGradle(daemonRunning: await Self.gradleDaemonRunning(), scan: scan)
@@ -293,7 +300,7 @@ final class DevicesModel: ObservableObject {
         }
     }
 
-    nonisolated static func loadImages(avds: [AndroidAVD], simq: SimqPolicy?) async -> [SystemImage] {
+    nonisolated static func loadImages(avds: [AndroidAVD], simq: Simq?) async -> [SystemImage] {
         let fm = FileManager.default
         let root = "\(Paths.androidSDK)/system-images"
         var out: [SystemImage] = []
@@ -415,9 +422,14 @@ final class DevicesModel: ObservableObject {
         func item(path: String, title: String, what: String, key: String, version: String) -> CacheItem {
             let usage = scan.gradleUsage(key)
             let newestNote = version == newest ? "newest installed" : nil
+            let simqNote = scan.simq.map { $0.gradleVersions.contains(version) ? nil : "not pinned by simq" } ?? nil
             return CacheItem(path: path, title: title,
-                             subtitle: [usage.summary, newestNote, what].compactMap { $0 }.joined(separator: " · "),
-                             badge: usage.badge, idle: usage.isUnused, warning: warning, details: usage.details)
+                             subtitle: [usage.summary, simqNote, newestNote, what].compactMap { $0 }.joined(separator: " · "),
+                             badge: usage.badge,
+                             // Not pinned by simq and nothing building with it now (no daemon, no recent build).
+                             simqUnpinned: (scan.simq.map { !$0.gradleVersions.contains(version) } ?? false)
+                                 && !usage.daemonRunning && usage.recent.isEmpty,
+                             idle: usage.isUnused, warning: warning, details: usage.details)
         }
         let shared = "shared by every Gradle build (\(scan.gradleCheckouts) checkouts in ~/Hacking)"
 
@@ -509,6 +521,19 @@ struct DevicesView: View {
 
     private var unavailable: Int { model.sims.filter { !$0.available }.count }
 
+    private var simq: Simq? { model.scan?.simq }
+
+    /// "simq Sim-A: held by tren (idle 3m)"
+    private func simqText(_ pool: String?) -> String? {
+        guard let pool, let simq else { return nil }
+        return "simq \(pool): \(simq.state(of: pool).text)"
+    }
+
+    private func isHeld(_ pool: String?) -> Bool {
+        guard let pool, let simq, case .held = simq.state(of: pool) else { return false }
+        return true
+    }
+
     /// Which projects this iOS runtime can run (deployment target ≤ runtime version), and
     /// whether it's the only installed runtime that can.
     private func runtimeUsage(_ r: SimRuntime) -> (text: String, badge: (String, Color)?, details: [String])? {
@@ -535,6 +560,11 @@ struct DevicesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
+                if let simq {
+                    Label(simq.summary(), systemImage: "list.number")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .help("Read from \(Simq.home) (policy.json, state.json)")
+                }
                 if let error = model.error {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                         .textSelection(.enabled)
@@ -551,18 +581,21 @@ struct DevicesView: View {
                         DeviceRow(
                             icon: d.name.contains("iPad") ? "ipad" : (d.name.contains("Watch") ? "applewatch" : "iphone"),
                             title: d.name,
-                            subtitle: [d.runtime, model.scan?.repo(named: d.name).map { "named for \($0)" },
+                            subtitle: [simqText(d.simqPool), d.booted && d.simqPool != nil ? "running" : nil,
+                                       d.runtime, model.scan?.repo(named: d.name).map { "named for \($0)" },
                                        d.lastBooted.map { "booted \($0.formatted(.relative(presentation: .named)))" } ?? "never booted"]
                                 .compactMap { $0 }.joined(separator: " · "),
-                            badge: d.booted ? ("Running", .green) : (!d.available ? ("Unavailable", .orange)
-                                : (model.scan?.simq?.iosPool.contains(d.udid) == true ? ("simq pool", .blue) : nil)),
+                            badge: !d.available ? ("Unavailable", .orange)
+                                : (simq?.badge(pool: d.simqPool, running: d.booted) ?? (d.booted ? ("Running", .green) : nil)),
                             secondary: d.dataPath.isEmpty ? nil : RowAction(
                                 label: "Clear caches", systemImage: "sparkles", enabled: !d.booted,
                                 help: d.booted ? "Shut the simulator down first" : "Empty its Library/Caches and tmp; apps and data stay"
                             ) { pending = .simCaches(d) },
                             size: d.size,
                             busy: model.busy.contains(DeleteTarget.sim(d).id) || model.busy.contains(DeleteTarget.simCaches(d).id),
-                            reveal: d.dataPath.isEmpty ? nil : (d.dataPath as NSString).deletingLastPathComponent
+                            reveal: d.dataPath.isEmpty ? nil : (d.dataPath as NSString).deletingLastPathComponent,
+                            canDelete: !isHeld(d.simqPool),
+                            deleteHelp: isHeld(d.simqPool) ? "A Claude session holds it through simq" : nil
                         ) { pending = .sim(d) }
                     }
                 }
@@ -583,6 +616,7 @@ struct DevicesView: View {
                                        r.lastUsed.map { "used \($0.formatted(.relative(presentation: .named)))" }]
                                 .compactMap { $0 }.joined(separator: " · "),
                             badge: r.state != "Ready" ? (r.state, .orange)
+                                : simq?.iosRuntime == r.runtimeID ? ("Pinned by simq", .blue)
                                 : (projects?.badge ?? (users == 0 ? ("Unused", .orange) : nil)),
                             details: projects?.details ?? [],
                             size: r.size,
@@ -602,16 +636,17 @@ struct DevicesView: View {
                         DeviceRow(
                             icon: "candybarphone",
                             title: a.displayName,
-                            subtitle: ([a.systemImage.map { $0.split(separator: "/").dropFirst().joined(separator: " · ") } ?? a.name]
-                                       + [model.scan?.repo(named: a.displayName).map { "named for \($0)" }].compactMap { $0 })
-                                .joined(separator: " · "),
-                            badge: a.running ? ("Running", .green)
-                                : (model.scan?.simq?.androidPool.contains(a.name) == true ? ("simq pool", .blue) : nil),
+                            subtitle: [simqText(a.simqPool), a.running && a.simqPool != nil ? "running" : nil,
+                                       a.systemImage.map { $0.split(separator: "/").dropFirst().joined(separator: " · ") } ?? a.name,
+                                       model.scan?.repo(named: a.displayName).map { "named for \($0)" }]
+                                .compactMap { $0 }.joined(separator: " · "),
+                            badge: simq?.badge(pool: a.simqPool, running: a.running) ?? (a.running ? ("Running", .green) : nil),
                             size: a.size,
                             busy: model.busy.contains("avd-\(a.name)"),
                             reveal: a.dir,
-                            canDelete: !a.running,
-                            deleteHelp: a.running ? "Close the emulator first" : nil
+                            canDelete: !a.running && !isHeld(a.simqPool),
+                            deleteHelp: a.running ? "Close the emulator first"
+                                : (isHeld(a.simqPool) ? "A Claude session holds it through simq" : nil)
                         ) { pending = .avd(a) }
                     }
                 }
@@ -626,7 +661,8 @@ struct DevicesView: View {
                             icon: "opticaldisc",
                             title: i.label,
                             subtitle: i.usedBy.isEmpty ? "not used by any emulator" : "used by \(i.usedBy.joined(separator: ", "))",
-                            badge: i.usedBy.isEmpty ? ("Unused", .orange) : nil,
+                            badge: simq?.androidImage == i.relative ? ("Pinned by simq", .blue)
+                                : (i.usedBy.isEmpty ? ("Unused", .orange) : nil),
                             size: i.size,
                             busy: model.busy.contains("img-\(i.path)"),
                             reveal: i.path
@@ -649,7 +685,9 @@ struct DevicesView: View {
 
                 CacheSection(title: "Gradle", systemImage: "cube.box",
                              items: model.gradle, loaded: model.loaded, busy: model.busy,
-                             groups: [.init(button: "unused", label: "Gradle versions no project pins", filter: \.idle)],
+                             groups: [.init(button: "unused", label: "Gradle versions no project pins", filter: \.idle),
+                                      .init(button: "not pinned by simq", label: "Gradle versions simq doesn't pin (caches and downloads)",
+                                            filter: \.simqUnpinned)],
                              pending: $pending)
             }
             .padding(20)

@@ -1,0 +1,8 @@
+{
+  "ios_runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "android_image": "system-images;android-35;google_apis_playstore;arm64-v8a",
+  "ios_pool": {"Sim-A": "AAAAAAAA-0000-0000-0000-000000000001", "Sim-B": "BBBBBBBB-0000-0000-0000-000000000002"},
+  "android_pool": ["Emu-A"],
+  "idle_minutes": 45,
+  "gradle_versions": ["8.11.1", "9.0.0", "9.3.1"]
+}

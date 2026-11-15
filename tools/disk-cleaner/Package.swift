@@ -6,5 +6,6 @@ let package = Package(
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(name: "DiskCleaner"),
+        .testTarget(name: "DiskCleanerTests", dependencies: ["DiskCleaner"], resources: [.copy("Fixtures")]),
     ]
 )

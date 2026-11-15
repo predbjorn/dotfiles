@@ -81,31 +81,10 @@ struct Usage {
     var badge: (String, Color) {
         if checkouts.isEmpty { return pinnedBy != nil ? ("Pinned by \(pinnedBy!)", .blue) : ("Unused", .orange) }
         let n = recent.count
-        if n > 0 { return ("Built by \(n) · \(Self.recentDays) d", .green) }
-        if daemonRunning { return ("Daemon running", .green) }
-        return ("Idle · pinned by \(repoCount) repo\(repoCount == 1 ? "" : "s")", .yellow)
-    }
-}
-
-/// `~/.simq/policy.json`, written by the simq tool (optional).
-struct SimqPolicy {
-    var iosRuntime: String?          // com.apple.CoreSimulator.SimRuntime.iOS-26-5
-    var androidImage: String?        // system-images/android-35/google_apis_playstore/arm64-v8a
-    var iosPool: Set<String> = []    // UDIDs
-    var androidPool: Set<String> = [] // AVD names
-    var gradleVersions: Set<String> = []
-
-    static func load() -> SimqPolicy? {
-        let path = "\(Paths.home)/.simq/policy.json"
-        guard let data = FileManager.default.contents(atPath: path),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        var p = SimqPolicy()
-        p.iosRuntime = json["ios_runtime"] as? String
-        p.androidImage = (json["android_image"] as? String)?.replacingOccurrences(of: ";", with: "/")
-        p.iosPool = Set(((json["ios_pool"] as? [String: String]) ?? [:]).values)
-        p.androidPool = Set((json["android_pool"] as? [String]) ?? [])
-        p.gradleVersions = Set((json["gradle_versions"] as? [String]) ?? [])
-        return p
+        let pin = pinnedBy.map { " · \($0) pin" } ?? ""
+        if n > 0 { return ("Built by \(n) · \(Self.recentDays) d" + pin, .green) }
+        if daemonRunning { return ("Daemon running" + pin, .green) }
+        return ("Idle · pinned by \(repoCount) repo\(repoCount == 1 ? "" : "s")" + pin, .yellow)
     }
 }
 
@@ -122,7 +101,7 @@ struct ProjectScan {
     /// Lowest IPHONEOS_DEPLOYMENT_TARGET per checkout.
     var iosTargets: [Checkout: String] = [:]
     var repoNames: Set<String> = []
-    var simq: SimqPolicy?
+    var simq: Simq?
 
     var gradleCheckouts: Int { Set(gradle.filter { !$0.key.contains("-") }.values.flatMap { $0 }).count }
 
@@ -162,7 +141,7 @@ struct ProjectScan {
         async let ps = Shell.run("/bin/ps", ["-axo", "command"])
         let out = await found.out
         var scan = ProjectScan()
-        scan.simq = SimqPolicy.load()
+        scan.simq = Simq.load()
         var checkouts: [String: Checkout] = [:]
         for file in out.split(separator: "\n").map(String.init) {
             let c = checkout(for: file, root: root, cache: &checkouts)
