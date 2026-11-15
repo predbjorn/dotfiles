@@ -1,30 +1,42 @@
 """Firewatch-style wallpaper rotation.
 
-Weekly: generate a new landscape with Gemini, rendered in four palettes
-(dawn, day, golden, night) sharing one composition.
-Daily: pick one landscape set at random from the library and keep it all day.
+Library: landscape sets made on demand with Gemini, each rendered in four palettes
+(dawn, day, golden, night) sharing one composition, dressed for a season
+(snow in winter, golden larches in autumn, ...) or for rain. Nothing is generated
+automatically; the library is fixed and rotated.
+Daily: pick one landscape set at random from the library and keep it all day,
+preferring sets from the current season once there are a few. While it rains
+(or snows) in Oslo, a rain (or snow) set takes over if the library has one.
 Through the day: cross-fade between the palettes following Oslo's sun, so the
 desktop drifts night -> dawn -> day -> golden -> night instead of jumping.
 Also writes ~/Pictures/wallpaperscript/live/, a self-contained page that animates
-the same blend with clouds, mist, birds and stars (shown on the desktop by Plash).
+the same blend with clouds, mist, birds and stars (shown on the desktop by Plash),
+plus Oslo's current weather from MET Norway (yr.no): rain, snow, fog, overcast, wind.
 
 Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
 
-  wallpaper.py              generate if this week's set is missing, then apply
-  wallpaper.py --generate   force a new set now
+  wallpaper.py              apply the current blend
+  wallpaper.py --generate   make a new set now (4 Gemini images), shown first today
   wallpaper.py --reroll     pick a different set for today
   wallpaper.py --at 07:30   show the blend for that time today (preview; changes nothing saved)
+  wallpaper.py --convert 2026-W42 winter
+                            make a winter (or spring/autumn/rain) copy of a set (4 Gemini images)
+  wallpaper.py --show 2026-W42-rain
+                            show that set for the rest of today
 """
 
 import argparse
 import datetime
 import fcntl
 import json
+import math
 import os
 import random
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from io import BytesIO
 from pathlib import Path
 
@@ -44,7 +56,11 @@ LIVE_DIR = LIBRARY.parent / "live"  # page + state for the animated desktop
 LIVE_PAGE = Path(__file__).resolve().parent / "live-wallpaper/index.html"
 BLEND_STEPS = 20  # blend factor resolution; caps how many distinct wallpapers a fade makes
 PHASES = ["dawn", "day", "golden", "night"]
-RETRY_AFTER = datetime.timedelta(hours=1)
+WEATHER_FILE = LIBRARY.parent / "weather.json"
+# MET Norway asks for a User-Agent naming the client; keep it generic.
+WEATHER_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=59.91&lon=10.75"
+WEATHER_AGENT = "dotfiles-wallpaper/1.0"
+WEATHER_MAX_AGE = datetime.timedelta(minutes=30)
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 load_dotenv(Path.home() / ".dotfiles/.env")
@@ -115,6 +131,60 @@ PHASE_EXTRA = {
 }
 
 
+SEASON_OF_MONTH = {12: "winter", 1: "winter", 2: "winter", 3: "winter", 4: "spring", 5: "spring",
+                   6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+
+SEASON_SCENE = {
+    "winter": "Deep winter: thick snow blankets the ground, the rocks and every pine branch, the peaks are "
+              "snow-capped and any lake or river is frozen white.",
+    "spring": "Late spring: fresh meadow grass and a few wildflowers, the last snow only on the highest peaks.",
+    "summer": "",
+    "autumn": "Autumn: golden larches and birches glow among the dark pines, and fallen leaves lie on the rocks.",
+}
+
+# Weather looks; falling rain and snow are left out because the live page animates them.
+WEATHER_SCENE = {
+    "rain": "A rainy day: a heavy grey cloud deck hides the sun and the birds, low clouds and drifting mist "
+            "hang between the ridges and veil the peaks, the rocks and trail glisten wet with small puddles, "
+            "and the colours are softer and greyer than before. Do not draw falling raindrops.",
+}
+
+CONVERT_PROMPT = (
+    "Generate a single image only, no text response. "
+    "Redraw this exact illustration in a different season. Keep the composition, every shape, every tree, "
+    "every layer, the level of detail and the colour palette; only add what the season brings. "
+    "Do not draw falling snow. {scene}"
+)
+
+WEATHER_CONVERT_PROMPT = (
+    "Generate a single image only, no text response. "
+    "Redraw this exact illustration in different weather. Keep the composition, every shape, every tree, "
+    "every layer and the level of detail; only change what the weather brings. {scene}"
+)
+
+LOOKS = [*SEASON_SCENE, *WEATHER_SCENE]
+
+# Recolouring otherwise brings back a blazing sun or washes the snow into the palette.
+KEEP_LOOK = {
+    "winter": "Keep all the snow: it takes on the colour of the light but stays clearly paler than the forests, "
+              "so the scene still reads as deep winter.",
+    "spring": "Keep the fresh grass and wildflowers.",
+    "autumn": "Keep the golden larches and birches and the fallen leaves.",
+    "rain": "Keep the rainy weather: the heavy cloud deck still hides the sun, the moon and the stars, "
+            "with low clouds, mist and wet rocks; the light only tints the clouds.",
+}
+WEATHER_PHASE_EXTRA = {  # replaces PHASE_EXTRA for weather looks
+    "dawn": "Early morning: a faint pale glow behind the clouds near the horizon.",
+    "golden": "Late evening: a warm glow seeps through a break in the clouds along the horizon; no visible sun.",
+    "night": "Night under a heavy cloud deck: no moon and no stars; the lookout tower cabin has one small warm "
+             "lit window if a tower is present.",
+}
+
+
+def season_of(date):
+    return SEASON_OF_MONTH[date.month]
+
+
 # --- state -------------------------------------------------------------------
 
 def load_state():
@@ -126,11 +196,6 @@ def load_state():
 
 def save_state(state):
     STATE_FILE.write_text(json.dumps(state, indent=2))
-
-
-def week_key(date):
-    year, week, _ = date.isocalendar()
-    return f"{year}-W{week:02d}"
 
 
 def complete_sets():
@@ -161,49 +226,48 @@ def _generate_image(client, contents):
     raise RuntimeError(f"No image in Gemini response: {response.text!r}")
 
 
-def generate_set(key):
+def recolour(client, base, look, phase):
+    print(f"  recolouring {phase}")
+    extra = (WEATHER_PHASE_EXTRA if look in WEATHER_SCENE else PHASE_EXTRA)[phase]
+    extra = f"{extra} {KEEP_LOOK.get(look, '')}".strip()
+    return _generate_image(client, [RECOLOUR_PROMPT.format(extra=extra, palette=PALETTES[phase]), base])
+
+
+def generate_set(key, look=None, source=None):
+    """Make a set: a new landscape, or with source=<set key> a season/weather copy of an existing one."""
     from google import genai
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    feature = random.choice(FEATURES)
+    look = look or season_of(datetime.date.today())
     tmp = LIBRARY / f".{key}.tmp"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir(parents=True)
 
-    print(f"Generating {key}: {feature}")
-    base = _generate_image(client, BASE_PROMPT.format(feature=feature, palette=PALETTES["day"]))
+    if source:
+        feature = json.loads((LIBRARY / source / "meta.json").read_text()).get("feature", "")
+        print(f"Converting {source} to {look} as {key}")
+        prompt = (WEATHER_CONVERT_PROMPT.format(scene=WEATHER_SCENE[look]) if look in WEATHER_SCENE
+                  else CONVERT_PROMPT.format(scene=SEASON_SCENE[look]))
+        base = _generate_image(client, [prompt, Image.open(LIBRARY / source / "day.png")])
+    else:
+        feature = random.choice(FEATURES)
+        print(f"Generating {key} ({look}): {feature}")
+        scene = f"{feature} {SEASON_SCENE.get(look) or WEATHER_SCENE[look]}".strip()
+        base = _generate_image(client, BASE_PROMPT.format(feature=scene, palette=PALETTES["day"]))
     base.save(tmp / "day.png")
     for phase in ["dawn", "golden", "night"]:
-        print(f"  recolouring {phase}")
-        prompt = RECOLOUR_PROMPT.format(extra=PHASE_EXTRA[phase], palette=PALETTES[phase])
-        _generate_image(client, [prompt, base]).save(tmp / f"{phase}.png")
+        recolour(client, base, look, phase).save(tmp / f"{phase}.png")
 
     (tmp / "meta.json").write_text(json.dumps({
         "created": datetime.date.today().isoformat(),
         "model": MODEL,
         "feature": feature,
+        **({"weather": look} if look in WEATHER_SCENE else {"season": look}),
+        **({"source": source} if source else {}),
     }, indent=2))
     final = LIBRARY / key
     shutil.rmtree(final, ignore_errors=True)
     tmp.rename(final)
-
-
-def ensure_this_week(state, force=False):
-    key = week_key(datetime.date.today())
-    if not force and key in complete_sets():
-        return
-    last = state.get("last_attempt")
-    now = datetime.datetime.now()
-    if not force and last and now - datetime.datetime.fromisoformat(last) < RETRY_AFTER:
-        return
-    state["last_attempt"] = now.isoformat(timespec="seconds")
-    save_state(state)
-    try:
-        generate_set(key)
-    except Exception as e:  # keep rotating existing sets if generation fails
-        print(f"Generation failed: {e}", file=sys.stderr)
-        if force:
-            raise
 
 
 # --- daily pick & phase ------------------------------------------------------
@@ -212,19 +276,49 @@ def _seeded_choice(date, options):
     return random.Random(date.isoformat()).choice(options) if options else None
 
 
-def pick_set(date, state):
+def pick_set(date, state, wx=None):
     sets = complete_sets()
     if not sets:
         return None
     override = state.get("overrides", {}).get(date.isoformat())
     if override in sets:
         return override
-    for key in sets:  # a set generated today gets shown first
-        meta = LIBRARY / key / "meta.json"
-        if meta.exists() and json.loads(meta.read_text()).get("created") == date.isoformat():
+    metas = {key: _meta(key) for key in sets}
+    falling = (wx or {}).get("kind")
+    if falling in ("rain", "sleet") or (wx or {}).get("thunder"):
+        wet = [s for s in sets if metas[s].get("weather") == "rain"]
+    elif falling == "snow":
+        wet = [s for s in sets if metas[s].get("season") == "winter"]
+    else:
+        wet = []
+    if wet:
+        return _seeded_choice(date, wet)
+    for key in sets:  # a set made today gets shown first
+        if metas[key].get("created") == date.isoformat():
             return key
-    yesterday = _seeded_choice(date - datetime.timedelta(days=1), sets)
-    return _seeded_choice(date, [s for s in sets if s != yesterday] or sets)
+    return _seeded_pick(date, _season_pool(date, [s for s in sets if not metas[s].get("weather")], metas))
+
+
+def _meta(key):
+    try:
+        return json.loads((LIBRARY / key / "meta.json").read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _season_pool(date, sets, metas):
+    """This season's sets once there are a couple; before that, everything but other seasons' snow."""
+    season = season_of(date)
+    matching = [s for s in sets if metas[s].get("season") == season]
+    if len(matching) >= 2:
+        return matching
+    # Sets without snow fit any time of year; snowy ones only in winter.
+    return [s for s in sets if season == "winter" or metas[s].get("season") != "winter"] or sets
+
+
+def _seeded_pick(date, pool):
+    yesterday = _seeded_choice(date - datetime.timedelta(days=1), pool)
+    return _seeded_choice(date, [s for s in pool if s != yesterday] or pool)
 
 
 def _sun_times(date):
@@ -412,7 +506,63 @@ def _skyline(paths):
     return [round(float(v), 3) for v in ridge]
 
 
-def write_live(set_key, display):
+def _fetch_forecast(cached):
+    req = urllib.request.Request(WEATHER_URL, headers={"User-Agent": WEATHER_AGENT})
+    if cached.get("last_modified"):
+        req.add_header("If-Modified-Since", cached["last_modified"])
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return {"fetched": datetime.datetime.now().isoformat(timespec="seconds"),
+                    "last_modified": resp.headers.get("Last-Modified"),
+                    "forecast": json.load(resp)}
+    except urllib.error.HTTPError as e:
+        if e.code == 304:  # unchanged since last time
+            return {**cached, "fetched": datetime.datetime.now().isoformat(timespec="seconds")}
+        raise
+
+
+def weather(now):
+    """Oslo's weather for this hour from MET Norway, cached; None when unavailable."""
+    try:
+        cached = json.loads(WEATHER_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        cached = {}
+    fetched = cached.get("fetched")
+    if not fetched or datetime.datetime.now() - datetime.datetime.fromisoformat(fetched) > WEATHER_MAX_AGE:
+        try:
+            cached = _fetch_forecast(cached)
+            WEATHER_FILE.write_text(json.dumps(cached))
+        except Exception as e:  # offline: keep the last forecast if there is one
+            print(f"Weather fetch failed: {e}", file=sys.stderr)
+    series = cached.get("forecast", {}).get("properties", {}).get("timeseries", [])
+    hour = now.astimezone(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
+    entry = next((e for e in series if datetime.datetime.fromisoformat(e["time"].replace("Z", "+00:00")) >= hour), None)
+    if not entry:
+        return None
+    details = entry["data"]["instant"]["details"]
+    nxt = entry["data"].get("next_1_hours", {})
+    symbol = nxt.get("summary", {}).get("symbol_code", "")
+    precip = nxt.get("details", {}).get("precipitation_amount", 0.0)
+    temp = details.get("air_temperature", 5.0)
+    kind = ("snow" if "snow" in symbol else "sleet" if "sleet" in symbol else "rain" if "rain" in symbol
+            else None if precip < 0.1 else "snow" if temp <= 0 else "sleet" if temp <= 1.5 else "rain")
+    strength = 0.3 if symbol.startswith("light") else 0.9 if symbol.startswith("heavy") else 0.55
+    wind = details.get("wind_speed", 0.0)
+    return {
+        "symbol": symbol,
+        "clouds": round(details.get("cloud_area_fraction", 30.0) / 100, 2),
+        "fog": 1.0 if symbol.startswith("fog") else round(max(0.0, details.get("fog_area_fraction", 0.0)) / 100, 2),
+        "kind": kind,
+        "intensity": round(max(strength, min(precip / 4, 1.0)), 2) if kind else 0.0,
+        "thunder": "thunder" in symbol,
+        "wind": round(wind, 1),
+        # East-west part of the wind (positive blows towards the right of a north-facing view).
+        "wind_x": round(-math.sin(math.radians(details.get("wind_from_direction", 270.0))) * wind, 1),
+        "temp": temp,
+    }
+
+
+def write_live(set_key, display, wx):
     """Mirror today's set into LIVE_DIR so the page (and Plash) only needs that folder."""
     LIVE_DIR.mkdir(exist_ok=True)
     width, height = round(display["w"] * display["k"]), round(display["h"] * display["k"])
@@ -441,6 +591,8 @@ def write_live(set_key, display):
         "images": images,
         "scene": info,
         "anchors": [[[int(t.timestamp() * 1000), phase] for t, phase in anchors(d)] for d in days],
+        "weather": wx,
+        "look": _meta(set_key).get("weather") or _meta(set_key).get("season"),
     }
     (LIVE_DIR / "state.js").write_text(f"window.WALLPAPER = {json.dumps(state)};\n")
     page = LIVE_DIR / "index.html"
@@ -455,7 +607,12 @@ def main():
     parser.add_argument("--generate", action="store_true", help="force a new landscape set now")
     parser.add_argument("--reroll", action="store_true", help="pick a different set for today")
     parser.add_argument("--at", help="preview the blend at HH:MM today (not saved to state)")
+    parser.add_argument("--convert", nargs=2, metavar=("SET", "LOOK"),
+                        help=f"make a copy of a set in another look ({', '.join(LOOKS)}), shown first today")
+    parser.add_argument("--show", metavar="SET", help="show this set for the rest of today")
     args = parser.parse_args()
+    if args.convert and args.convert[1] not in LOOKS:
+        parser.error(f"look must be one of {', '.join(LOOKS)}")
 
     LIBRARY.mkdir(parents=True, exist_ok=True)
     with open(LOCK_FILE, "w") as lock:
@@ -466,18 +623,29 @@ def main():
             return
 
         state = load_state()
-        ensure_this_week(state, force=args.generate)
+        if args.convert:
+            source, look = args.convert
+            generate_set(f"{source}-{look}", look=look, source=source)
+        if args.generate:
+            generate_set(datetime.datetime.now().strftime("%Y-%m-%d-%H%M"))
 
         today = datetime.date.today()
-        if args.reroll:
-            current = pick_set(today, state)
+        wx = weather(datetime.datetime.now().astimezone())
+        override = None
+        if args.show:
+            if args.show not in complete_sets():
+                parser.error(f"no complete set {args.show!r}; have {', '.join(complete_sets())}")
+            override = args.show
+        elif args.reroll:
+            current = pick_set(today, state, wx)
             others = [s for s in complete_sets() if s != current]
-            if others:
-                overrides = {k: v for k, v in state.get("overrides", {}).items() if k >= today.isoformat()}
-                overrides[today.isoformat()] = random.choice(others)
-                state["overrides"] = overrides
+            override = random.choice(others) if others else None
+        if override:
+            overrides = {k: v for k, v in state.get("overrides", {}).items() if k >= today.isoformat()}
+            overrides[today.isoformat()] = override
+            state["overrides"] = overrides
 
-        set_key = pick_set(today, state)
+        set_key = pick_set(today, state, wx)
         if set_key is None:
             print("No landscape sets yet", file=sys.stderr)
             save_state(state)
@@ -492,7 +660,7 @@ def main():
             a, t = b, 0.0
         displays = screens()
         signature = f"{today.isoformat()}/{set_key}/{a}-{b}-{t:.2f}/{len(displays)}"
-        if signature != state.get("applied") or args.reroll or args.generate or args.at:
+        if signature != state.get("applied") or args.reroll or args.show or args.generate or args.at or args.convert:
             paths = apply(set_key, a, b, t, displays)
             print(f"Wallpaper: {set_key} {a}->{b} {t:.2f} -> {[str(p) for p in paths]}")
             if args.at:
@@ -501,7 +669,7 @@ def main():
                 return
             state["applied"] = signature
         try:  # the live page is extra; never let it stop the still wallpaper
-            write_live(set_key, displays[0])
+            write_live(set_key, displays[0], wx)
         except Exception as e:
             print(f"Live page update failed: {e}", file=sys.stderr)
         save_state(state)
