@@ -64,6 +64,8 @@ launchctl bootout gui/$(id -u) $WALLPAPER_PLIST 2>/dev/null
 sed -e "s|__PYTHON__|$PYTHON_BIN|" -e "s|__DOTFILES__|$DOTFILES|" -e "s|__HOME__|$HOME|g" \
 	$DOTFILES/.config/launchd/com.predbjorn.wallpaper.plist > $WALLPAPER_PLIST
 launchctl bootstrap gui/$(id -u) $WALLPAPER_PLIST
+# gallery's "Use today" button (dotfiles-wallpaper:// links -> wallpaper.py --show)
+PYTHON_BIN=$PYTHON_BIN DOTFILES=$DOTFILES $DOTFILES/bin/wallpaper-url-handler.sh
 # daily brew upgrade (launchd agent, runs script/brew-upgrade.sh at 12:00)
 BREW_UPGRADE_PLIST=$HOME/Library/LaunchAgents/com.predbjorn.brew-upgrade.plist
 chmod +x $DOTFILES/script/brew-upgrade.sh
