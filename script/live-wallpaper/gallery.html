@@ -79,8 +79,8 @@ const el = id => document.getElementById(id);
 el("count").textContent = `${setKeys.length} sets`;
 el("sets").innerHTML = setKeys.map(k => {
   const s = G.sets[k];
-  return `<a class="card" data-set="${k}"><img src="${s.thumb}" loading="lazy" alt=""><div><b>${k}</b>` +
-         (s.look ? `<span class="badge">${s.look}</span>` : "") + `<p>${s.feature}</p></div></a>`;
+  return `<a class="card" data-set="${k}" title="${s.feature}"><img src="${s.thumb}" loading="lazy" alt=""><div><b>${k}</b>` +
+         [s.terrain, s.look].filter(Boolean).map(b => `<span class="badge">${b}</span>`).join("") + `</div></a>`;
 }).join("");
 WEATHERS.forEach(w => el("weather").insertAdjacentHTML("beforeend", `<a class="chip" data-weather="${w}">${w === "live" ? "Live (Oslo now)" : w}</a>`));
 PHASES.forEach(p => el("phase").insertAdjacentHTML("beforeend", `<a class="chip" data-phase="${p}">${PHASE_NAMES[p]}</a>`));
@@ -105,8 +105,8 @@ function render() {
 
   const src = `../live/index.html?${hashFor(s).slice(1)}`;
   const g = G.sets[s.set];
-  el("what").textContent = `${s.set}${g.look ? " · " + g.look : ""} · ` +
-    `${s.weather === "live" ? "live weather" : s.weather} · ${PHASE_NAMES[s.phase]} — ${g.feature}`;
+  el("what").textContent = [s.set, g.terrain, g.look, s.weather === "live" ? "live weather" : s.weather,
+                            PHASE_NAMES[s.phase]].filter(Boolean).join(" · ");
   el("full").href = src;
   if (src !== shown) {
     shown = src;

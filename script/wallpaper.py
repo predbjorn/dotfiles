@@ -16,7 +16,9 @@ plus Oslo's current weather from MET Norway (yr.no): rain, snow, fog, overcast, 
 Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
 
   wallpaper.py              apply the current blend
-  wallpaper.py --generate   make a new set now (4 Gemini images), shown first today
+  wallpaper.py --generate [fjord]
+                            make a new set now (4 Gemini images), shown first today; without a
+                            terrain, one the library has fewest of
   wallpaper.py --reroll     pick a different set for today
   wallpaper.py --at 07:30   show the blend for that time today (preview; changes nothing saved)
   wallpaper.py --convert 2026-W42 winter
@@ -72,19 +74,15 @@ load_dotenv(Path.home() / ".dotfiles/.env")
 BASE_PROMPT = (
     "Generate a single image only, no text response. "
     "A wide 21:9 ultrawide desktop wallpaper in the style of the Firewatch video game key art and Olly Moss's "
-    "Firewatch posters: a richly detailed, layered vector landscape of the Wyoming wilderness. "
-    "Deep parallax with 12 to 15 distinct depth layers receding into the distance. "
-    "Far back: tall mountain ranges with sharp faceted peaks, each mountain shaded with flat light and shadow facets. "
-    "Middle: many overlapping ridges blanketed in dense pine forest, every forest layer made of hundreds of individual "
-    "jagged, pointed pine and spruce silhouettes along its edge, with soft bands of atmospheric haze and mist "
-    "between the layers so each layer separates from the next. {feature} "
-    "Foreground: large, detailed near-black pine trees with visible branch tiers framing the left and right edges, "
-    "and a rocky ridge with grass and scattered boulders along the bottom. "
-    "Sky: a smooth vertical gradient with a large glowing sun low over the ridges, gentle radiating light, "
+    "Firewatch posters: a richly detailed, layered vector landscape. "
+    "Deep parallax with 10 to 15 distinct depth layers receding into the distance, each shaded with flat light "
+    "and shadow facets, with soft bands of atmospheric haze and mist between the layers so each layer separates "
+    "from the next. Scene: {feature} "
+    "Sky: a smooth vertical gradient with a large glowing sun low in the sky, gentle radiating light, "
     "a few long thin layered clouds, and a loose flock of small birds. "
     "Shapes are clean vector silhouettes with crisp edges and no outlines; colour comes from a strong single-hue "
     "analogous palette that shifts from light and hazy in the distance to dark and saturated up close. "
-    "Dramatic, cinematic, quiet and lonely mood. High detail, intricate tree lines, poster quality. "
+    "Dramatic, cinematic, quiet and lonely mood. High detail, intricate edges, poster quality. "
     "No people, no text, no logo, no title. "
     "Full-bleed artwork reaching every edge: no borders, no frame, no margins.\n\n"
     "Palette: {palette}"
@@ -97,18 +95,45 @@ RECOLOUR_PROMPT = (
     "Palette: {palette}"
 )
 
-# The lookout tower is the Firewatch signature, so it appears in most scenes.
-FEATURES = [
-    "On a rocky outcrop in the near-middle ground stands a tall wooden fire lookout tower on a lattice of stilts "
-    "with a small cabin on top, drawn as a detailed silhouette.",
-    "On a high ridge to one side stands a wooden fire lookout tower with a cabin on top, small against the mountains, "
-    "with a winding trail leading up to it.",
-    "A fire lookout tower stands on a hilltop above a still mountain lake that mirrors the forest and sky.",
-    "A winding river glints through the valley floor between the forested ridges, with a distant lookout tower "
-    "on a far hill.",
-    "The ridges open into a deep canyon with layered faceted rock walls, a lookout tower perched on the rim.",
-    "A wide open alpine meadow stretches across the middle distance, with a lone lookout tower beyond it.",
-]
+# Each terrain is a whole scene, so sets differ in more than the landmark.
+_FOREST = ("Far back: tall mountain ranges with sharp faceted peaks. Middle: many overlapping ridges blanketed in "
+           "dense pine forest, every forest layer made of hundreds of jagged pine and spruce silhouettes. ")
+_FOREST_FRONT = (" Foreground: large, detailed near-black pine trees with visible branch tiers framing the left and "
+                 "right edges, and a rocky ridge with grass and scattered boulders along the bottom.")
+TERRAINS = {  # the first six are the original Firewatch forest scenes
+    "tower": _FOREST + "On a rocky outcrop in the near-middle ground stands a tall wooden fire lookout tower on a "
+             "lattice of stilts with a small cabin on top, drawn as a detailed silhouette." + _FOREST_FRONT,
+    "ridge": _FOREST + "On a high ridge to one side stands a wooden fire lookout tower with a cabin on top, small "
+             "against the mountains, with a winding trail leading up to it." + _FOREST_FRONT,
+    "lake": _FOREST + "A fire lookout tower stands on a hilltop above a still mountain lake that mirrors the forest "
+            "and sky." + _FOREST_FRONT,
+    "river": _FOREST + "A winding river glints through the valley floor between the forested ridges, with a distant "
+             "lookout tower on a far hill." + _FOREST_FRONT,
+    "canyon": _FOREST + "The ridges open into a deep canyon with layered faceted rock walls, a lookout tower perched "
+              "on the rim." + _FOREST_FRONT,
+    "meadow": _FOREST + "A wide open alpine meadow stretches across the middle distance, with a lone lookout tower "
+              "beyond it." + _FOREST_FRONT,
+    "fjord": "A deep Norwegian fjord seen from high above the water: sheer faceted cliff walls plunge into still "
+             "dark water that mirrors the sky and winds away between the mountains, a thin waterfall ribbons down "
+             "one cliff, and a tiny red boathouse with a wooden jetty sits on a grassy shelf by the water. "
+             "Foreground: a bare rock ledge with heather and a few slender birches on one side only, leaving the "
+             "view open.",
+    "island": "A wide calm lake fills most of the middle distance with a small rocky island crowned by three pines "
+              "and a tiny cabin; low rounded hills and a soft far shoreline behind it. Foreground: a pebble beach "
+              "with tall reeds and an upturned wooden canoe; open sky and no trees framing the edges.",
+    "coast": "A rugged sea coast: layered headlands and tall sea stacks recede into the haze, waves break in white "
+             "lines on the rocks, and a lighthouse with a keeper's cottage stands on the nearest headland. "
+             "Foreground: a cliff top of wind-bent grass and one wind-sculpted pine leaning in from the edge.",
+    "highland": "Bare rolling highland moors with no forest: long grassy ridges fold into the distance under a big "
+                "sky, a dry stone wall winds over them to a small stone hut, with scattered boulders and a distant "
+                "range of rounded mountains. Foreground: heather and a lone twisted tree.",
+    "waterfall": "A tall waterfall pours from a high cliff into a misty gorge, a rope bridge spans the gorge in the "
+                 "middle distance, and terraced cliffs with clinging pines rise on both sides. Foreground: mossy "
+                 "boulders, ferns and one huge old pine leaning in from the side.",
+    "mesa": "A red rock desert: flat-topped mesas and buttes layered into the distance, a dry wash winding through "
+            "the valley floor, junipers and sagebrush, and a weathered wooden lookout cabin on the nearest mesa. "
+            "Foreground: slickrock ledges and a gnarled juniper.",
+}
 
 # Each phase follows one of the classic Firewatch colourways.
 PALETTES = {
@@ -230,6 +255,17 @@ def _generate_image(client, contents):
     raise RuntimeError(f"No image in Gemini response: {response.text!r}")
 
 
+def _fresh_terrain():
+    """A terrain the library has fewest sets of, so new sets look different."""
+    counts = {t: 0 for t in TERRAINS}
+    for key in complete_sets():
+        t = _meta(key).get("terrain")
+        if t in counts:
+            counts[t] += 1
+    least = min(counts.values())
+    return random.choice([t for t, n in counts.items() if n == least])
+
+
 def recolour(client, base, look, phase):
     print(f"  recolouring {phase}")
     extra = (WEATHER_PHASE_EXTRA if look in WEATHER_SCENE else PHASE_EXTRA)[phase]
@@ -237,8 +273,8 @@ def recolour(client, base, look, phase):
     return _generate_image(client, [RECOLOUR_PROMPT.format(extra=extra, palette=PALETTES[phase]), base])
 
 
-def generate_set(key, look=None, source=None):
-    """Make a set: a new landscape, or with source=<set key> a season/weather copy of an existing one."""
+def generate_set(key, look=None, source=None, terrain=None):
+    """Make a set: a new landscape (of a terrain), or with source=<set key> a season/weather copy of one."""
     from google import genai
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -248,15 +284,17 @@ def generate_set(key, look=None, source=None):
     tmp.mkdir(parents=True)
 
     if source:
-        feature = json.loads((LIBRARY / source / "meta.json").read_text()).get("feature", "")
+        feature = _meta(source).get("feature", "")
+        terrain = _meta(source).get("terrain")
         print(f"Converting {source} to {look} as {key}")
         prompt = (WEATHER_CONVERT_PROMPT.format(scene=WEATHER_SCENE[look]) if look in WEATHER_SCENE
                   else CONVERT_PROMPT.format(scene=SEASON_SCENE[look]))
         base = _generate_image(client, [prompt, Image.open(LIBRARY / source / "day.png")])
     else:
-        feature = random.choice(FEATURES)
-        print(f"Generating {key} ({look}): {feature}")
-        scene = f"{feature} {SEASON_SCENE.get(look) or WEATHER_SCENE[look]}".strip()
+        terrain = terrain or _fresh_terrain()
+        feature = TERRAINS[terrain]
+        print(f"Generating {key} ({terrain}, {look})")
+        scene = f"{feature} {SEASON_SCENE[look] if look in SEASON_SCENE else WEATHER_SCENE[look]}".strip()
         base = _generate_image(client, BASE_PROMPT.format(feature=scene, palette=PALETTES["day"]))
     base.save(tmp / "day.png")
     for phase in ["dawn", "golden", "night"]:
@@ -266,6 +304,7 @@ def generate_set(key, look=None, source=None):
         "created": datetime.date.today().isoformat(),
         "model": MODEL,
         "feature": feature,
+        **({"terrain": terrain} if terrain else {}),
         **({"weather": look} if look in WEATHER_SCENE else {"season": look}),
         **({"source": source} if source else {}),
     }, indent=2))
@@ -311,13 +350,13 @@ def _meta(key):
 
 
 def _season_pool(date, sets, metas):
-    """This season's sets once there are a couple; before that, everything but other seasons' snow."""
+    """This season's sets once there are a couple; before that, plain sets plus this season's."""
     season = season_of(date)
     matching = [s for s in sets if metas[s].get("season") == season]
     if len(matching) >= 2:
         return matching
-    # Sets without snow fit any time of year; snowy ones only in winter.
-    return [s for s in sets if season == "winter" or metas[s].get("season") != "winter"] or sets
+    # Plain (summer or undressed) sets fit any time of year; dressed ones only in their own season.
+    return [s for s in sets if metas[s].get("season") in (None, "summer", season)] or sets
 
 
 def _seeded_pick(date, pool):
@@ -419,7 +458,9 @@ def crop_for(master_path, width, height, align):
     img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
     left = round((img.width - width) * align)
     top = (img.height - height) // 2
-    img.crop((left, top, left + width, top + height)).save(out)
+    tmp = out.with_name(f".{out.name}.{os.getpid()}.png")  # atomic: another run may read it meanwhile
+    img.crop((left, top, left + width, top + height)).save(tmp)
+    os.replace(tmp, out)
     return out
 
 
@@ -598,6 +639,7 @@ def write_gallery(display):
             "images": {phase: f"../sets/{key}/{crop.name}" for phase, crop in crops.items()},
             "scene": _scene(key, width, height, crops),
             "look": meta.get("weather") or meta.get("season"),
+            "terrain": meta.get("terrain"),
             "feature": meta.get("feature", ""),
             "thumb": f"thumbs/{_thumb(LIBRARY / key / 'day.png', thumbs / f'{key}.jpg').name}",
         }
@@ -645,7 +687,9 @@ def write_live(set_key, display, wx):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--generate", action="store_true", help="force a new landscape set now")
+    parser.add_argument("--generate", nargs="?", const="any", metavar="TERRAIN",
+                        help=f"make a new set now, of a terrain ({', '.join(TERRAINS)}); "
+                             "default: one the library has least of")
     parser.add_argument("--reroll", action="store_true", help="pick a different set for today")
     parser.add_argument("--at", help="preview the blend at HH:MM today (not saved to state)")
     parser.add_argument("--convert", nargs=2, metavar=("SET", "LOOK"),
@@ -676,7 +720,11 @@ def main():
             source, look = args.convert
             generate_set(f"{source}-{look}", look=look, source=source)
         if args.generate:
-            generate_set(datetime.datetime.now().strftime("%Y-%m-%d-%H%M"))
+            terrain = None if args.generate == "any" else args.generate
+            if terrain and terrain not in TERRAINS:
+                parser.error(f"terrain must be one of {', '.join(TERRAINS)}")
+            terrain = terrain or _fresh_terrain()
+            generate_set(f"{datetime.date.today().isoformat()}-{terrain}", look="summer", terrain=terrain)
 
         today = datetime.date.today()
         wx = weather(datetime.datetime.now().astimezone())
