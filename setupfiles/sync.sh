@@ -10,6 +10,21 @@ XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
 # mkdir -p $HOME/.warp/themes/
 # cp $DOTFILES/themes/catppuccin_mocha.yml $HOME/.warp/themes/
 
+# Android AVDs: one folder for avdmanager (~/.config/.android/avd) and emulator
+# (~/.android/avd). GUI apps (Android Studio, Disk Cleaner, simq from it) don't
+# read ANDROID_AVD_HOME from zsh, so link the folder. Leaves a non-empty
+# ~/.android/avd alone: move its AVDs over by hand first.
+mkdir -p $XDG_CONFIG_HOME/.android/avd
+if [ ! -L $HOME/.android/avd ]; then
+  mkdir -p $HOME/.android
+  rmdir $HOME/.android/avd 2>/dev/null || true
+  if [ -e $HOME/.android/avd ]; then
+    echo "warn: ~/.android/avd has AVDs; move them to $XDG_CONFIG_HOME/.android/avd and re-run"
+  else
+    ln -s $XDG_CONFIG_HOME/.android/avd $HOME/.android/avd
+  fi
+fi
+
 # finicky
 cp $DOTFILES/.config/.finicky.js $HOME/.finicky.js 
 
