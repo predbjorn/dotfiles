@@ -6,6 +6,7 @@ sketchybar --add event simq_changed \
 	--add item simq right \
 	--set simq \
 	update_freq=60 \
+	updates=on \
 	drawing=off \
 	icon="󰀦" \
 	icon.color="$COLOR" \
