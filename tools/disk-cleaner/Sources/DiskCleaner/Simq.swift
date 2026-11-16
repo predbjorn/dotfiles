@@ -17,6 +17,28 @@ struct Simq {
         var projectName: String { project.map { ($0 as NSString).lastPathComponent } ?? "unknown project" }
     }
 
+    /// A pending approval request from a Claude session (only `pending` ones are decoded).
+    struct Request {
+        let id: Int
+        let type: String
+        let project: String?
+        let command: String
+        let detail: String?
+        let reason: String?
+        let cwd: String?
+        let created: Date?
+
+        var projectName: String { project.map { ($0 as NSString).lastPathComponent } ?? "unknown project" }
+    }
+
+    /// A session waiting in a device queue.
+    struct Waiter {
+        let sessionID: String
+        let project: String?
+        let device: String?
+        let since: Date?
+    }
+
     /// Where a pool device stands right now.
     enum DeviceState: Equatable {
         case held(project: String, idleMinutes: Int?)
@@ -39,9 +61,13 @@ struct Simq {
     var gradleVersions: Set<String> = []
 
     var leases: [Lease] = []
-    var queued: [String: Int] = [:]          // kind → sessions waiting
+    var queues: [String: [Waiter]] = [:]     // kind → sessions waiting
     var reservations: [String: Date] = [:]   // device → reserved until
-    var pendingRequests = 0
+    var requests: [Request] = []             // pending only, newest first
+    var idleMinutesLimit = 45
+
+    var queued: [String: Int] { queues.mapValues(\.count) }
+    var pendingRequests: Int { requests.count }
 
     static var home: String { ProcessInfo.processInfo.environment["SIMQ_HOME"] ?? "\(Paths.home)/.simq" }
 
@@ -60,6 +86,8 @@ struct Simq {
         s.androidPool = (p["android_pool"] as? [Any] ?? []).compactMap { $0 as? String }
         s.gradleVersions = Set((p["gradle_versions"] as? [Any] ?? []).compactMap { $0 as? String })
 
+        s.idleMinutesLimit = (p["idle_minutes"] as? NSNumber)?.intValue ?? 45
+
         guard let state, let st = (try? JSONSerialization.jsonObject(with: state)) as? [String: Any] else { return s }
         let date: (Any?) -> Date? = { ($0 as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) } }
         s.leases = (st["leases"] as? [Any] ?? []).compactMap { any in
@@ -67,9 +95,21 @@ struct Simq {
             return Lease(device: device, kind: l["kind"] as? String ?? "", sessionID: l["session_id"] as? String ?? "",
                          project: l["project"] as? String, since: date(l["since"]), lastActivity: date(l["last_activity"]))
         }
-        s.queued = (st["queues"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? [Any])?.count }
+        s.queues = (st["queues"] as? [String: Any] ?? [:]).mapValues { any in
+            (any as? [Any] ?? []).compactMap { w in
+                guard let w = w as? [String: Any], let sid = w["session_id"] as? String else { return nil }
+                return Waiter(sessionID: sid, project: w["project"] as? String, device: w["device"] as? String, since: date(w["since"]))
+            }
+        }
         s.reservations = (st["reservations"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? [String: Any]).flatMap { date($0["until"]) } }
-        s.pendingRequests = (st["requests"] as? [Any] ?? []).filter { ($0 as? [String: Any])?["status"] as? String == "pending" }.count
+        s.requests = (st["requests"] as? [Any] ?? []).compactMap { any -> Request? in
+            guard let r = any as? [String: Any], r["status"] as? String == "pending",
+                  let id = (r["id"] as? NSNumber).flatMap({ $0 === kCFBooleanTrue || $0 === kCFBooleanFalse ? nil : $0.intValue })
+            else { return nil }
+            return Request(id: id, type: r["type"] as? String ?? "", project: r["project"] as? String,
+                           command: r["command"] as? String ?? "", detail: r["detail"] as? String,
+                           reason: r["reason"] as? String, cwd: r["cwd"] as? String, created: date(r["created"]))
+        }.sorted { ($0.created ?? .distantPast, $0.id) > ($1.created ?? .distantPast, $1.id) }
         return s
     }
 
@@ -86,6 +126,12 @@ struct Simq {
         }
         if let until = reservations[device], until > now { return .reserved }
         return .free
+    }
+
+    /// Held by a Claude session that has been inactive for `idleMinutesLimit` or more (never the human).
+    func isIdle(_ l: Lease, now: Date = Date()) -> Bool {
+        guard l.sessionID != "human", let last = l.lastActivity else { return false }
+        return now.timeIntervalSince(last) >= Double(idleMinutesLimit) * 60
     }
 
     /// "simq: 1/2 sims held · 0/1 emulators held · 1 queued · 1 pending request"
