@@ -555,12 +555,15 @@ def _phase_info(path):
     }
 
 
-def _skyline(paths, suns=()):
+def _skyline(paths, suns=(), guide=None):
     """Per column (240 samples), the height where the mountains start, as a fraction from the top.
 
-    The first strong colour step from the top. Night works best: the sky is dark against lit ridges,
-    while at dawn pale peaks melt into the sky. Glows and clouds give false hits that sit too high and
-    differ per image, so with several images the lowest hit is the real ridge. The sun/moon discs
+    With a guide (a traced line, [[x, y], ...] fractions of the crop, from the set's features.json), each
+    column takes the strongest colour step near the guide: clouds, glow bands and the moon sit far from
+    it, and the step puts the line exactly on the ridge, tree tip or tower roof.
+    Without one: the first strong colour step from the top. Night works best: the sky is dark against lit
+    ridges, while at dawn pale peaks melt into the sky. Glows and clouds give false hits that sit too high
+    and differ per image, so with several images the lowest hit is the real ridge. The sun/moon discs
     (suns: [x, y, r] fractions, as from _phase_info) are skipped so they don't count as peaks.
     """
     import numpy as np
@@ -569,12 +572,21 @@ def _skyline(paths, suns=()):
     lines = []
     for path in paths:
         small = _small(path)
-        h = small.shape[0]
+        h, ww = small.shape[:2]
         sm = uniform_filter(small, size=(7, 7, 1))
-        step = np.abs(sm[4:] - sm[:-4]).sum(axis=2)[int(h * 0.05):]
-        hit = step > 40
-        first = (np.where(hit.any(axis=0), hit.argmax(axis=0), int(h * 0.55)) + int(h * 0.05) + 2).astype(float)
-        ww = len(first)
+        step = np.zeros((h, ww))
+        step[2:-2] = np.abs(sm[4:] - sm[:-4]).sum(axis=2)  # colour change across each row
+        if guide:
+            gx, gy = np.asarray(guide, float).T
+            g = np.interp((np.arange(ww) + 0.5) / ww, gx, gy) * h
+            rows = np.arange(h)[:, None]
+            near = (rows > g - 0.04 * h) & (rows < g + 0.04 * h)
+            score = np.where(near, step - 600 * np.abs(rows - g) / h, -1)  # prefer edges close to the guide
+            first = np.where(score.max(axis=0) > 30, score.argmax(axis=0), g).astype(float)
+            lines.append(first[::2] / h)
+            continue
+        hit = step[int(h * 0.05):] > 40
+        first = (np.where(hit.any(axis=0), hit.argmax(axis=0), int(h * 0.55)) + int(h * 0.05)).astype(float)
         for sx, sy, sr in suns:  # bridge straight across under the disc and its glow
             r = max(sr * 5, 0.045) * ww
             cols = np.abs(np.arange(ww) - sx * ww) < r
@@ -582,7 +594,7 @@ def _skyline(paths, suns=()):
             if cols.any() and not cols.all():
                 first[cols] = np.interp(np.flatnonzero(cols), np.flatnonzero(~cols), first[~cols])
         lines.append(first[::2] / h)
-    ridge = median_filter(np.max(lines, axis=0), size=9, mode="nearest")
+    ridge = median_filter(np.max(lines, axis=0), size=3 if guide else 9, mode="nearest")
     return [round(float(v), 3) for v in ridge]
 
 
@@ -653,11 +665,14 @@ def _scene(set_key, width, height, crops):
     # A season/weather copy has the same layout as its source, whose clear sky gives a cleaner skyline
     # than clouds, rain or snow.
     source = _meta(set_key).get("source")
+    traced = _features(set_key).get("skyline")
+    guide = [[x, y] for y, x, _, _ in (_to_crop([y, x, y, x], master(set_key, "night"), width, height)
+                                       for x, y in traced)] if traced else None
     if source in complete_sets():
         night = crop_for(master(source, "night"), width, height, 0.5)
-        info["skyline"] = _skyline([night], [_phase_info(night)["sun"]])
+        info["skyline"] = _skyline([night], [_phase_info(night)["sun"]], guide)
     else:
-        info["skyline"] = _skyline([crops["night"]], [info["night"]["sun"]])
+        info["skyline"] = _skyline([crops["night"]], [info["night"]["sun"]], guide)
     info.update(_masks(set_key, crops, width, height, info["skyline"]))
     info["v"] = SCENE_VERSION
     info["features"] = _features_file(set_key).exists()  # recompute once detection has run
@@ -665,7 +680,7 @@ def _scene(set_key, width, height, crops):
     return info
 
 
-SCENE_VERSION = 3  # bump when the scene analysis changes, to recompute cached scenes
+SCENE_VERSION = 4  # bump when the scene analysis changes, to recompute cached scenes
 DETECT_MODEL = "gemini-3.8-flash"  # text answer only: a fraction of a cent per set
 DETECT_PROMPT = (
     "This is a landscape illustration. Find (1) every open water surface that would show reflections or "
@@ -755,14 +770,16 @@ def _masks(set_key, crops, width, height, skyline):
         for box in feats.get(kind, []):
             y0, x0, y1, x1 = _to_crop(box, master(set_key, "night"), width, height)
             ys, xs = slice(int(y0 * h), int(np.ceil(y1 * h))), slice(int(x0 * w), int(np.ceil(x1 * w)))
-            region = lum[ys, xs]
-            if not region.size:
+            if not lum[ys, xs].size:
                 continue
             if kind == "water":
                 mask[ys, xs] |= sky_dist[ys, xs] < 15
             else:  # brighter than the cliffs beside it, below the ridge (not the sky in the box)
-                brighter = region - np.median(region, axis=1, keepdims=True) > 25
-                mask[ys, xs] |= brighter & ~above[ys, xs]
+                # The falls fill most of a tight box, so compare with a strip twice its width each side.
+                pad = max(2, xs.stop - xs.start) * 2
+                wide = slice(max(0, xs.start - pad), min(w, xs.stop + pad))
+                cliffs = np.median(lum[ys, wide], axis=1, keepdims=True)
+                mask[ys, xs] |= (lum[ys, xs] - cliffs > 25) & ~above[ys, xs]
         if mask.sum() > 20:
             name = f"{kind}_{width}x{height}.png"
             Image.fromarray((uniform_filter(mask.astype(np.float32), 3) * 255).astype(np.uint8)).save(
