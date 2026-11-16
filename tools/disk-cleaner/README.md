@@ -55,7 +55,26 @@ and shows:
   `simq pin` suffix on pinned Gradle versions. Gradle versions simq doesn't pin
   get **Delete N not pinned by simq**.
 
-A missing `~/.simq` or a broken policy hides all of this. Tests:
+The **simq** pane (`diskcleaner://simq`, or `-pane simq` on launch) is where you
+answer simq instead of the terminal. Its sidebar badge shows the pending request
+count; the sketchybar simq badge opens it. It re-reads `$SIMQ_HOME` whenever simq
+writes it and runs every change through the `simq` CLI (`$SIMQ_BIN`, else
+`~/.local/bin/simq`) with `CLAUDE_*` stripped, so simq sees a human. URLs only
+switch panes; they never run an action.
+
+- **Waiting for you:** pending requests, newest first, with **Approve**,
+  **Approve + pin** (download requests), **Force** (once simq says the request
+  needs `--force`) and **Deny**. CLI output shows under the row.
+- **Pool:** each pool device with holder, held for and idle for; past
+  `idle_minutes` it's flagged "will be handed over on request". **Release**
+  (asks first if a Claude session is still active on it; **Release mine** for
+  yours) and **Take** (`simq acquire <kind> --device X`, free or idle devices
+  only).
+- **Queues:** sessions waiting per kind, with position and wait time.
+- **Health:** **Run doctor** shows `simq doctor` output.
+
+Buttons are disabled while a command runs. A missing `~/.simq` or a broken policy
+hides all of this (the pane says "simq not set up"). Tests:
 `swift test` (fixture in `Tests/DiskCleanerTests/Fixtures/simq`). To preview a
 state, run `open -a DiskCleaner --env SIMQ_HOME=/path/to/fixture`.
 

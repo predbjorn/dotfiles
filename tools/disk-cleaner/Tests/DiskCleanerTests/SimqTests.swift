@@ -121,4 +121,28 @@ final class SimqTests: XCTestCase {
         XCTAssertTrue(SimqCLI.needsForce("only 3.0 GB free, need 9 GB (use --force to override)"))
         XCTAssertFalse(SimqCLI.needsForce("approved #2"))
     }
+
+    @MainActor
+    func testActKeepsOutputOnItsRowAndReloads() async throws {
+        let old = ProcessInfo.processInfo.environment["SIMQ_BIN"]
+        defer { if let old { setenv("SIMQ_BIN", old, 1) } else { unsetenv("SIMQ_BIN") } }
+
+        setenv("SIMQ_BIN", "/bin/echo", 1)
+        let model = SimqModel(home: fixture)
+        XCTAssertEqual(model.simq?.pendingRequests, 2)
+        await model.act("req-3", ["approve", "3"])
+        XCTAssertEqual(model.rowMessage, ["req-3": "approve 3"])
+        XCTAssertFalse(model.running)
+        XCTAssertNotNil(model.simq)
+
+        setenv("SIMQ_BIN", "/usr/bin/false", 1)
+        await model.act("dev-Sim-A", ["release", "Sim-A"])
+        XCTAssertEqual(model.rowMessage["dev-Sim-A"], "Error (exit 1)")
+        XCTAssertEqual(model.rowMessage["req-3"], "approve 3")
+    }
+
+    @MainActor
+    func testModelWithoutHomeIsNotSetUp() {
+        XCTAssertNil(SimqModel(home: "/nonexistent/simq-\(UUID())").simq)
+    }
 }
