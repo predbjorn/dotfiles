@@ -77,7 +77,7 @@ const WEATHER_PRESETS = {
   aurora:   { clouds: 0, wind_x: 1, aurora: true },
 };
 function currentWeather() {
-  const preset = WEATHER_PRESETS[params.get("weather")];
+  const preset = WEATHER_PRESETS[params.get("weather") || (W && W.preset)];  // URL, else the sketchybar menu's pick
   const w = { clouds: 0.3, fog: 0, kind: null, intensity: 0, wind_x: 2, thunder: false,
               ...(preset || (W && W.weather) || {}) };
   if (params.get("intensity")) w.intensity = Number(params.get("intensity"));
