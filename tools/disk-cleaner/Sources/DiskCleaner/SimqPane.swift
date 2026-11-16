@@ -7,7 +7,7 @@ import SwiftUI
 final class SimqModel: ObservableObject {
     @Published var simq: Simq?
     @Published var running = false
-    /// CLI output per row: `"req-<id>"`, `"dev-<name>"` or `"doctor"`.
+    /// CLI output per row: `"req-<id>"`, `"dev-<name>"` or `"health"` (doctor / repair).
     @Published var rowMessage: [String: String] = [:]
     /// The running (or last) command, e.g. `simq approve 3`, and its result once done: shown
     /// pane-wide, so the output survives its row disappearing (an approved request).
@@ -370,10 +370,19 @@ struct SimqHealthSection: View {
 
     var body: some View {
         DeviceSection(title: "Health", systemImage: "stethoscope", total: 0, empty: false, loading: false) {
-            Button("Run doctor") { Task { await model.act("doctor", ["doctor"]) } }
-                .disabled(model.running)
+            HStack {
+                Button("Run doctor") { run(["doctor"]) }
+                // Recreates pool sims/AVDs that no longer exist, under the same names.
+                Button("Create missing devices") { run(["repair"]) }
+                    .help("simq repair: recreate pool simulators and emulators that no longer exist")
+                if let out = model.rowMessage["health"], SimqCLI.needsForce(out) {
+                    Button("Force") { run(["repair", "--force"]) }
+                        .help("Create them even though disk space is short")
+                }
+            }
+            .disabled(model.running)
         } content: {
-            if let out = model.rowMessage["doctor"] {
+            if let out = model.rowMessage["health"] {
                 ScrollView {
                     Text(verbatim: out)
                         .font(.caption.monospaced())
@@ -387,5 +396,9 @@ struct SimqHealthSection: View {
                 Text("Run `simq doctor` to check the pool.").foregroundStyle(.tertiary).padding(8)
             }
         }
+    }
+
+    private func run(_ args: [String]) {
+        Task { await model.act("health", args) }
     }
 }

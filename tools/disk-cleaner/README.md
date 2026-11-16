@@ -71,7 +71,9 @@ switch panes; they never run an action.
   yours) and **Take** (`simq acquire <kind> --device X`, free or idle devices
   only).
 - **Queues:** sessions waiting per kind, with position and wait time.
-- **Health:** **Run doctor** shows `simq doctor` output.
+- **Health:** **Run doctor** shows `simq doctor` output. **Create missing devices**
+  runs `simq repair`, which recreates pool simulators and emulators that no longer
+  exist (same names; **Force** appears when disk space is short).
 
 Buttons are disabled while a command runs. A missing `~/.simq` or a broken policy
 hides all of this (the pane says "simq not set up"). Tests:
