@@ -13,7 +13,8 @@ Through the day: cross-fade between the palettes following Kristiansand's sun, s
 desktop drifts night -> dawn -> day -> golden -> night instead of jumping.
 Also writes ~/Pictures/wallpaperscript/live/, a self-contained page that animates
 the same blend with clouds, mist, birds and stars (shown on the desktop by Plash),
-plus Kristiansand's current weather from MET Norway (yr.no): rain, snow, fog, overcast, wind.
+plus Kristiansand's current weather from MET Norway (yr.no): rain, snow, fog, overcast, wind,
+and a forecast panel for the next hours and days.
 
 Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
 
@@ -48,6 +49,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+import zoneinfo
 from io import BytesIO
 from pathlib import Path
 
@@ -76,7 +78,8 @@ BLEND_STEPS = 20  # blend factor resolution; caps how many distinct wallpapers a
 PHASES = ["dawn", "day", "golden", "night"]
 WEATHER_FILE = WORK / "weather.json"
 # MET Norway asks for a User-Agent naming the client; keep it generic.
-WEATHER_URL = (f"https://api.met.no/weatherapi/locationforecast/2.0/compact"
+# "complete" rather than "compact": it adds the chance of rain for the next hours. Same data as yr.no.
+WEATHER_URL = (f"https://api.met.no/weatherapi/locationforecast/2.0/complete"
                f"?lat={PLACE.latitude:.2f}&lon={PLACE.longitude:.2f}")  # MET wants at most 4 decimals
 WEATHER_AGENT = "dotfiles-wallpaper/1.0"
 WEATHER_MAX_AGE = datetime.timedelta(minutes=30)
@@ -181,8 +184,9 @@ PHASE_EXTRA = {
 }
 
 
-SEASON_OF_MONTH = {12: "winter", 1: "winter", 2: "winter", 3: "winter", 4: "spring", 5: "spring",
-                   6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+# A month ahead of the calendar, so the desktop gets ready for the next season (snow from November).
+SEASON_OF_MONTH = {11: "winter", 12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring",
+                   5: "summer", 6: "summer", 7: "summer", 8: "autumn", 9: "autumn", 10: "autumn"}
 
 SEASON_SCENE = {
     "winter": "Deep winter: thick snow blankets the ground, the rocks and every pine branch, the peaks are "
@@ -628,8 +632,8 @@ def _fetch_forecast(cached):
         raise
 
 
-def weather(now):
-    """The weather here for this hour from MET Norway, cached; None when unavailable."""
+def _series():
+    """MET Norway's hourly forecast for PLACE (refetched every 30 min, last copy kept offline)."""
     try:
         cached = json.loads(WEATHER_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
@@ -643,9 +647,30 @@ def weather(now):
             WEATHER_FILE.write_text(json.dumps(cached))
         except Exception as e:  # offline: keep the last forecast if there is one
             print(f"Weather fetch failed: {e}", file=sys.stderr)
-    series = cached.get("forecast", {}).get("properties", {}).get("timeseries", [])
+    return cached.get("forecast", {}).get("properties", {}).get("timeseries", [])
+
+
+def _when(entry):
+    return datetime.datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
+
+
+def _symbol(entry):
+    data = entry["data"]
+    for span in ("next_1_hours", "next_6_hours", "next_12_hours"):
+        if span in data:
+            return data[span]["summary"]["symbol_code"]
+    return ""
+
+
+def _hour(entry):
+    return entry["data"].get("next_1_hours", {}).get("details", {})
+
+
+def weather(now):
+    """The weather here for this hour from MET Norway, cached; None when unavailable."""
+    series = _series()
     hour = now.astimezone(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
-    entry = next((e for e in series if datetime.datetime.fromisoformat(e["time"].replace("Z", "+00:00")) >= hour), None)
+    entry = next((e for e in series if _when(e) >= hour), None)
     if not entry:
         return None
     details = entry["data"]["instant"]["details"]
@@ -668,6 +693,48 @@ def weather(now):
         # East-west part of the wind (positive blows towards the right of a north-facing view).
         "wind_x": round(-math.sin(math.radians(details.get("wind_from_direction", 270.0))) * wind, 1),
         "temp": temp,
+    }
+
+
+def forecast(now, hours=8, step=3, days=5):
+    """The next hours (every `step`) and days for the live page's forecast panel; None when unavailable."""
+    series = _series()
+    hour = now.astimezone(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
+    ahead = [e for e in series if _when(e) >= hour]
+    if not ahead:
+        return None
+    temp = lambda e: round(e["data"]["instant"]["details"].get("air_temperature", 0.0))
+    rain = lambda e, span: e["data"].get(span, {}).get("details", {}).get("precipitation_amount", 0.0)
+    first = ahead[0]
+    upcoming = [e for e in ahead[1:] if (_when(e) - _when(first)).total_seconds() % (step * 3600) == 0][:hours]
+    tz = zoneinfo.ZoneInfo(PLACE.timezone)
+    by_day = {}
+    for e in ahead:
+        by_day.setdefault(_when(e).astimezone(tz).date(), []).append(e)
+    summary = []
+    for date, entries in list(by_day.items())[:days]:
+        noon = min(entries, key=lambda e: abs(_when(e).astimezone(tz).hour - 13))
+        hourly = [e for e in entries if "next_1_hours" in e["data"]]
+        precip = (sum(rain(e, "next_1_hours") for e in hourly) if len(hourly) >= len(entries) - 1
+                  else sum(rain(e, "next_6_hours") for e in entries if _when(e).hour % 6 == 0))
+        summary.append({"date": date.isoformat(), "min": min(map(temp, entries)), "max": max(map(temp, entries)),
+                        "symbol": _symbol(noon), "precip": round(precip, 1)})
+    details = first["data"]["instant"]["details"]
+    return {
+        "place": PLACE.name,
+        "now": {"temp": temp(first), "symbol": _symbol(first), "wind": round(details.get("wind_speed", 0.0)),
+                "precip": round(rain(first, "next_1_hours"), 1)},
+        # Chance of rain (%) hour by hour for the next 4 hours, for the panel's line chart.
+        # plus the expected rain (mm) and MET's likely range (min-max), as yr draws it.
+        "chance": [{"t": int(_when(e).timestamp() * 1000),
+                    "p": round(_hour(e).get("probability_of_precipitation", 0)),
+                    "mm": _hour(e).get("precipitation_amount", 0.0),
+                    "lo": _hour(e).get("precipitation_amount_min", 0.0),
+                    "hi": _hour(e).get("precipitation_amount_max", 0.0)}
+                   for e in ahead[:5]],
+        "hours": [{"t": int(_when(e).timestamp() * 1000), "temp": temp(e), "symbol": _symbol(e),
+                   "precip": round(rain(e, "next_1_hours") or rain(e, "next_6_hours") / 6, 1)} for e in upcoming],
+        "days": summary,
     }
 
 
@@ -899,8 +966,10 @@ def write_live(set_key, display, wx, preset=None):
         "scene": info,
         "anchors": [[[int(t.timestamp() * 1000), phase] for t, phase in anchors(d)] for d in days],
         "weather": wx,
+        "forecast": forecast(datetime.datetime.now().astimezone()),
         "preset": preset,  # a weather picked from the sketchybar menu; the page uses it over wx
         "look": _meta(set_key).get("weather") or _meta(set_key).get("season"),
+        "season": season_of(today),  # the page's fallback for snow vs. leaves when a set has no look
         "terrain": _meta(set_key).get("terrain"),
         "masks": masks,
     }
