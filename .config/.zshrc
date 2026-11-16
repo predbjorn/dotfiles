@@ -110,6 +110,7 @@ export PATH="node_modules/.bin:vendor/bin:$PATH"
 
 # Local bin directories before anything else
 export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"  # simq and other user tools
 
 # Load custom commands
 # export PATH="$DOTFILES/bin/:$PATH"
