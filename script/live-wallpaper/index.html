@@ -717,10 +717,15 @@ function drawLights(strength, now) {
     const [fx, fy] = lights.reduce((a, b) => (b[1] < a[1] ? b : a));
     const x = X(fx), y = Y(fy), a = (t / 9) * Math.PI * 2;
     const reach = Math.cos(a), towards = Math.sin(a);  // towards > 0: pointing at us
-    const len = img.w * 0.5 * Math.abs(reach), spread = img.h * (0.012 + 0.05 * Math.abs(reach));
-    if (len > 4) {
+    // Seen from the side, the beam stays long; it only foreshortens a little as it turns towards us.
+    const len = img.w * (0.18 + 0.32 * Math.abs(reach)), spread = img.h * (0.018 + 0.05 * Math.abs(reach));
+    if (towards < 0.9) {
       const g = ctx.createLinearGradient(x, y, x + Math.sign(reach) * len, y);
-      g.addColorStop(0, `rgba(255,240,200,${0.4 * strength})`);
+      // Pointing straight away it thins out, so the swap from one side to the other doesn't jump;
+      // turning towards us it hands over to the flash.
+      const fade = towards < 0 ? Math.min(1, Math.abs(reach) * 3) : Math.min(1, (0.9 - towards) / 0.3);
+      g.addColorStop(0, `rgba(255,240,200,${0.6 * strength * fade})`);
+      g.addColorStop(0.45, `rgba(255,240,200,${0.25 * strength * fade})`);
       g.addColorStop(1, "rgba(255,240,200,0)");
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.moveTo(x, y - 2 * u); ctx.lineTo(x + Math.sign(reach) * len, y - spread);
