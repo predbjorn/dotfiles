@@ -55,7 +55,7 @@ from pathlib import Path
 
 from astral import LocationInfo
 from astral.sun import dawn as nautical_dawn, dusk as nautical_dusk, sun
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 from PIL import Image
 
 # Watch spending: https://console.cloud.google.com/billing/01B85F-1A6511-809A4F?project=gen-lang-client-0292679403&authuser=1
@@ -935,6 +935,100 @@ def _mask_paths(scene, prefix):
     return {k: prefix + scene[k]["mask"] for k in ("water", "waterfalls") if k in scene}
 
 
+# --- Tren: this week's training plan for the live page's Tren panel ------------------------------
+# Read straight from Tren's database with the read-only role the Tren ops console uses
+# (PROD_RO_DATABASE_URL in ~/.tren-ops/secrets/prod-ro.env); whose plan is TREN_UID in ~/.dotfiles/.env.
+TREN_DB_ENV = Path.home() / ".tren-ops/secrets/prod-ro.env"
+TREN_FILE = WORK / "tren.json"  # the last good week, shown when the database can't be reached
+TREN_SQL = """
+    select p.date, p.slot, p.session_type, p.sport, p.distance_km, p.duration_min, p.status,
+           p.matched_activity_id is not null, p.start_time, p.prescription, e.distance_km, e.duration_min
+    from planned_sessions p left join enriched_activities e on e.id = p.matched_activity_id
+    where p.uid = %s and p.date between %s and %s and p.status <> 'canceled' and p.session_type <> 'rest'
+    order by p.date, case p.slot when 'am' then 0 when 'single' then 1 else 2 end"""
+TREN_NAMES = {"threshold": "Threshold", "long_run": "Long run", "easy": "Easy", "z1_easy": "Easy",
+              "race": "Race", "strength": "Strength", "vo2max_hill": "Hills", "hill": "Hills",
+              "race_pace": "Race pace", "vo2max_classic": "VO2max"}  # other vo2*: Speed (Tren's speed-labels.ts)
+TREN_KINDS = {"threshold": "threshold", "long_run": "long", "easy": "easy", "z1_easy": "easy",
+              "race": "race", "strength": "strength"}
+
+
+def _tren_label(session_type, sport, prescription):
+    """Tren's name for a session, with its main rep block (e.g. "Threshold 3×6'") when the engine prescribed one."""
+    name = TREN_NAMES.get(session_type) or ("Speed" if session_type.startswith("vo2") else
+                                            (sport or session_type).replace("_", " ").capitalize())
+    green = ((prescription or {}).get("scenarios") or {}).get("green") or {}
+    blocks = [b for b in green.get("blocks") or [] if b.get("role") not in ("warmup", "cooldown")
+              and (b.get("count") or 0) > 0 and (b.get("rep_min") or 0) > 0]
+    if (prescription or {}).get("status") == "prescribed" and blocks:
+        b = max(blocks, key=lambda b: b["count"] * b["rep_min"])
+        rep = f"{round(b['rep_min'] * 60)}s" if b["rep_min"] < 1 else f"{b['rep_min']:g}'"
+        return f"{name} {round(b['count'])}×{rep}", green.get("est_duration_min")
+    return name, green.get("est_duration_min")
+
+
+def _tren_fetch(uid, start, end):
+    import psycopg  # only here, so the wallpaper runs without it
+    url = dotenv_values(TREN_DB_ENV).get("PROD_RO_DATABASE_URL")
+    if not url:
+        raise RuntimeError(f"PROD_RO_DATABASE_URL missing from {TREN_DB_ENV}")
+    with psycopg.connect(url, connect_timeout=3, options="-c statement_timeout=3000") as conn:
+        return conn.execute(TREN_SQL, (uid, start, end)).fetchall()
+
+
+def tren_week(today):
+    """This week's Tren plan (Mon–Sun, plus the next two days once the week is nearly over); None when unavailable."""
+    uid = os.environ.get("TREN_UID")
+    if not uid:
+        return None
+    start = today - datetime.timedelta(days=today.weekday())
+    end = max(start + datetime.timedelta(days=6), today + datetime.timedelta(days=2))
+    try:
+        rows = _tren_fetch(uid, start, end)
+    except Exception as e:  # offline or the database is down: the last good copy of this week, if any
+        print(f"Tren fetch failed: {e}", file=sys.stderr)
+        try:
+            cached = json.loads(TREN_FILE.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return None
+        return cached if cached.get("week_start") == start.isoformat() else None
+    days = {start + datetime.timedelta(days=i): [] for i in range((end - start).days + 1)}
+    for (date, _slot, stype, sport, km, minutes, status, matched, time, rx, done_km, done_min) in rows:
+        label, est_min = _tren_label(stype, sport, rx)
+        done = status == "completed" or matched
+        days[date].append({
+            "kind": TREN_KINDS.get(stype) or ("vo2" if stype.startswith("vo2") or "hill" in stype else
+                                              "cross" if sport not in (None, "running") else "other"),
+            "label": label,
+            "km": round(done_km if done and done_km else km or 0, 1) or None,
+            "min": round(done_min if done and done_min else minutes or est_min or 0) or None,
+            "status": "completed" if done else "skipped" if status == "skipped" else "planned",
+            "plan_km": km or 0,
+            "time": time,
+        })
+    week = [s for d, ss in days.items() if d <= start + datetime.timedelta(days=6) for s in ss]
+    done = [s for s in week if s["status"] == "completed"]
+    out = {
+        "week": start.isocalendar().week,
+        "week_start": start.isoformat(),
+        "days": [{"date": d.isoformat(), "sessions": ss} for d, ss in days.items() if (d - start).days < 7],
+        "next": [{"date": d.isoformat(), "sessions": ss} for d, ss in days.items() if (d - start).days >= 7],
+        "total": {
+            "planned_km": round(sum(s["km"] or 0 if s["status"] == "completed" else s["plan_km"]
+                                    for s in week if s["status"] != "skipped"), 1),
+            "done_km": round(sum(s["km"] or 0 for s in done), 1),
+            "sessions": sum(s["status"] != "skipped" for s in week),
+            "sessions_done": len(done),
+            "done_min": round(sum(s["min"] or 0 for s in done)),
+        },
+    }
+    for d in out["days"] + out["next"]:
+        for sess in d["sessions"]:
+            del sess["plan_km"]  # only for the total
+    TREN_FILE.write_text(json.dumps(out))
+    return out
+
+
 def write_live(set_key, display, wx, preset=None):
     """Mirror today's set into LIVE_DIR so the page (and Plash) only needs that folder."""
     LIVE_DIR.mkdir(exist_ok=True)
@@ -968,6 +1062,7 @@ def write_live(set_key, display, wx, preset=None):
         "weather": wx,
         "forecast": forecast(datetime.datetime.now().astimezone()),
         "preset": preset,  # a weather picked from the sketchybar menu; the page uses it over wx
+        "tren": tren_week(today),  # the Tren panel: this week's training plan
         "look": _meta(set_key).get("weather") or _meta(set_key).get("season"),
         "season": season_of(today),  # the page's fallback for snow vs. leaves when a set has no look
         "terrain": _meta(set_key).get("terrain"),
