@@ -23,12 +23,47 @@ final class SimqModel: ObservableObject {
     deinit {
         source?.cancel()
         poll?.invalidate()
+        retry?.invalidate()
     }
 
-    /// `Simq.load` returns nil only without a readable policy (not set up); a state.json caught
-    /// mid-write still gives the policy with an empty state, so just replace.
+    /// Not set up (nil) only when policy.json doesn't exist. A policy or state.json that exists but
+    /// can't be read or parsed (caught mid-write) keeps the last good state and retries once in 1 s,
+    /// so a transient bad read neither empties the pane nor waits for the next directory event.
     func reload() {
-        simq = Simq.load(home: home)
+        retry?.invalidate()
+        retry = nil
+        let fm = FileManager.default
+        let policyPath = "\(home)/policy.json", statePath = "\(home)/state.json"
+        guard fm.fileExists(atPath: policyPath) else { simq = nil; return }
+
+        let policy = fm.contents(atPath: policyPath)
+        let state = fm.contents(atPath: statePath)
+        let parsed = policy.flatMap { Simq.parse(policy: $0, state: state) }
+        let stateBad = fm.fileExists(atPath: statePath)
+            && (state.map { (try? JSONSerialization.jsonObject(with: $0)) as? [String: Any] == nil } ?? true)
+
+        if let parsed, !stateBad {
+            simq = parsed
+        } else if simq != nil {
+            scheduleRetry()                 // keep the last good state
+        } else {
+            simq = parsed                   // nothing better to show: broken policy → not set up
+            if parsed != nil { scheduleRetry() }
+        }
+    }
+
+    private var retry: Timer?
+
+    private func scheduleRetry() {
+        retry = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // Only one retry: if it's still bad, wait for the next directory event.
+                self.reload()
+                self.retry?.invalidate()
+                self.retry = nil
+            }
+        }
     }
 
     /// Runs one CLI command at a time, keeps its output on the row, then re-reads the state.

@@ -145,4 +145,39 @@ final class SimqTests: XCTestCase {
     func testModelWithoutHomeIsNotSetUp() {
         XCTAssertNil(SimqModel(home: "/nonexistent/simq-\(UUID())").simq)
     }
+
+    @MainActor
+    func testReloadKeepsLastGoodStateOnBadReads() throws {
+        let fm = FileManager.default
+        let home = NSTemporaryDirectory() + "simq-\(UUID())"
+        try fm.copyItem(atPath: fixture, toPath: home)
+        defer { try? fm.removeItem(atPath: home) }
+
+        let model = SimqModel(home: home)
+        XCTAssertEqual(model.simq?.requests.map(\.id), [3, 1])
+
+        try Data("{partial".utf8).write(to: URL(fileURLWithPath: home + "/state.json"))
+        model.reload()
+        XCTAssertEqual(model.simq?.requests.map(\.id), [3, 1], "bad state.json keeps the last good state")
+
+        try Data("{partial".utf8).write(to: URL(fileURLWithPath: home + "/policy.json"))
+        model.reload()
+        XCTAssertEqual(model.simq?.requests.map(\.id), [3, 1], "bad policy.json keeps the last good state")
+
+        try fm.removeItem(atPath: home + "/policy.json")
+        model.reload()
+        XCTAssertNil(model.simq, "no policy.json means not set up")
+    }
+
+    @MainActor
+    func testReloadWithoutStateFileIsAllFree() throws {
+        let fm = FileManager.default
+        let home = NSTemporaryDirectory() + "simq-\(UUID())"
+        try fm.createDirectory(atPath: home, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(atPath: home) }
+        try fm.copyItem(atPath: fixture + "/policy.json", toPath: home + "/policy.json")
+        let model = SimqModel(home: home)
+        XCTAssertEqual(model.simq?.requests.count, 0)
+        XCTAssertEqual(model.simq?.state(of: "Sim-A"), .free)
+    }
 }
