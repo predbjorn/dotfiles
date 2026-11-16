@@ -8,26 +8,31 @@ NAME="${NAME:-simq}"
 
 # Line 1 = pending count; then one line per not-yet-notified pending request.
 OUT="$(SIMQ_HOME="$SIMQ_HOME" STATE_FILE="$STATE_FILE" /usr/bin/python3 -I -c '
-import json, os, sys
+import json, os
 try:
     with open(os.path.join(os.environ["SIMQ_HOME"], "state.json")) as f:
         reqs = json.load(f)["requests"]
-    pending = [r for r in reqs if r.get("status") == "pending"]
+    pending = []
+    for r in reqs:
+        try:
+            if r.get("status") == "pending":
+                pending.append((int(r["id"]), r))
+        except Exception:
+            continue
     try:
         with open(os.environ["STATE_FILE"]) as f:
             last = int(f.read().strip() or 0)
     except (OSError, ValueError):
         last = 0
     lines = [str(len(pending))]
-    for r in pending:
-        if r["id"] > last:
+    for i, r in pending:
+        if i > last:
             proj = os.path.basename(str(r.get("project", "")).rstrip("/"))
-            text = "#%s %s %s · %s" % (r["id"], r.get("type", ""), r.get("detail", ""), proj)
+            text = "#%s %s %s \u00b7 %s" % (i, r.get("type", ""), r.get("detail", ""), proj)
             lines.append(" ".join(text.split()))
     if pending:
-        new_last = max(last, max(r["id"] for r in pending))
         with open(os.environ["STATE_FILE"], "w") as f:
-            f.write(str(new_last))
+            f.write(str(max([last] + [i for i, _ in pending])))
     print("\n".join(lines))
 except Exception:
     print(0)
@@ -36,11 +41,13 @@ except Exception:
 COUNT="$(head -n1 <<<"$OUT")"
 case "$COUNT" in '' | *[!0-9]*) COUNT=0 ;; esac
 
+# Never eval: args are passed as argv so request text cannot be interpreted.
 run() {
 	if [ "${SIMQ_BADGE_DRY:-}" = 1 ]; then
-		printf '%s\n' "$*"
+		printf '%q ' "$@"
+		echo
 	else
-		eval "$*"
+		"$@"
 	fi
 }
 
@@ -50,13 +57,10 @@ if [ "$COUNT" -eq 0 ]; then
 fi
 run sketchybar --set "$NAME" drawing=on label="$COUNT"
 
-# Single-quote a string for the shell.
-shq() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
-
+# Text goes in as argv, never as AppleScript source.
 tail -n +2 <<<"$OUT" | while IFS= read -r line; do
 	[ -n "$line" ] || continue
-	esc="${line//\\/\\\\}"
-	esc="${esc//\"/\\\"}"
-	script="display notification \"$esc\" with title \"simq\" subtitle \"needs your approval\""
-	run osascript -e "$(shq "$script")"
+	run osascript -e 'on run argv' \
+		-e 'display notification (item 1 of argv) with title "simq" subtitle "needs your approval"' \
+		-e 'end run' "$line"
 done

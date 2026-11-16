@@ -45,13 +45,52 @@ out="$(run)"
 [ "$(notes "$out")" = 1 ]; check "new id 5 -> 1 notification" $?
 grep -q 'label=3' <<<"$out"; check "label=3" $?
 
-rm -f "$T/last-id"
+# --- real (non-dry) runs with fake sketchybar/osascript on PATH ---
+mkdir -p "$T/bin"
+for c in sketchybar osascript; do
+	cat >"$T/bin/$c" <<F
+#!/bin/bash
+{ printf '%s' "$c"; for a in "\$@"; do printf '\t%s' "\$a"; done; printf '\n'; } >>"$T/calls.log"
+F
+	chmod +x "$T/bin/$c"
+done
+runreal() { rm -f "$T/calls.log" "$T/last-id"; PATH="$T/bin:$PATH" SIMQ_HOME="$T/home" SIMQ_BADGE_STATE="$T/last-id" NAME=simq bash "$HERE/simq.sh"; }
+
+PAY=("x' ; touch $T/PWNED #" "x' \$(touch $T/PWNED) #" 'x `touch '"$T"'/PWNED` y' 'a"b\c' 'x" & do shell script "touch '"$T"'/PWNED" & "')
+for field in detail type project; do
+	for p in "${PAY[@]}"; do
+		python3 - "$T/home/state.json" "$field" "$p" <<'P'
+import json, sys
+r = {"id": 7, "type": "avd", "detail": "d", "project": "/x/q", "status": "pending"}
+r[sys.argv[2]] = sys.argv[3]
+json.dump({"requests": [r]}, open(sys.argv[1], "w"))
+P
+		runreal
+		[ ! -e "$T/PWNED" ]; check "no side effect ($field: $p)" $?
+		want="$(python3 -c '
+import sys, os
+f, p = sys.argv[1], sys.argv[2]
+r = {"type": "avd", "detail": "d", "project": "q"}
+r[f] = os.path.basename(p) if f == "project" else p
+print(" ".join(("#7 %s %s · %s" % (r["type"], r["detail"], r["project"])).split()))' "$field" "$p")"
+		got="$(grep '^osascript' "$T/calls.log" | tail -1 | awk -F'\t' '{print $NF}')"
+		[ "$got" = "$want" ]; check "notification arg exact ($field: $p) got=[$got] want=[$want]" $?
+		[ "$(grep -c '^osascript' "$T/calls.log")" = 1 ]; check "one osascript call ($field)" $?
+		rm -f "$T/PWNED"
+	done
+done
+
+# malformed entries must not hide good ones
 cat >"$T/home/state.json" <<'J'
-{"requests":[{"id":7,"type":"avd","detail":"say \"hi\" \\ there","project":"/x/q","status":"pending"}]}
+{"requests":[
+{"id":"abc","type":"avd","detail":"bad","project":"/x/a","status":"pending"},
+{"type":"avd","status":"pending"},
+"junk",
+{"id":9,"type":"avd","detail":"ok","project":"/x/b","status":"pending"}]}
 J
-out="$(run)"
-[ "$(notes "$out")" = 1 ]; check "quote: single osascript line" $?
-grep -qF 'say \"hi\" \\ there' <<<"$out"; check "quote: escaped in script" $?
+runreal
+grep -q $'^sketchybar\t--set\tsimq\tdrawing=on\tlabel=1$' "$T/calls.log"; check "bad entries skipped -> label=1" $?
+[ "$(grep -c '^osascript' "$T/calls.log")" = 1 ]; check "bad entries: 1 notification" $?
 
 [ $fail -eq 0 ] && echo "all ok"
 exit $fail
