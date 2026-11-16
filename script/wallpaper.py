@@ -26,7 +26,11 @@ Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
   wallpaper.py --convert 2026-W42 winter
                             make a winter (or spring/autumn/rain) copy of a set (4 Gemini images)
   wallpaper.py --show 2026-W42-rain
-                            show that set for the rest of today
+                            show that set for the rest of today (--show auto: back to the daily pick)
+  wallpaper.py --weather snow
+                            use that weather on the live page for the rest of today, picking a
+                            rain/snow set to match (--weather auto: Oslo's real weather again)
+  wallpaper.py --status     print today's set, weather and the choices as JSON (for the sketchybar menu)
   wallpaper.py --gallery    build and open ~/Pictures/wallpaperscript/gallery/: click through every
                             set in any weather and time of day
 """
@@ -73,6 +77,14 @@ WEATHER_FILE = WORK / "weather.json"
 WEATHER_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=59.91&lon=10.75"
 WEATHER_AGENT = "dotfiles-wallpaper/1.0"
 WEATHER_MAX_AGE = datetime.timedelta(minutes=30)
+# Weather presets the live page knows (WEATHER_PRESETS in live-wallpaper/index.html), with
+# what pick_set needs to swap in a rain or snow set.
+WEATHER_PRESETS = {
+    "clear": {}, "overcast": {}, "fog": {}, "windy": {}, "aurora": {},
+    "rain": {"kind": "rain"}, "sleet": {"kind": "sleet"}, "snow": {"kind": "snow"},
+    "blizzard": {"kind": "snow"}, "thunder": {"kind": "rain", "thunder": True},
+    "storm": {"kind": "rain", "thunder": True},
+}
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 load_dotenv(Path.home() / ".dotfiles/.env")
@@ -851,7 +863,7 @@ def _mask_paths(scene, prefix):
     return {k: prefix + scene[k]["mask"] for k in ("water", "waterfalls") if k in scene}
 
 
-def write_live(set_key, display, wx):
+def write_live(set_key, display, wx, preset=None):
     """Mirror today's set into LIVE_DIR so the page (and Plash) only needs that folder."""
     LIVE_DIR.mkdir(exist_ok=True)
     width, height = round(display["w"] * display["k"]), round(display["h"] * display["k"])
@@ -882,6 +894,7 @@ def write_live(set_key, display, wx):
         "scene": info,
         "anchors": [[[int(t.timestamp() * 1000), phase] for t, phase in anchors(d)] for d in days],
         "weather": wx,
+        "preset": preset,  # a weather picked from the sketchybar menu; the page uses it over wx
         "look": _meta(set_key).get("weather") or _meta(set_key).get("season"),
         "terrain": _meta(set_key).get("terrain"),
         "masks": masks,
@@ -890,6 +903,41 @@ def write_live(set_key, display, wx):
     page = LIVE_DIR / "index.html"
     if not page.exists() or page.read_bytes() != LIVE_PAGE.read_bytes():
         shutil.copyfile(LIVE_PAGE, page)
+
+
+def _today_weather(today, state):
+    """Oslo's weather now, or the preset picked for today (with what pick_set needs)."""
+    preset = state.get("weather_overrides", {}).get(today.isoformat())
+    wx = weather(datetime.datetime.now().astimezone())
+    if preset in WEATHER_PRESETS:
+        return {**(wx or {}), "kind": None, "thunder": False, **WEATHER_PRESETS[preset]}, preset
+    return wx, None
+
+
+def set_label(key, sets=None):
+    """A short menu name: the terrain plus its look, with the set name when a terrain repeats."""
+    sets = sets or complete_sets()
+    meta = _meta(key)
+    base = meta.get("source", key)
+    terrain = _meta(base).get("terrain") or base
+    twins = [s for s in sets if not _meta(s).get("source") and (_meta(s).get("terrain") or s) == terrain]
+    name = f"{terrain} {base.rsplit('-', 1)[-1]}" if len(twins) > 1 else terrain
+    look = meta.get("weather") or meta.get("season")
+    return f"{name} · {look}" if look and look != "summer" else name
+
+
+def _status(today, state, wx, preset):
+    sets = complete_sets()
+    current = pick_set(today, state, wx)
+    return {
+        "set": current,
+        "label": set_label(current, sets) if current else None,
+        "pinned": today.isoformat() in state.get("overrides", {}),
+        "weather": preset or "auto",
+        "real": (weather(datetime.datetime.now().astimezone()) or {}).get("symbol"),
+        "sets": [{"key": s, "label": set_label(s, sets)} for s in sorted(sets, key=lambda s: set_label(s, sets))],
+        "presets": list(WEATHER_PRESETS),
+    }
 
 
 # --- main --------------------------------------------------------------------
@@ -904,11 +952,16 @@ def main():
     parser.add_argument("--convert", nargs=2, metavar=("SET", "LOOK"),
                         help=f"make a copy of a set in another look ({', '.join(LOOKS)}), shown first today")
     parser.add_argument("--show", metavar="SET", help="show this set for the rest of today")
+    parser.add_argument("--weather", metavar="PRESET",
+                        help=f"use this weather for the rest of today ({', '.join(WEATHER_PRESETS)}, or auto)")
+    parser.add_argument("--status", action="store_true", help="print today's set, weather and choices as JSON")
     parser.add_argument("--gallery", action="store_true",
                         help="build and open a click-through gallery of every set in any weather and time")
     args = parser.parse_args()
     if args.convert and args.convert[1] not in LOOKS:
         parser.error(f"look must be one of {', '.join(LOOKS)}")
+    if args.weather and args.weather != "auto" and args.weather not in WEATHER_PRESETS:
+        parser.error(f"weather must be one of {', '.join(WEATHER_PRESETS)}, or auto")
 
     LIBRARY.mkdir(parents=True, exist_ok=True)
     WORK.mkdir(parents=True, exist_ok=True)
@@ -920,7 +973,9 @@ def main():
         return
     with open(LOCK_FILE, "w") as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # a choice from the menu waits for a running job; the 5-minute run just skips
+            asked = args.show or args.weather or args.reroll
+            fcntl.flock(lock, fcntl.LOCK_EX if asked else fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             print("Another wallpaper run is in progress")
             return
@@ -937,9 +992,20 @@ def main():
             generate_set(f"{datetime.date.today().isoformat()}-{terrain}", look="summer", terrain=terrain)
 
         today = datetime.date.today()
-        wx = weather(datetime.datetime.now().astimezone())
+        if args.weather:
+            forced = {k: v for k, v in state.get("weather_overrides", {}).items() if k >= today.isoformat()}
+            forced.pop(today.isoformat(), None)
+            if args.weather != "auto":
+                forced[today.isoformat()] = args.weather
+            state["weather_overrides"] = forced
+        if args.show == "auto":
+            state.get("overrides", {}).pop(today.isoformat(), None)
+        wx, preset = _today_weather(today, state)
+        if args.status:
+            print(json.dumps(_status(today, state, wx, preset)))
+            return
         override = None
-        if args.show:
+        if args.show and args.show != "auto":
             if args.show not in complete_sets():
                 parser.error(f"no complete set {args.show!r}; have {', '.join(complete_sets())}")
             override = args.show
@@ -967,7 +1033,7 @@ def main():
             a, t = b, 0.0
         displays = screens()
         signature = f"{today.isoformat()}/{set_key}/{a}-{b}-{t:.2f}/{len(displays)}"
-        if signature != state.get("applied") or args.reroll or args.show or args.generate or args.at or args.convert:
+        if signature != state.get("applied") or args.reroll or args.show or args.weather or args.generate or args.at or args.convert:
             paths = apply(set_key, a, b, t, displays)
             print(f"Wallpaper: {set_key} {a}->{b} {t:.2f} -> {[str(p) for p in paths]}")
             if args.at:
@@ -976,7 +1042,7 @@ def main():
                 return
             state["applied"] = signature
         try:  # the live page is extra; never let it stop the still wallpaper
-            write_live(set_key, displays[0], wx)
+            write_live(set_key, displays[0], wx, preset)
         except Exception as e:
             print(f"Live page update failed: {e}", file=sys.stderr)
         save_state(state)
