@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum Pane: String, CaseIterable, Identifiable, Hashable {
-    case overview, cleanup, devices, map
+    case overview, cleanup, devices, map, simq
     var id: Self { self }
     var title: String {
         switch self {
@@ -10,6 +10,7 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .cleanup: "Cleanup"
         case .devices: "Devices & Caches"
         case .map: "Disk Map"
+        case .simq: "simq"
         }
     }
     var icon: String {
@@ -18,6 +19,7 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .cleanup: "sparkles"
         case .devices: "iphone.gen3"
         case .map: "chart.pie"
+        case .simq: "iphone.and.arrow.forward"
         }
     }
 }
@@ -38,6 +40,7 @@ struct DiskCleanerApp: App {
     @StateObject private var runner = CleanupRunner()
     @StateObject private var devices = DevicesModel()
     @StateObject private var diskMap = DiskMapModel()
+    @StateObject private var simq = SimqModel()
 
     var body: some Scene {
         Window("Disk Cleaner", id: "main") {
@@ -46,6 +49,7 @@ struct DiskCleanerApp: App {
                 .environmentObject(runner)
                 .environmentObject(devices)
                 .environmentObject(diskMap)
+                .environmentObject(simq)
                 .frame(minWidth: 860, minHeight: 560)
                 .onAppear {
                     // Sizes on the overview go stale after a sweep or a delete.
@@ -61,15 +65,26 @@ struct DiskCleanerApp: App {
 struct ContentView: View {
     @EnvironmentObject var overview: OverviewModel
     @EnvironmentObject var runner: CleanupRunner
+    @EnvironmentObject var simq: SimqModel
     // `open -a DiskCleaner --args -pane devices` opens straight to a pane on launch;
-    // `open diskcleaner://map` switches pane even when the app is already running.
+    // `open diskcleaner://map` switches pane even when the app is already running. URLs only ever
+    // switch panes: they never run a simq action (approval stays a human click).
     @State private var pane: Pane = UserDefaults.standard.string(forKey: "pane").flatMap(Pane.init) ?? .overview
+
+    private func badge(_ p: Pane) -> Text? {
+        switch p {
+        case .cleanup where runner.isRunning: Text("\(Int(runner.progress * 100))%")
+        case .simq:
+            if let n = simq.simq?.pendingRequests, n > 0 { Text("\(n)") } else { nil }
+        default: nil
+        }
+    }
 
     var body: some View {
         NavigationSplitView {
             List(Pane.allCases, selection: $pane) { p in
                 Label(p.title, systemImage: p.icon)
-                    .badge(p == .cleanup && runner.isRunning ? Text("\(Int(runner.progress * 100))%") : nil)
+                    .badge(badge(p))
                     .tag(p)
             }
             .safeAreaInset(edge: .bottom) {
@@ -82,6 +97,7 @@ struct ContentView: View {
             case .cleanup: CleanupView()
             case .devices: DevicesView()
             case .map: DiskMapView()
+            case .simq: SimqView()
             }
         }
         .onOpenURL { url in

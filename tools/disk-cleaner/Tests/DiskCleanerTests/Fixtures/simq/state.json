@@ -1,11 +1,93 @@
 {
   "leases": [
-    {"device": "Sim-A", "kind": "ios", "session_id": "s-1", "project": "/Users/me/Hacking/projects/tren/.claude/worktrees/loving-cray", "since": 1000, "last_activity": 1600}
+    {
+      "device": "Sim-A",
+      "kind": "ios",
+      "session_id": "s-1",
+      "claude_pid": 4242,
+      "project": "/Users/me/Hacking/projects/tren/.claude/worktrees/loving-cray",
+      "since": 1000,
+      "last_activity": 1600
+    }
   ],
-  "queues": {"ios": [{"session_id": "s-2", "project": "/Users/me/Hacking/NorsCare/nors", "since": 1500}], "android": []},
-  "reservations": {"Emu-A": {"session_id": "s-3", "until": 99999999999}},
+  "queues": {
+    "ios": [
+      {
+        "session_id": "s-2",
+        "claude_pid": 4343,
+        "project": "/Users/me/Hacking/NorsCare/nors",
+        "since": 1500,
+        "last_seen": 1550
+      }
+    ],
+    "android": []
+  },
+  "reservations": {
+    "Emu-A": {
+      "session_id": "s-3",
+      "until": 99999999999
+    }
+  },
   "requests": [
-    {"id": 1, "status": "pending", "command": "xcrun simctl create X", "project": "/tmp"},
-    {"id": 2, "status": "approved", "command": "xcrun simctl delete Y", "project": "/tmp"}
+    {
+      "id": 1,
+      "type": "create",
+      "kind": "ios",
+      "status": "pending",
+      "session_id": "s-1",
+      "command": "xcrun simctl create X",
+      "detail": "simctl create",
+      "reason": "need a spare sim",
+      "cwd": "/tmp",
+      "project": "/tmp",
+      "created": 1700
+    },
+    {
+      "id": 2,
+      "type": "delete",
+      "kind": "ios",
+      "status": "approved",
+      "session_id": "s-1",
+      "command": "xcrun simctl delete Y",
+      "detail": "Y",
+      "project": "/tmp",
+      "created": 1800
+    },
+    {
+      "id": 3,
+      "type": "download",
+      "kind": "ios",
+      "status": "pending",
+      "session_id": "s-2",
+      "command": "xcodebuild -downloadPlatform iOS",
+      "detail": "runtime download",
+      "reason": "new runtime",
+      "cwd": "/Users/me/Hacking/NorsCare/nors",
+      "project": "/Users/me/Hacking/NorsCare/nors",
+      "created": 1900
+    },
+    {
+      "id": 4,
+      "type": "other",
+      "kind": "ios",
+      "status": "expired",
+      "session_id": "s-2",
+      "command": "xcrun simctl rename A B",
+      "detail": "simctl rename",
+      "project": "/tmp",
+      "created": 1000
+    },
+    {
+      "id": 5,
+      "type": "sdk",
+      "kind": "android",
+      "status": "approving",
+      "approving_pid": 777,
+      "session_id": "s-2",
+      "command": "sdkmanager --install 'platforms;android-35'",
+      "detail": "sdk install",
+      "project": "/Users/me/Hacking/NorsCare/nors",
+      "created": 1950
+    }
   ]
 }

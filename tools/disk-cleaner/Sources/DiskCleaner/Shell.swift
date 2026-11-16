@@ -39,21 +39,22 @@ enum Shell {
         return env
     }()
 
-    static func makeProcess(_ exe: String, _ args: [String]) -> Process {
+    /// `env` nil means `Shell.environment`.
+    static func makeProcess(_ exe: String, _ args: [String], env: [String: String]? = nil) -> Process {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: exe)
         p.arguments = args
-        p.environment = environment
+        p.environment = env ?? environment
         return p
     }
 
     /// Run to completion, capturing stdout and stderr.
-    static func run(_ exe: String, _ args: [String]) async -> ShellResult {
-        await Task.detached(priority: .userInitiated) { runBlocking(exe, args) }.value
+    static func run(_ exe: String, _ args: [String], env: [String: String]? = nil) async -> ShellResult {
+        await Task.detached(priority: .userInitiated) { runBlocking(exe, args, env: env) }.value
     }
 
-    private static func runBlocking(_ exe: String, _ args: [String]) -> ShellResult {
-        let p = makeProcess(exe, args)
+    private static func runBlocking(_ exe: String, _ args: [String], env: [String: String]?) -> ShellResult {
+        let p = makeProcess(exe, args, env: env)
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
         p.standardError = err

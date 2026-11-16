@@ -34,7 +34,7 @@ final class SimqTests: XCTestCase {
         XCTAssertEqual(s.state(of: "Sim-A", now: now).text, "held by loving-cray (idle 7m)")
         XCTAssertEqual(s.state(of: "Sim-B", now: now), .free)
         XCTAssertEqual(s.state(of: "Emu-A", now: now), .reserved)
-        XCTAssertEqual(s.summary(now: now), "simq: 1/2 sims held · 0/1 emulators held · 1 queued · 1 pending request")
+        XCTAssertEqual(s.summary(now: now), "simq: 1/2 sims held · 0/1 emulators held · 1 queued · 2 pending requests")
     }
 
     func testBadges() throws {
@@ -51,5 +51,172 @@ final class SimqTests: XCTestCase {
         XCTAssertEqual(scan.gradleUsage("9.0.0-bin").pinnedBy, "simq")
         XCTAssertNil(scan.gradleUsage("9.8.1-bin").pinnedBy)
         XCTAssertEqual(scan.gradleUsage("9.8.1-bin").badge.0, "Unused")
+    }
+
+    func testPendingRequestsDecoded() throws {
+        let s = try XCTUnwrap(Simq.load(home: fixture))
+        XCTAssertEqual(s.requests.map(\.id), [5, 3, 1])
+        XCTAssertEqual(s.pendingRequests, 2, "approving requests don't count as pending")
+        XCTAssertEqual(s.requests.map(\.status), ["approving", "pending", "pending"])
+        XCTAssertTrue(s.requests[0].isApproving)
+        XCTAssertEqual(s.requests[0].type, "sdk")
+        XCTAssertEqual(s.requests[1].type, "download")
+        let r = s.requests[2]
+        XCTAssertEqual(r.type, "create")
+        XCTAssertEqual(r.detail, "simctl create")
+        XCTAssertEqual(r.reason, "need a spare sim")
+        XCTAssertEqual(r.cwd, "/tmp")
+        XCTAssertEqual(r.created, Date(timeIntervalSince1970: 1700))
+        XCTAssertEqual(s.requests[1].projectName, "nors")
+    }
+
+    func testApprovingOnlyStateIsNotPending() throws {
+        let state = Data(#"{"requests":[{"id":7,"status":"approving","type":"avd","command":"a"},{"id":8,"status":"denied","command":"b"}]}"#.utf8)
+        let s = try XCTUnwrap(Simq.parse(policy: Data("{}".utf8), state: state))
+        XCTAssertEqual(s.requests.map(\.id), [7])
+        XCTAssertEqual(s.pendingRequests, 0)
+        XCTAssertFalse(s.summary().contains("pending"))
+    }
+
+    func testOnlyDownloadCanPin() {
+        let types = ["download", "create", "avd", "sdk", "wrapper", "steal", "delete", "erase-other", "other"]
+        let pinnable = types.filter {
+            Simq.Request(id: 1, type: $0, project: nil, command: "", detail: nil, reason: nil, cwd: nil, created: nil).canPin
+        }
+        XCTAssertEqual(pinnable, ["download"])
+    }
+
+    func testReleasePrompt() throws {
+        let s = try XCTUnwrap(Simq.load(home: fixture))
+        let now = Date(timeIntervalSince1970: 100_000)
+        func lease(_ session: String, idleMin: Double) -> Simq.Lease {
+            .init(device: "Sim-A", kind: "ios", sessionID: session, project: "/x/tren", since: nil,
+                  lastActivity: now.addingTimeInterval(-idleMin * 60))
+        }
+        XCTAssertNil(s.releasePrompt(lease("human", idleMin: 500), now: now), "Preben's own: no dialog")
+        XCTAssertEqual(s.releasePrompt(lease("s-1", idleMin: 50), now: now),
+                       "Sim-A is held by tren, idle 50m (it may still be running a command). Release?")
+        XCTAssertEqual(s.releasePrompt(lease("s-1", idleMin: 3), now: now),
+                       "Sim-A is in use by tren (last activity 3m ago). Release anyway?")
+    }
+
+    func testRequestsWithoutIntIDSkipped() throws {
+        let policy = Data("{}".utf8)
+        let state = Data(#"{"requests":[{"status":"pending","command":"a"},{"id":"x","status":"pending","command":"b"},{"id":5,"status":"pending","command":"c"}]}"#.utf8)
+        let s = try XCTUnwrap(Simq.parse(policy: policy, state: state))
+        XCTAssertEqual(s.requests.map(\.id), [5])
+    }
+
+    func testQueuesDecoded() throws {
+        let s = try XCTUnwrap(Simq.load(home: fixture))
+        let ios = try XCTUnwrap(s.queues["ios"])
+        XCTAssertEqual(ios.count, 1)
+        XCTAssertEqual(ios[0].project, "/Users/me/Hacking/NorsCare/nors")
+        XCTAssertEqual(ios[0].sessionID, "s-2")
+        XCTAssertEqual(s.queued["ios"], 1)
+    }
+
+    func testIdle() throws {
+        let s = try XCTUnwrap(Simq.load(home: fixture))
+        XCTAssertEqual(s.idleMinutesLimit, 45)
+        let now = Date(timeIntervalSince1970: 100_000)
+        func lease(_ session: String, idleMin: Double) -> Simq.Lease {
+            .init(device: "d", kind: "ios", sessionID: session, project: nil, since: nil,
+                  lastActivity: now.addingTimeInterval(-idleMin * 60))
+        }
+        XCTAssertTrue(s.isIdle(lease("s-1", idleMin: 46), now: now))
+        XCTAssertFalse(s.isIdle(lease("s-1", idleMin: 44), now: now))
+        XCTAssertFalse(s.isIdle(lease("human", idleMin: 500), now: now))
+    }
+
+    func testIdleLimitFromPolicy() throws {
+        let s = try XCTUnwrap(Simq.parse(policy: Data(#"{"idle_minutes": 10}"#.utf8), state: nil))
+        XCTAssertEqual(s.idleMinutesLimit, 10)
+    }
+
+    func testHalfWrittenStateKeepsPolicy() throws {
+        let policy = try XCTUnwrap(FileManager.default.contents(atPath: fixture + "/policy.json"))
+        let s = try XCTUnwrap(Simq.parse(policy: policy, state: Data("{partial".utf8)))
+        XCTAssertTrue(s.requests.isEmpty)
+        XCTAssertEqual(s.iosRuntime, "com.apple.CoreSimulator.SimRuntime.iOS-26-5")
+    }
+
+    func testEnvStripsClaude() {
+        let env = ["CLAUDE_CODE_SESSION_ID": "x", "CLAUDE_PID": "1", "CLAUDECODE": "1", "HOME": "/h",
+                   "SIMQ_NO_SKETCHYBAR": "1", "CLAUDECODE_X": "kept"]
+        XCTAssertEqual(SimqCLI.environment(from: env), ["HOME": "/h", "CLAUDECODE_X": "kept"])
+    }
+
+    func testExecutableOverride() {
+        XCTAssertEqual(SimqCLI.executable(env: ["SIMQ_BIN": "/x/simq"]), "/x/simq")
+        XCTAssertTrue(SimqCLI.executable(env: [:]).hasSuffix("/.local/bin/simq"))
+    }
+
+    func testNeedsForce() {
+        XCTAssertTrue(SimqCLI.needsForce("only 3.0 GB free, need 9 GB (use --force to override)"))
+        XCTAssertFalse(SimqCLI.needsForce("approved #2"))
+    }
+
+    @MainActor
+    func testActKeepsOutputOnItsRowAndReloads() async throws {
+        let old = ProcessInfo.processInfo.environment["SIMQ_BIN"]
+        defer { if let old { setenv("SIMQ_BIN", old, 1) } else { unsetenv("SIMQ_BIN") } }
+
+        setenv("SIMQ_BIN", "/bin/echo", 1)
+        let model = SimqModel(home: fixture)
+        XCTAssertEqual(model.simq?.pendingRequests, 2)
+        await model.act("req-3", ["approve", "3"])
+        XCTAssertEqual(model.rowMessage, ["req-3": "approve 3"])
+        XCTAssertEqual(model.lastCommand, "simq approve 3")
+        XCTAssertEqual(model.lastResult, "approve 3", "pane-wide result outlives the row")
+        XCTAssertFalse(model.running)
+        XCTAssertNotNil(model.simq)
+
+        setenv("SIMQ_BIN", "/usr/bin/false", 1)
+        await model.act("dev-Sim-A", ["release", "Sim-A"])
+        XCTAssertEqual(model.rowMessage["dev-Sim-A"], "Error (exit 1)")
+        XCTAssertEqual(model.rowMessage["req-3"], "approve 3")
+        XCTAssertEqual(model.lastCommand, "simq release Sim-A")
+        XCTAssertEqual(model.lastResult, "Error (exit 1)")
+    }
+
+    @MainActor
+    func testModelWithoutHomeIsNotSetUp() {
+        XCTAssertNil(SimqModel(home: "/nonexistent/simq-\(UUID())").simq)
+    }
+
+    @MainActor
+    func testReloadKeepsLastGoodStateOnBadReads() throws {
+        let fm = FileManager.default
+        let home = NSTemporaryDirectory() + "simq-\(UUID())"
+        try fm.copyItem(atPath: fixture, toPath: home)
+        defer { try? fm.removeItem(atPath: home) }
+
+        let model = SimqModel(home: home)
+        XCTAssertEqual(model.simq?.requests.map(\.id), [5, 3, 1])
+
+        try Data("{partial".utf8).write(to: URL(fileURLWithPath: home + "/state.json"))
+        model.reload()
+        XCTAssertEqual(model.simq?.requests.map(\.id), [5, 3, 1], "bad state.json keeps the last good state")
+
+        try Data("{partial".utf8).write(to: URL(fileURLWithPath: home + "/policy.json"))
+        model.reload()
+        XCTAssertEqual(model.simq?.requests.map(\.id), [5, 3, 1], "bad policy.json keeps the last good state")
+
+        try fm.removeItem(atPath: home + "/policy.json")
+        model.reload()
+        XCTAssertNil(model.simq, "no policy.json means not set up")
+    }
+
+    @MainActor
+    func testReloadWithoutStateFileIsAllFree() throws {
+        let fm = FileManager.default
+        let home = NSTemporaryDirectory() + "simq-\(UUID())"
+        try fm.createDirectory(atPath: home, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(atPath: home) }
+        try fm.copyItem(atPath: fixture + "/policy.json", toPath: home + "/policy.json")
+        let model = SimqModel(home: home)
+        XCTAssertEqual(model.simq?.requests.count, 0)
+        XCTAssertEqual(model.simq?.state(of: "Sim-A"), .free)
     }
 }
