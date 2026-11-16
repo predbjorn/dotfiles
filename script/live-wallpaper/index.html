@@ -17,6 +17,7 @@
                                             (&intensity=0..1, &wind=-15..15 m/s, + blows right)
                                  ?phase=night  hold one palette: dawn, day, golden, night
                                  ?forecast=0  hide the forecast panel (the gallery always hides it)
+                                 ?tren=0    hide the Tren training panel (the gallery always hides it)
                                  ?set=2026-W42  show another set (needs wallpaper.py --gallery,
                                             which writes ../gallery/data.js)
 -->
@@ -63,6 +64,45 @@
   .fc-bar { position: relative; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); }
   .fc-bar i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
   .fc-cold { color: #a8d0ff; }
+  /* Tren panel: this week's training plan from wallpaper.py's tren_week(), stacked under the forecast panel. */
+  #tren { position: fixed; z-index: 12; top: 54px; left: 26px; width: 360px; display: none;
+          padding: 16px 20px 14px; border-radius: 20px; color: #f4ecdc;
+          font: 500 14px ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+          background: linear-gradient(160deg, rgba(20, 24, 40, 0.4), rgba(20, 24, 40, 0.3));
+          border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22);
+          backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); font-variant-numeric: tabular-nums; }
+  .tr-head { display: flex; align-items: baseline; gap: 10px; }
+  .tr-brand { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.6; }
+  .tr-km { margin-left: auto; font-size: 26px; font-weight: 600; letter-spacing: -0.5px; }
+  .tr-km small { font-size: 14px; font-weight: 500; opacity: 0.6; letter-spacing: 0; }
+  .tr-strip { display: flex; gap: 8px; margin: 12px 0 8px; }
+  .tr-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
+  .tr-bars { height: 56px; display: flex; align-items: flex-end; gap: 2px; }
+  .tr-bars i { flex: 1; border-radius: 3px; }
+  .tr-bars i.plan { box-sizing: border-box; border: 1px dashed; }
+  .tr-bars i.ghost { height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.16); }
+  .tr-col span { text-align: center; font: 10px ui-monospace, monospace; opacity: 0.6; }
+  .tr-col.today span { opacity: 1; font-weight: 700; }
+  .tr-sub { display: flex; justify-content: space-between; font-size: 12px; opacity: 0.72; margin-bottom: 8px; }
+  .tr-day { display: grid; grid-template-columns: 46px 1fr; gap: 8px; padding: 5px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08); }
+  .tr-day.past { opacity: 0.55; }
+  .tr-day.today { margin: 0 -10px; padding: 6px 10px; border-radius: 10px; border-top-color: transparent;
+                  background: rgba(255, 255, 255, 0.09); }
+  .tr-day.today + .tr-day { border-top-color: transparent; }
+  .tr-name { font-size: 13px; opacity: 0.8; padding-top: 1px; }
+  .tr-day.today .tr-name { opacity: 1; font-weight: 600; }
+  .tr-rest { opacity: 0.4; font-size: 13px; }
+  .tr-s { display: flex; align-items: center; gap: 8px; min-height: 20px; }
+  .tr-s + .tr-s { margin-top: 2px; }
+  .tr-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+  .tr-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tr-meta { font-size: 12px; opacity: 0.65; }
+  .tr-tick { flex: none; width: 16px; height: 16px; }
+  .tr-s.done .tr-label { opacity: 0.85; }
+  .tr-s.skipped .tr-label { text-decoration: line-through; opacity: 0.5; }
+  .tr-next { margin-top: 6px; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -72,6 +112,7 @@
 <div id="flash"></div>
 <div id="debug"></div>
 <div id="forecast"></div>
+<div id="tren"></div>
 <script>
 "use strict";
 const PHASES = ["dawn", "day", "golden", "night"];
@@ -134,6 +175,7 @@ function loadState() {
                  terrain: g.terrain, masks: g.masks || {} };
     if (W.set !== loadedSet) useSet();
     renderForecast();
+    renderTren();
   };
   s.onerror = () => s.remove();
   document.head.appendChild(s);
@@ -263,6 +305,78 @@ function renderForecast() {
     `${chanceChart(f.chance)}<div class="fc-hours">${hours}</div>${days}`;
   el.style.display = "block";
 }
+
+// --- Tren panel (this week's plan from the Tren training app, via state.js) -----------------------
+
+// Tren's own type colours (tren_ios DesignSystem/Colors.swift, dark mode: z1 easy, z2 long, z3 threshold, z5 speed).
+const TREN_COLOURS = { threshold: "#f59a55", vo2: "#a99cff", long: "#59c8e6", easy: "#5fe0b0",
+                       race: "#ffd86b", strength: "#9ba4b6", cross: "#9ba4b6", other: "#9ba4b6" };
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const kmText = km => (Math.round(km * 10) / 10).toLocaleString("en-GB");
+const minText = m => m >= 60 ? `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")}` : `${Math.round(m)} min`;
+const isoDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function trenSession(s) {
+  const tick = s.status === "completed"
+    ? `<svg class="tr-tick" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7.5" fill="#9fd68f" fill-opacity="0.9"/>` +
+      `<path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#14202c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    : s.status === "skipped" ? `<span class="tr-meta">skipped</span>` : "";
+  const meta = [s.time, s.km ? `${kmText(s.km)} km` : s.min ? minText(s.min) : null].filter(Boolean).join(" · ");
+  return `<div class="tr-s ${s.status === "completed" ? "done" : s.status}">` +
+    `<i class="tr-dot" style="background:${TREN_COLOURS[s.kind] || TREN_COLOURS.other}"></i>` +
+    `<span class="tr-label">${esc(s.label)}</span>${meta ? `<span class="tr-meta">${esc(meta)}</span>` : ""}${tick}</div>`;
+}
+
+function trenDay(d, today) {
+  const date = new Date(d.date + "T12:00");
+  const name = d.date === today ? "Today" : date.toLocaleDateString("en-GB", { weekday: "short" });
+  const cls = d.date < today ? "past" : d.date === today ? "today" : "";
+  const body = d.sessions.length ? d.sessions.map(trenSession).join("") : `<span class="tr-rest">Rest</span>`;
+  return `<div class="tr-day ${cls}"><span class="tr-name">${name}</span><div>${body}</div></div>`;
+}
+
+// The week strip from Tren's Runs week card (tren_ios FriendWeekStrip): a column per day, a bar per session,
+// height by km scaled to the biggest day, a ghost line on empty days. Planned sessions are faint and dashed.
+function trenStrip(days, today) {
+  const dayKm = days.map(d => d.sessions.reduce((a, s) => a + (s.status === "skipped" ? 0 : s.km || 0), 0));
+  const max = Math.max(...dayKm, 0);
+  return `<div class="tr-strip">` + days.map(d => {
+    const shown = d.sessions.filter(s => s.status !== "skipped");
+    const bars = shown.length ? shown.map(s => {
+      const h = Math.max(8, max ? (s.km || 0) / max * 52 : 8), c = TREN_COLOURS[s.kind] || TREN_COLOURS.other;
+      return s.status === "completed" ? `<i style="height:${h}px;background:${c}"></i>`
+        : `<i class="plan" style="height:${h}px;border-color:${c};background:${c}33"></i>`;
+    }).join("") : `<i class="ghost"></i>`;
+    const letter = new Date(d.date + "T12:00").toLocaleDateString("en-GB", { weekday: "narrow" });
+    return `<div class="tr-col${d.date === today ? " today" : ""}"><div class="tr-bars">${bars}</div><span>${letter}</span></div>`;
+  }).join("") + `</div>`;
+}
+
+function placeTren() {
+  const el = document.getElementById("tren"), fc = document.getElementById("forecast");
+  const below = fc.style.display !== "none" && fc.offsetHeight ? fc.getBoundingClientRect().bottom + 14 : 54;
+  el.style.top = `${Math.round(below)}px`;
+}
+
+function renderTren() {
+  const el = document.getElementById("tren");
+  const t = W && W.tren;
+  if (!t || !t.days || params.get("tren") === "0" || params.get("set")) { el.style.display = "none"; return; }
+  const today = isoDay(new Date(clock()));
+  const tot = t.total;
+  const week = t.days.map(d => trenDay(d, today)).join("");
+  const ahead = (t.next || []).filter(d => d.date > today);
+  const next = ahead.length ? `<div class="tr-next">Next week</div>` + ahead.map(d => trenDay(d, today)).join("") : "";
+  const time = tot.done_min ? `${minText(tot.done_min)} run` : "";
+  el.innerHTML = `<div class="tr-head"><span class="tr-brand">Tren · week ${t.week}</span>` +
+    `<span class="tr-km">${kmText(tot.done_km)}<small> / ${kmText(tot.planned_km)} km</small></span></div>` +
+    trenStrip(t.days, today) +
+    `<div class="tr-sub"><span>${tot.sessions_done} of ${tot.sessions} sessions done</span><span>${time}</span></div>` +
+    week + next;
+  el.style.display = "block";
+  placeTren();
+}
+new ResizeObserver(placeTren).observe(document.getElementById("forecast"));
 
 let maskImgs = {};  // water / waterfalls masks (white where the effect may draw)
 function useSet() {
