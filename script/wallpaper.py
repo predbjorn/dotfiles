@@ -8,12 +8,12 @@ so a new Mac gets every set with the dotfiles; crops and analysis are rebuilt in
 ~/Pictures/wallpaperscript/cache/.
 Daily: pick one landscape set at random from the library and keep it all day,
 preferring sets from the current season once there are a few. While it rains
-(or snows) in Oslo, a rain (or snow) set takes over if the library has one.
-Through the day: cross-fade between the palettes following Oslo's sun, so the
+(or snows) in Kristiansand, a rain (or snow) set takes over if the library has one.
+Through the day: cross-fade between the palettes following Kristiansand's sun, so the
 desktop drifts night -> dawn -> day -> golden -> night instead of jumping.
 Also writes ~/Pictures/wallpaperscript/live/, a self-contained page that animates
 the same blend with clouds, mist, birds and stars (shown on the desktop by Plash),
-plus Oslo's current weather from MET Norway (yr.no): rain, snow, fog, overcast, wind.
+plus Kristiansand's current weather from MET Norway (yr.no): rain, snow, fog, overcast, wind.
 
 Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
 
@@ -29,7 +29,7 @@ Run every 5 minutes by launchd (.config/launchd/com.predbjorn.wallpaper.plist).
                             show that set for the rest of today (--show auto: back to the daily pick)
   wallpaper.py --weather snow
                             use that weather on the live page for the rest of today, picking a
-                            rain/snow set to match (--weather auto: Oslo's real weather again)
+                            rain/snow set to match (--weather auto: the real weather again)
   wallpaper.py --status     print today's set, weather and the choices as JSON (for the sketchybar menu)
   wallpaper.py --gallery    build and open ~/Pictures/wallpaperscript/gallery/: click through every
                             set in any weather and time of day
@@ -42,6 +42,7 @@ import json
 import math
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -57,7 +58,8 @@ from PIL import Image
 
 # Watch spending: https://console.cloud.google.com/billing/01B85F-1A6511-809A4F?project=gen-lang-client-0292679403&authuser=1
 MODEL = "gemini-3-pro-image"
-OSLO = LocationInfo("Oslo", "Norway", "Europe/Oslo", 59.9139, 10.7522)
+# Where the sun times and the weather come from.
+PLACE = LocationInfo("Kristiansand", "Norway", "Europe/Oslo", 58.1467, 7.9956)
 # The sets live in the repo (wallpapers/<set>/{dawn,day,golden,night}.webp + meta.json + features.json),
 # so a new Mac gets them with the dotfiles. Everything derived from them goes under WORK.
 LIBRARY = Path(__file__).resolve().parents[1] / "wallpapers"
@@ -74,7 +76,8 @@ BLEND_STEPS = 20  # blend factor resolution; caps how many distinct wallpapers a
 PHASES = ["dawn", "day", "golden", "night"]
 WEATHER_FILE = WORK / "weather.json"
 # MET Norway asks for a User-Agent naming the client; keep it generic.
-WEATHER_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=59.91&lon=10.75"
+WEATHER_URL = (f"https://api.met.no/weatherapi/locationforecast/2.0/compact"
+               f"?lat={PLACE.latitude:.2f}&lon={PLACE.longitude:.2f}")  # MET wants at most 4 decimals
 WEATHER_AGENT = "dotfiles-wallpaper/1.0"
 WEATHER_MAX_AGE = datetime.timedelta(minutes=30)
 # Weather presets the live page knows (WEATHER_PRESETS in live-wallpaper/index.html), with
@@ -403,11 +406,11 @@ def _seeded_pick(date, pool):
 
 
 def _sun_times(date):
-    s = sun(OSLO.observer, date=date, tzinfo=OSLO.timezone)
+    s = sun(PLACE.observer, date=date, tzinfo=PLACE.timezone)
     sunrise, sunset = s["sunrise"], s["sunset"]
-    try:  # around midsummer Oslo never gets 12 degrees below the horizon
-        first = nautical_dawn(OSLO.observer, date=date, tzinfo=OSLO.timezone, depression=12)
-        last = nautical_dusk(OSLO.observer, date=date, tzinfo=OSLO.timezone, depression=12)
+    try:  # around midsummer southern Norway never gets 12 degrees below the horizon
+        first = nautical_dawn(PLACE.observer, date=date, tzinfo=PLACE.timezone, depression=12)
+        last = nautical_dusk(PLACE.observer, date=date, tzinfo=PLACE.timezone, depression=12)
     except ValueError:
         first = last = None
     if first is None or not first < sunrise:
@@ -626,15 +629,17 @@ def _fetch_forecast(cached):
 
 
 def weather(now):
-    """Oslo's weather for this hour from MET Norway, cached; None when unavailable."""
+    """The weather here for this hour from MET Norway, cached; None when unavailable."""
     try:
         cached = json.loads(WEATHER_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         cached = {}
+    if cached.get("url") != WEATHER_URL:  # first run or moved: the old place's forecast is no use
+        cached = {}
     fetched = cached.get("fetched")
     if not fetched or datetime.datetime.now() - datetime.datetime.fromisoformat(fetched) > WEATHER_MAX_AGE:
         try:
-            cached = _fetch_forecast(cached)
+            cached = {**_fetch_forecast(cached), "url": WEATHER_URL}
             WEATHER_FILE.write_text(json.dumps(cached))
         except Exception as e:  # offline: keep the last forecast if there is one
             print(f"Weather fetch failed: {e}", file=sys.stderr)
@@ -905,8 +910,23 @@ def write_live(set_key, display, wx, preset=None):
         shutil.copyfile(LIVE_PAGE, page)
 
 
+def _start_plash(state):
+    """Open Plash (which shows the live page) once per boot; quitting it then sticks until a restart."""
+    try:
+        boot = re.search(r"sec = (\d+)", subprocess.run(["sysctl", "-n", "kern.boottime"],
+                         capture_output=True, text=True).stdout).group(1)
+    except (AttributeError, OSError):
+        return
+    if state.get("plash_boot") == boot or not Path("/Applications/Plash.app").exists():
+        return
+    if subprocess.run(["pgrep", "-xq", "Plash"]).returncode != 0:
+        subprocess.run(["open", "-gja", "Plash"])
+        print("Started Plash")
+    state["plash_boot"] = boot
+
+
 def _today_weather(today, state):
-    """Oslo's weather now, or the preset picked for today (with what pick_set needs)."""
+    """The real weather now, or the preset picked for today (with what pick_set needs)."""
     preset = state.get("weather_overrides", {}).get(today.isoformat())
     wx = weather(datetime.datetime.now().astimezone())
     if preset in WEATHER_PRESETS:
@@ -934,6 +954,7 @@ def _status(today, state, wx, preset):
         "label": set_label(current, sets) if current else None,
         "pinned": today.isoformat() in state.get("overrides", {}),
         "weather": preset or "auto",
+        "place": PLACE.name,
         "real": (weather(datetime.datetime.now().astimezone()) or {}).get("symbol"),
         "sets": [{"key": s, "label": set_label(s, sets)} for s in sorted(sets, key=lambda s: set_label(s, sets))],
         "presets": list(WEATHER_PRESETS),
@@ -1045,6 +1066,7 @@ def main():
             write_live(set_key, displays[0], wx, preset)
         except Exception as e:
             print(f"Live page update failed: {e}", file=sys.stderr)
+        _start_plash(state)
         save_state(state)
 
 

@@ -1,9 +1,9 @@
 <!doctype html>
 <!--
-  Live wallpaper: today's landscape set from wallpaper.py, cross-faded by Oslo's sun,
+  Live wallpaper: today's landscape set from wallpaper.py, cross-faded by Kristiansand's sun,
   with drifting clouds and mist, a breathing sun/moon glow, birds and twinkling stars,
   glinting water, falling waterfalls, lit windows, a turning lighthouse beam, northern lights
-  on clear winter nights, and Oslo's current weather: rain, snow, sleet, fog, overcast, wind
+  on clear winter nights, and Kristiansand's current weather: rain, snow, sleet, fog, overcast, wind
   and thunder.
 
   wallpaper.py copies this page to ~/Pictures/wallpaperscript/live/ next to state.js
@@ -748,7 +748,7 @@ let auroraSprite = null;
 function auroraTonight(wx) {
   if (wx.aurora) return true;
   const d = new Date(), m = d.getMonth() + 1;
-  if (m > 3 && m < 9) return false;  // Oslo's summer nights are too bright
+  if (m > 3 && m < 9) return false;  // Norway's summer nights are too bright
   // About every third clear night, the same all night.
   const seed = d.getFullYear() * 400 + m * 32 + d.getDate() - (d.getHours() < 12 ? 1 : 0);
   return Math.abs(Math.sin(seed * 12.9898) * 43758.5453) % 1 < 0.35;
