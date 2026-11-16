@@ -17,10 +17,12 @@ struct Simq {
         var projectName: String { project.map { ($0 as NSString).lastPathComponent } ?? "unknown project" }
     }
 
-    /// A pending approval request from a Claude session (only `pending` ones are decoded).
+    /// An approval request from a Claude session: `pending`, or `approving` while an approve runs
+    /// (other statuses are not decoded).
     struct Request {
         let id: Int
         let type: String
+        var status = "pending"
         let project: String?
         let command: String
         let detail: String?
@@ -29,6 +31,9 @@ struct Simq {
         let created: Date?
 
         var projectName: String { project.map { ($0 as NSString).lastPathComponent } ?? "unknown project" }
+        var isApproving: Bool { status == "approving" }
+        /// Only a runtime download can be approved with `--pin` (simq pins its runtime in policy.json).
+        var canPin: Bool { type == "download" }
     }
 
     /// A session waiting in a device queue.
@@ -63,11 +68,11 @@ struct Simq {
     var leases: [Lease] = []
     var queues: [String: [Waiter]] = [:]     // kind → sessions waiting
     var reservations: [String: Date] = [:]   // device → reserved until
-    var requests: [Request] = []             // pending only, newest first
+    var requests: [Request] = []             // pending and approving, newest first
     var idleMinutesLimit = 45
 
     var queued: [String: Int] { queues.mapValues(\.count) }
-    var pendingRequests: Int { requests.count }
+    var pendingRequests: Int { requests.filter { !$0.isApproving }.count }
 
     static var home: String { ProcessInfo.processInfo.environment["SIMQ_HOME"] ?? "\(Paths.home)/.simq" }
 
@@ -103,10 +108,11 @@ struct Simq {
         }
         s.reservations = (st["reservations"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? [String: Any]).flatMap { date($0["until"]) } }
         s.requests = (st["requests"] as? [Any] ?? []).compactMap { any -> Request? in
-            guard let r = any as? [String: Any], r["status"] as? String == "pending",
+            guard let r = any as? [String: Any], let status = r["status"] as? String,
+                  status == "pending" || status == "approving",
                   let id = (r["id"] as? NSNumber).flatMap({ $0 === kCFBooleanTrue || $0 === kCFBooleanFalse ? nil : $0.intValue })
             else { return nil }
-            return Request(id: id, type: r["type"] as? String ?? "", project: r["project"] as? String,
+            return Request(id: id, type: r["type"] as? String ?? "", status: status, project: r["project"] as? String,
                            command: r["command"] as? String ?? "", detail: r["detail"] as? String,
                            reason: r["reason"] as? String, cwd: r["cwd"] as? String, created: date(r["created"]))
         }.sorted { ($0.created ?? .distantPast, $0.id) > ($1.created ?? .distantPast, $1.id) }
@@ -132,6 +138,18 @@ struct Simq {
     func isIdle(_ l: Lease, now: Date = Date()) -> Bool {
         guard l.sessionID != "human", let last = l.lastActivity else { return false }
         return now.timeIntervalSince(last) >= Double(idleMinutesLimit) * 60
+    }
+
+    /// Confirmation before releasing a lease; nil (no dialog) only for Preben's own. An idle
+    /// holder is still confirmed: the app can't see whether its session is running a command.
+    func releasePrompt(_ l: Lease, now: Date = Date()) -> String? {
+        guard l.sessionID != "human" else { return nil }
+        let ago = l.lastActivity.map { Simq.minutes(max(0, Int(now.timeIntervalSince($0)) / 60)) }
+        if isIdle(l, now: now), let ago {
+            return "\(l.device) is held by \(l.projectName), idle \(ago) (it may still be running a command). Release?"
+        }
+        let last = ago.map { "last activity \($0) ago" } ?? "no recorded activity"
+        return "\(l.device) is in use by \(l.projectName) (\(last)). Release anyway?"
     }
 
     /// "simq: 1/2 sims held · 0/1 emulators held · 1 queued · 1 pending request"

@@ -6,9 +6,10 @@ enum SimqCLI {
         env["SIMQ_BIN"] ?? "\(Paths.home)/.local/bin/simq"
     }
 
-    /// Drops `CLAUDE_*` (so simq doesn't see an agent) and `SIMQ_NO_SKETCHYBAR` (so the badge updates).
+    /// Drops `CLAUDE_*` and `CLAUDECODE` (so simq doesn't see an agent) and `SIMQ_NO_SKETCHYBAR`
+    /// (so the badge updates).
     static func environment(from env: [String: String]) -> [String: String] {
-        env.filter { !$0.key.hasPrefix("CLAUDE_") && $0.key != "SIMQ_NO_SKETCHYBAR" }
+        env.filter { !$0.key.hasPrefix("CLAUDE_") && !["CLAUDECODE", "SIMQ_NO_SKETCHYBAR"].contains($0.key) }
     }
 
     /// Exit codes: 0 ok, 1 error, 2 queued/timeout, 3 refused, 4 not allowed (not human).

@@ -31,11 +31,12 @@
   "requests": [
     {
       "id": 1,
-      "type": "command",
+      "type": "create",
+      "kind": "ios",
       "status": "pending",
       "session_id": "s-1",
       "command": "xcrun simctl create X",
-      "detail": "create sim X",
+      "detail": "simctl create",
       "reason": "need a spare sim",
       "cwd": "/tmp",
       "project": "/tmp",
@@ -43,33 +44,50 @@
     },
     {
       "id": 2,
-      "type": "command",
+      "type": "delete",
+      "kind": "ios",
       "status": "approved",
       "session_id": "s-1",
       "command": "xcrun simctl delete Y",
+      "detail": "Y",
       "project": "/tmp",
       "created": 1800
     },
     {
       "id": 3,
-      "type": "disk",
+      "type": "download",
+      "kind": "ios",
       "status": "pending",
       "session_id": "s-2",
-      "command": "sdkmanager install Z",
-      "detail": "9 GB",
-      "reason": "new image",
+      "command": "xcodebuild -downloadPlatform iOS",
+      "detail": "runtime download",
+      "reason": "new runtime",
       "cwd": "/Users/me/Hacking/NorsCare/nors",
       "project": "/Users/me/Hacking/NorsCare/nors",
       "created": 1900
     },
     {
       "id": 4,
-      "type": "command",
+      "type": "other",
+      "kind": "ios",
       "status": "expired",
       "session_id": "s-2",
-      "command": "old",
+      "command": "xcrun simctl rename A B",
+      "detail": "simctl rename",
       "project": "/tmp",
       "created": 1000
+    },
+    {
+      "id": 5,
+      "type": "sdk",
+      "kind": "android",
+      "status": "approving",
+      "approving_pid": 777,
+      "session_id": "s-2",
+      "command": "sdkmanager --install 'platforms;android-35'",
+      "detail": "sdk install",
+      "project": "/Users/me/Hacking/NorsCare/nors",
+      "created": 1950
     }
   ]
 }

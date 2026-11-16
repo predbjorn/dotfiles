@@ -9,6 +9,10 @@ final class SimqModel: ObservableObject {
     @Published var running = false
     /// CLI output per row: `"req-<id>"`, `"dev-<name>"` or `"doctor"`.
     @Published var rowMessage: [String: String] = [:]
+    /// The running (or last) command, e.g. `simq approve 3`, and its result once done: shown
+    /// pane-wide, so the output survives its row disappearing (an approved request).
+    @Published var lastCommand: String?
+    @Published var lastResult: String?
 
     private let home: String
     private var source: DispatchSourceFileSystemObject?
@@ -71,11 +75,15 @@ final class SimqModel: ObservableObject {
         guard !running else { return }
         running = true
         defer { running = false }
+        lastCommand = (["simq"] + args).joined(separator: " ")
+        lastResult = nil
         let r = await SimqCLI.run(args)
         let output = r.output.trimmingCharacters(in: .whitespacesAndNewlines)
-        rowMessage[key] = r.code == 0
+        let message = r.code == 0
             ? (output.isEmpty ? "Done." : output)
             : "\(Self.exitText(r.code))" + (output.isEmpty ? "" : "\n\(output)")
+        rowMessage[key] = message
+        lastResult = message
         reload()
     }
 
@@ -132,6 +140,7 @@ struct SimqView: View {
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
+                        SimqCommandLine()
                         SimqRequestsSection(simq: simq, now: context.date)
                         SimqPoolSection(simq: simq, now: context.date)
                         SimqQueuesSection(simq: simq, now: context.date)
@@ -167,6 +176,30 @@ struct SimqRowMessage: View {
     }
 }
 
+/// "Running: simq approve 3…" while a command runs, then its result.
+struct SimqCommandLine: View {
+    @EnvironmentObject var model: SimqModel
+
+    var body: some View {
+        if let cmd = model.lastCommand {
+            VStack(alignment: .leading, spacing: 2) {
+                if model.running {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text(verbatim: "Running: \(cmd)…").font(.callout.monospaced())
+                    }
+                } else {
+                    Text(verbatim: "Last: \(cmd)").font(.callout.monospaced())
+                    SimqRowMessage(text: model.lastResult)
+                }
+            }
+            .padding(.vertical, 6).padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
+
 // MARK: Waiting for you
 
 struct SimqRequestsSection: View {
@@ -194,14 +227,18 @@ struct SimqRequestsSection: View {
                     Text(verbatim: "\(a) ago").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Approve") { run(key, ["approve", "\(r.id)"]) }
-                if r.type == "download" {
-                    Button("Approve + pin") { run(key, ["approve", "\(r.id)", "--pin"]) }
+                if r.isApproving {
+                    Text("Approving…").foregroundStyle(.secondary)
+                } else {
+                    Button("Approve") { run(key, ["approve", "\(r.id)"]) }
+                    if r.canPin {
+                        Button("Approve + pin") { run(key, ["approve", "\(r.id)", "--pin"]) }
+                    }
+                    if let message, SimqCLI.needsForce(message) {
+                        Button("Force") { run(key, ["approve", "\(r.id)", "--force"]) }
+                    }
+                    Button("Deny", role: .destructive) { run(key, ["deny", "\(r.id)"]) }
                 }
-                if let message, SimqCLI.needsForce(message) {
-                    Button("Force") { run(key, ["approve", "\(r.id)", "--force"]) }
-                }
-                Button("Deny", role: .destructive) { run(key, ["deny", "\(r.id)"]) }
             }
             .disabled(model.running)
             Text(verbatim: r.command).font(.callout.monospaced()).textSelection(.enabled)
@@ -250,9 +287,7 @@ struct SimqPoolSection: View {
     }
 
     private var confirmTitle: Text {
-        guard let l = confirm else { return Text(verbatim: "") }
-        let last = age(l.lastActivity, now: now).map { "last activity \($0) ago" } ?? "no recorded activity"
-        return Text(verbatim: "\(l.device) is in use by \(l.projectName) (\(last)). Release anyway?")
+        Text(verbatim: confirm.flatMap { simq.releasePrompt($0, now: now) } ?? "")
     }
 
     private func row(_ device: String, kind: String) -> some View {
@@ -268,7 +303,7 @@ struct SimqPoolSection: View {
                 Spacer()
                 if let lease {
                     Button(lease.sessionID == "human" ? "Release mine" : "Release") {
-                        if lease.sessionID == "human" || idle { release(device) } else { confirm = lease }
+                        if simq.releasePrompt(lease, now: now) == nil { release(device) } else { confirm = lease }
                     }
                 }
                 if state == .free || idle {
@@ -277,7 +312,8 @@ struct SimqPoolSection: View {
             }
             .disabled(model.running)
             if idle {
-                Text("idle, will be handed over on request").font(.callout).foregroundStyle(.orange)
+                Text("idle — a session asking for it takes it over unless the holder is still running a command")
+                    .font(.callout).foregroundStyle(.orange)
             }
             SimqRowMessage(text: model.rowMessage[key])
         }
