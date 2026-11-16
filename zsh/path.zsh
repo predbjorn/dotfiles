@@ -61,6 +61,9 @@ if [ -d "$HOME/Library/Android/sdk" ]; then
   export GRADLE_HOME="/usr/local/opt/gradle"
   export ANDROID_HOME="$HOME/Library/Android/sdk"
   export ANDROID_SDK_ROOT="$ANDROID_HOME"
+  # avdmanager writes AVDs to ~/.config/.android/avd, emulator reads ~/.android/avd:
+  # point both at one folder (setupfiles/sync.sh also symlinks it, for GUI apps)
+  export ANDROID_AVD_HOME="$HOME/.config/.android/avd"
 
   export PATH="$ANT_HOME/bin:$PATH"
   export PATH="$MAVEN_HOME/bin:$PATH"
