@@ -16,6 +16,7 @@
                                             sleet, windy, thunder, storm, blizzard, aurora
                                             (&intensity=0..1, &wind=-15..15 m/s, + blows right)
                                  ?phase=night  hold one palette: dawn, day, golden, night
+                                 ?forecast=0  hide the forecast panel (the gallery always hides it)
                                  ?set=2026-W42  show another set (needs wallpaper.py --gallery,
                                             which writes ../gallery/data.js)
 -->
@@ -31,6 +32,37 @@
            mix-blend-mode: screen; }
   #debug { position: fixed; z-index: 11; left: 12px; bottom: 12px; font: 13px ui-monospace, monospace;
            color: #fff; background: #0008; padding: 6px 10px; border-radius: 6px; display: none; }
+  /* Forecast panel, top right under the bar: frosted glass so the landscape shows through. */
+  #forecast { position: fixed; z-index: 12; top: 54px; right: 26px; width: 360px; display: none;
+              padding: 18px 20px 14px; border-radius: 20px; color: #f4ecdc;
+              font: 500 14px ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+              background: linear-gradient(160deg, rgba(20, 24, 40, 0.42), rgba(20, 24, 40, 0.26));
+              border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22);
+              backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+              text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); font-variant-numeric: tabular-nums; }
+  #forecast svg { display: block; overflow: visible; }
+  .fc-now { display: flex; align-items: center; gap: 14px; }
+  .fc-now svg { width: 58px; height: 58px; }
+  .fc-temp { font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -1px; }
+  .fc-desc { margin-top: 4px; opacity: 0.8; }
+  .fc-place { margin-left: auto; align-self: flex-start; font-size: 12px; letter-spacing: 1.5px;
+              text-transform: uppercase; opacity: 0.6; }
+  .fc-chance { margin-top: 16px; }
+  .fc-chance-head { display: flex; justify-content: space-between; font-size: 12px; opacity: 0.75; margin-bottom: 6px; }
+  .fc-chance svg { width: 100%; height: 90px; }
+  .fc-hours { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); margin: 16px -4px 12px; padding: 12px 0;
+              border-top: 1px solid rgba(255, 255, 255, 0.12); border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+  .fc-hour { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 13px; }
+  .fc-hour .fc-h { font-size: 11px; opacity: 0.6; }
+  .fc-hour svg { width: 26px; height: 26px; }
+  .fc-mm { font-size: 10px; color: #9ccaf5; min-height: 12px; }
+  .fc-day { display: grid; grid-template-columns: 56px 28px 34px 1fr 34px; align-items: center; gap: 8px;
+            padding: 4px 0; }
+  .fc-day svg { width: 24px; height: 24px; }
+  .fc-day .fc-lo { text-align: right; opacity: 0.65; }
+  .fc-bar { position: relative; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); }
+  .fc-bar i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+  .fc-cold { color: #a8d0ff; }
 </style>
 </head>
 <body>
@@ -39,6 +71,7 @@
 <canvas id="fx"></canvas>
 <div id="flash"></div>
 <div id="debug"></div>
+<div id="forecast"></div>
 <script>
 "use strict";
 const PHASES = ["dawn", "day", "golden", "night"];
@@ -100,9 +133,135 @@ function loadState() {
     if (g) W = { ...W, set: params.get("set"), images: g.images, scene: g.scene, look: g.look,
                  terrain: g.terrain, masks: g.masks || {} };
     if (W.set !== loadedSet) useSet();
+    renderForecast();
   };
   s.onerror = () => s.remove();
   document.head.appendChild(s);
+}
+
+// --- forecast panel (MET Norway's forecast for wallpaper.py's PLACE, via state.js) -------------
+
+// Flat icons for MET's symbol codes (clearsky_day, lightrainshowers_night, heavysnowandthunder, ...).
+function weatherIcon(symbol) {
+  const [base, when] = (symbol || "cloudy").split("_");
+  const night = when === "night" || when === "polartwilight";
+  const has = w => base.includes(w);
+  const fall = has("rain") || has("sleet") || has("snow");
+  const sky = has("clearsky") || has("fair") || has("partlycloudy") || has("showers");
+  const cloudy = !has("clearsky");
+  const lift = fall || has("thunder") ? -3 : 0;
+  let svg = "";
+  if (sky) {
+    const big = has("clearsky"), x = big ? 12 : 9, y = big ? 12 : 9, r = big ? 5.5 : 4.2;
+    if (night) {
+      svg += `<path d="M${x + r * 0.35} ${y - r - 0.5}a${r + 0.8} ${r + 0.8} 0 1 0 ${r + 1.6} ${r * 1.45}` +
+             `a${r * 0.95} ${r * 0.95} 0 0 1 ${-r - 1.6} ${-r * 1.45}z" fill="#efe6c8"/>`;
+    } else {
+      let rays = "";
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4, c = Math.cos(a), s = Math.sin(a);
+        rays += `<line x1="${x + c * (r + 2)}" y1="${y + s * (r + 2)}" x2="${x + c * (r + 4)}" y2="${y + s * (r + 4)}"/>`;
+      }
+      svg += `<g stroke="#f7c65a" stroke-width="1.6" stroke-linecap="round">${rays}</g>` +
+             `<circle cx="${x}" cy="${y}" r="${r}" fill="#f7c65a"/>`;
+    }
+  }
+  if (has("fog")) {
+    svg += `<g stroke="#d5dbe2" stroke-width="2" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/>` +
+           `<line x1="2" y1="13.5" x2="18" y2="13.5"/><line x1="6" y1="18" x2="22" y2="18"/></g>`;
+  } else if (cloudy) {
+    const dark = has("cloudy") && !has("partly") || has("heavy") || has("thunder");
+    const fill = dark ? "#b9c2cd" : "#eef1f5";
+    const t = sky ? `translate(2 ${3 + lift}) scale(0.9)` : `translate(0 ${lift})`;
+    svg += `<path transform="${t}" fill="${fill}" d="M7 19h10.5a4 4 0 0 0 .4-7.98A5.6 5.6 0 0 0 7.3 9.6 4.7 4.7 0 0 0 7 19z"/>`;
+  }
+  const drop = (x, y) => `<line x1="${x}" y1="${y}" x2="${x - 1.4}" y2="${y + 3.4}" stroke="#86bdf0" stroke-width="1.8" stroke-linecap="round"/>`;
+  const flake = (x, y) => `<circle cx="${x}" cy="${y + 1.5}" r="1.4" fill="#ffffff"/>`;
+  if (fall) {
+    const n = has("heavy") ? 3 : has("light") ? 1 : 2;
+    const spots = [[12, 18], [8, 19], [16, 19]].slice(0, n);
+    spots.forEach(([x, y], i) => {
+      svg += has("snow") || (has("sleet") && i % 2) ? flake(x, y) : drop(x, y);
+    });
+  }
+  if (has("thunder")) svg += `<path d="M13 15l-3 4.5h2.6L11 23.5l4.6-5.5H13l1.6-3z" fill="#f7c65a"/>`;
+  return `<svg viewBox="0 0 24 24">${svg}</svg>`;
+}
+
+function describeWeather(symbol) {
+  const base = (symbol || "").split("_")[0];
+  const words = [["clearsky", "clear"], ["partlycloudy", "partly cloudy"], ["fair", "fair"], ["cloudy", "cloudy"],
+                 ["fog", "fog"], ["heavy", "heavy "], ["light", "light "], ["rain", "rain"], ["sleet", "sleet"],
+                 ["snow", "snow"], ["showers", " showers"], ["andthunder", " and thunder"]];
+  let out = "", rest = base;
+  while (rest) {
+    const hit = words.find(([k]) => rest.startsWith(k));
+    if (!hit) break;
+    out += hit[1]; rest = rest.slice(hit[0].length);
+  }
+  out = out.trim() || base;
+  return out[0].toUpperCase() + out.slice(1);
+}
+
+// The next 4 hours: chance of rain as a line (0-100%), and under it each hour's rain as a bar,
+// dark up to the expected amount and light up to MET's likely maximum (like yr).
+function chanceChart(points) {
+  if (!points || points.length < 2) return "";
+  const w = 320, h = 90, top = 14, bottom = 16, plot = h - top - bottom;
+  const scale = Math.max(2, ...points.map(p => p.hi || 0));  // mm at the top of the chart, at least 2
+  // One column per hour: its dot, its bar (the rain in that hour) and its label share the centre.
+  const slot = w / points.length, bw = Math.min(26, slot * 0.45);
+  const bars = points.map((p, i) => {
+    const x = (i + 0.5) * slot - bw / 2, y = v => top + plot * (1 - Math.min(v || 0, scale) / scale);
+    return (p.hi > 0 ? `<rect x="${x}" y="${y(p.hi)}" width="${bw}" height="${top + plot - y(p.hi)}" rx="2" fill="#86bdf0" opacity="0.28"/>` : "") +
+           (p.mm > 0 ? `<rect x="${x}" y="${y(p.mm)}" width="${bw}" height="${top + plot - y(p.mm)}" rx="2" fill="#5d9be0" opacity="0.85"/>` : "");
+  }).join("");
+  const wettest = points.reduce((a, p) => (p.hi || 0) > (a.hi || 0) ? p : a, points[0]);
+  const xy = points.map((p, i) => [(i + 0.5) * w / points.length, top + plot * (1 - p.p / 100)]);
+  const line = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join("");
+  const peak = Math.max(...points.map(p => p.p));
+  const labels = points.map((p, i) => {
+    const [x] = xy[i], anchor = "middle";
+    const hour = String(new Date(p.t).getHours()).padStart(2, "0");
+    return `<text x="${x}" y="${h - 2}" text-anchor="${anchor}" font-size="10" fill="#f4ecdc" opacity="0.55">${hour}</text>`;
+  }).join("");
+  const dots = xy.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="2.6" fill="#9ccaf5"/>` +
+    (points[i].p > 0 ? `<text x="${x}" y="${y - 5}" text-anchor="middle" ` +
+     `font-size="10" fill="#cfe4fa">${points[i].p}%</text>` : "")).join("");
+  return `<div class="fc-chance"><div class="fc-chance-head"><span>Chance of rain, next 4 h</span>` +
+    `<span>${peak ? `up to ${peak}%` : "none expected"}${wettest.hi > 0 ? ` · ${wettest.mm}–${wettest.hi} mm/h` : ""}</span></div>` +
+    `<svg viewBox="0 0 ${w} ${h}"><defs><linearGradient id="fcRain" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="#86bdf0" stop-opacity="0.45"/><stop offset="1" stop-color="#86bdf0" stop-opacity="0"/></linearGradient></defs>` +
+    `<line x1="0" y1="${top}" x2="${w}" y2="${top}" stroke="#fff" stroke-opacity="0.1"/>` +
+    `<line x1="0" y1="${top + plot / 2}" x2="${w}" y2="${top + plot / 2}" stroke="#fff" stroke-opacity="0.1" stroke-dasharray="3 4"/>` +
+    `<line x1="0" y1="${top + plot}" x2="${w}" y2="${top + plot}" stroke="#fff" stroke-opacity="0.18"/>` +
+    `${bars}<path d="${line}L${xy[xy.length - 1][0]} ${top + plot}L${xy[0][0]} ${top + plot}z" fill="url(#fcRain)"/>` +
+    `<path d="${line}" fill="none" stroke="#9ccaf5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `${dots}${labels}</svg></div>`;
+}
+
+const deg = t => `<span class="${t <= 0 ? "fc-cold" : ""}">${t}°</span>`;
+
+function renderForecast() {
+  const el = document.getElementById("forecast");
+  const f = W && W.forecast;
+  if (!f || params.get("forecast") === "0" || params.get("set")) { el.style.display = "none"; return; }
+  const hours = f.hours.map(h => `<div class="fc-hour"><span class="fc-h">${String(new Date(h.t).getHours()).padStart(2, "0")}</span>` +
+    `${weatherIcon(h.symbol)}${deg(h.temp)}<span class="fc-mm">${h.precip >= 0.1 ? h.precip.toFixed(1) : ""}</span></div>`).join("");
+  const lo = Math.min(...f.days.map(d => d.min)), hi = Math.max(...f.days.map(d => d.max)), span = Math.max(1, hi - lo);
+  const colour = t => t <= 0 ? "#8fc3ff" : t < 10 ? "#cfe3a0" : t < 18 ? "#f7c65a" : "#f59a5b";
+  const days = f.days.map((d, i) => {
+    const name = i === 0 ? "Today" : new Date(d.date + "T12:00").toLocaleDateString("en-GB", { weekday: "short" });
+    const left = (d.min - lo) / span * 100, width = Math.max(4, (d.max - d.min) / span * 100);
+    return `<div class="fc-day"><span>${name}</span>${weatherIcon(d.symbol)}<span class="fc-lo">${deg(d.min)}</span>` +
+      `<div class="fc-bar"><i style="left:${left}%;width:${width}%;background:linear-gradient(90deg,${colour(d.min)},${colour(d.max)})"></i></div>` +
+      `<span>${deg(d.max)}</span></div>`;
+  }).join("");
+  const n = f.now;
+  el.innerHTML = `<div class="fc-now">${weatherIcon(n.symbol)}<div><div class="fc-temp">${deg(n.temp)}</div>` +
+    `<div class="fc-desc">${describeWeather(n.symbol)} · ${n.wind} m/s</div></div><div class="fc-place">${f.place}</div></div>` +
+    `${chanceChart(f.chance)}<div class="fc-hours">${hours}</div>${days}`;
+  el.style.display = "block";
 }
 
 let maskImgs = {};  // water / waterfalls masks (white where the effect may draw)
@@ -825,7 +984,7 @@ function frame(t) {
   const wx = currentWeather();
   wx.blow = wx.wind_x * (0.55 + 0.9 * gust(now));  // the wind right now, gusting around its mean
   mistTime += dt * (1 + Math.abs(wx.blow) / 3);
-  const look2 = W.look || ({ 12: "winter", 1: "winter", 2: "winter", 3: "winter", 9: "autumn", 10: "autumn", 11: "autumn" })[new Date().getMonth() + 1];
+  const look2 = W.look || W.season;  // wallpaper.py's season (a month ahead of the calendar)
   look.glow *= 1 - 0.8 * wx.clouds;
   look.rays *= 1 - wx.clouds;
   look.stars *= 1 - 0.9 * wx.clouds;
