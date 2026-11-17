@@ -553,7 +553,8 @@ function drawGlow(sun, colour, glow, rays, now) {
   ctx.fillRect(x - r * 7, y - r * 7, r * 14, r * 14);
   if (rays > 0.01) {
     // Drawn small and scaled up, so the wedges get soft edges for free.
-    const q = 8, len = img.w * 0.45, spin = now / 120000;
+    const q = 8, len = img.w * 0.45, spin = (now / 120000) % (Math.PI * 2);
+    // Kept small: with a Date.now()-sized angle WebKit (Plash) draws each wedge the long way round, filling the whole disc.
     if (!raysCanvas || raysCanvas.width !== Math.ceil(Wd / q)) {
       raysCanvas = document.createElement("canvas");
       raysCanvas.width = Math.ceil(Wd / q); raysCanvas.height = Math.ceil(Ht / q);
