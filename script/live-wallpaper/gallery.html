@@ -62,7 +62,8 @@
 const G = window.GALLERY;
 const WEATHERS = ["live", "clear", "overcast", "fog", "rain", "sleet", "snow", "windy", "thunder", "storm", "blizzard", "aurora"];
 const PHASES = ["now", "dawn", "day", "golden", "night"];
-const PHASE_NAMES = { now: "Now (Oslo sun)", dawn: "Dawn", day: "Day", golden: "Sunset", night: "Night" };
+const PLACE = G.place || "home";
+const PHASE_NAMES = { now: `Now (${PLACE} sun)`, dawn: "Dawn", day: "Day", golden: "Sunset", night: "Night" };
 const setKeys = Object.keys(G.sets);
 
 function readHash() {
@@ -83,7 +84,7 @@ el("sets").innerHTML = setKeys.map(k => {
   return `<a class="card" data-set="${k}" title="${s.feature}"><img src="${s.thumb}" loading="lazy" alt=""><div><b>${k}</b>` +
          [s.terrain, s.look].filter(Boolean).map(b => `<span class="badge">${b}</span>`).join("") + `</div></a>`;
 }).join("");
-WEATHERS.forEach(w => el("weather").insertAdjacentHTML("beforeend", `<a class="chip" data-weather="${w}">${w === "live" ? "Live (Oslo now)" : w}</a>`));
+WEATHERS.forEach(w => el("weather").insertAdjacentHTML("beforeend", `<a class="chip" data-weather="${w}">${w === "live" ? `Live (${PLACE} now)` : w}</a>`));
 PHASES.forEach(p => el("phase").insertAdjacentHTML("beforeend", `<a class="chip" data-phase="${p}">${PHASE_NAMES[p]}</a>`));
 
 let shown = "";

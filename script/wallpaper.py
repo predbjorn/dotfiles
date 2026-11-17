@@ -43,7 +43,6 @@ import json
 import math
 import os
 import random
-import re
 import shutil
 import subprocess
 import sys
@@ -926,7 +925,7 @@ def write_gallery(display):
     for old in thumbs.iterdir():
         if old.stem not in sets:
             old.unlink()
-    (GALLERY_DIR / "data.js").write_text(f"window.GALLERY = {json.dumps({'sets': sets})};\n")
+    (GALLERY_DIR / "data.js").write_text(f"window.GALLERY = {json.dumps({'sets': sets, 'place': PLACE.name})};\n")
     shutil.copyfile(GALLERY_PAGE, GALLERY_DIR / "index.html")
     return GALLERY_DIR / "index.html"
 
@@ -1075,18 +1074,13 @@ def write_live(set_key, display, wx, preset=None):
 
 
 def _start_plash(state):
-    """Open Plash (which shows the live page) once per boot; quitting it then sticks until a restart."""
-    try:
-        boot = re.search(r"sec = (\d+)", subprocess.run(["sysctl", "-n", "kern.boottime"],
-                         capture_output=True, text=True).stdout).group(1)
-    except (AttributeError, OSError):
-        return
-    if state.get("plash_boot") == boot or not Path("/Applications/Plash.app").exists():
+    """Keep Plash (which shows the live page) running: every run reopens it if it has quit or crashed."""
+    state.pop("plash_boot", None)  # older runs only started it once per boot
+    if not Path("/Applications/Plash.app").exists():
         return
     if subprocess.run(["pgrep", "-xq", "Plash"]).returncode != 0:
         subprocess.run(["open", "-gja", "Plash"])
-        print("Started Plash")
-    state["plash_boot"] = boot
+        print(f"{datetime.datetime.now():%Y-%m-%d %H:%M} Plash wasn't running; started it")
 
 
 def _today_weather(today, state):
