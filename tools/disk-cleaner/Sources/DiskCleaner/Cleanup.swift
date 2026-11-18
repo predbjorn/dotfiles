@@ -16,6 +16,7 @@ final class CleanupRunner: ObservableObject {
 
     @Published var deep = false
     @Published var dryRun = false
+    @Published var wipeDerivedData = false
     @Published private(set) var steps: [Step] = []
     @Published private(set) var total = 0
     @Published private(set) var isRunning = false
@@ -58,6 +59,7 @@ final class CleanupRunner: ObservableObject {
         var args = ["--progress"]
         if dryRun { args.append("--dry-run") }
         if deep { args.append("--deep") }
+        if wipeDerivedData { args.append("--wipe-derived-data") }
 
         let p = Shell.makeProcess(Paths.engine, args)
         let pipe = Pipe()
@@ -197,6 +199,9 @@ struct CleanupView: View {
                 .help("Report what each target holds without deleting anything")
             Toggle("Deep", isOn: $runner.deep)
                 .help("Also clear slow-to-refetch caches: HuggingFace, torch, Codex runtimes, Yarn")
+            Toggle("Wipe all DerivedData", isOn: $runner.wipeDerivedData)
+                .help("Delete every Xcode DerivedData folder, even ones built in the last 24 h. "
+                      + "Sessions then do a full rebuild. Still skipped while an Xcode build is running.")
             Spacer()
         }
         .disabled(false)

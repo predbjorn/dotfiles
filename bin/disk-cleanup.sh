@@ -5,6 +5,7 @@
 #   disk-cleanup.sh --dry-run    report what would be deleted, delete nothing
 #   disk-cleanup.sh --deep       also clear slow-to-refetch caches (Gradle, ML models etc)
 #   disk-cleanup.sh --age N      only delete build output untouched for N hours (default 24)
+#   disk-cleanup.sh --wipe-derived-data  delete all Xcode DerivedData, however recent
 #   disk-cleanup.sh --progress   also emit "::" progress lines (for DiskCleaner.app)
 #
 # Everything here is rebuilt or re-downloaded on demand. It never touches repo
@@ -15,14 +16,15 @@ set -u
 
 HACKING="${HACKING:-$HOME/Hacking}"
 LOG="$HOME/Library/Logs/disk-cleanup.log"
-DRY=0; DEEP=0; PROGRESS=0; AGE_H=24
+DRY=0; DEEP=0; PROGRESS=0; AGE_H=24; WIPE_DD=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run|-n) DRY=1 ;;
     --deep)       DEEP=1 ;;
     --age)        shift; AGE_H="${1:?--age needs hours}" ;;
     --progress)   PROGRESS=1 ;;
-    -h|--help)    sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --wipe-derived-data) WIPE_DD=1 ;;
+    -h|--help)    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -114,9 +116,12 @@ before=$(free_mb)
 ### ---------- safe targets ----------
 
 # Xcode derived data, per project, so active projects keep their incremental build.
+# --wipe-derived-data drops all of it (next builds are full rebuilds), never mid-build.
 if xcode_busy; then
   step "Xcode DerivedData"
   skipped "Xcode DerivedData: xcodebuild is running"
+elif [ "$WIPE_DD" -eq 1 ]; then
+  nuke "Xcode DerivedData (all)" "$HOME/Library/Developer/Xcode/DerivedData"/*/
 else
   nuke_stale "Xcode DerivedData" "$HOME/Library/Developer/Xcode/DerivedData"/*/
 fi
