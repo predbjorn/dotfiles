@@ -117,13 +117,7 @@ struct ManagedRow: View {
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
-                Text(chordLabel)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.accentColor.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                ChordBadge(chord: binding.chord, tint: .accentColor)
                 Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.caption)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(binding.displayName).font(.body)
@@ -138,14 +132,6 @@ struct ManagedRow: View {
         }
         .buttonStyle(.plain)
         .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    private var chordLabel: String {
-        switch binding.chord.layer {
-        case .spaceLeader: return "space \(binding.chord.key)"
-        case .spaceFLeader: return "space f \(binding.chord.key)"
-        case .karabinerModifier, .skhdModifier: return SkhdChord.render(binding.chord)
-        }
     }
 
     private var mechanismLabel: String {
@@ -210,8 +196,7 @@ struct BindingEditSheet: View {
                 }
             } else {
                 LabeledContent("Chord") {
-                    Text(chordLabel).font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                    ChordBadge(chord: binding.chord, tint: Color(nsColor: .secondaryLabelColor))
                 }
             }
 
@@ -254,14 +239,6 @@ struct BindingEditSheet: View {
         }
         .padding(24)
         .frame(width: 420)
-    }
-
-    private var chordLabel: String {
-        switch binding.chord.layer {
-        case .spaceLeader: return "space \(binding.chord.key)"
-        case .spaceFLeader: return "space f \(binding.chord.key)"
-        case .karabinerModifier, .skhdModifier: return SkhdChord.render(binding.chord)
-        }
     }
 
     private func buildBinding() -> Keymapper.Binding {

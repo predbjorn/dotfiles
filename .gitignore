@@ -13,3 +13,6 @@ githubProjects/githubProjects_local
 .config/cloudflared/*.json
 .config/cloudflared/*.pem
 **/config.json
+# SwiftPM build output
+.build/
+.swiftpm/

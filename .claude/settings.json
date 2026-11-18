@@ -1,5 +1,9 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(./deploy.sh:*)",
+      "Bash(gh pr merge:*)"
+    ],
     "defaultMode": "auto"
   },
   "statusLine": {
@@ -13,6 +17,8 @@
     "figma@claude-plugins-official": true
   },
   "effortLevel": "high",
-  "skipAutoPermissionPrompt": true,
-  "skipWorkflowUsageWarning": true
+  "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }

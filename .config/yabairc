@@ -57,8 +57,12 @@ yabai -m rule --add app="^Logi Options$" manage=off
 yabai -m rule --add app="^Simulator$" manage=off
 yabai -m rule --add app="^qemu-system-aarch64$" manage=off
 yabai -m rule --add app="^android-emulator$" manage=off
+yabai -m rule --add title="^Android Emulator" manage=off
 yabai -m rule --add app="^Device Hub$" manage=off
 yabai -m rule --add app="^Disk ?Cleaner$" manage=off
+
+# apply rules to windows that already exist (e.g. after a restart)
+yabai -m rule --apply
 
 borders active_color=0xffff8f40 inactive_color=0xff414550 width=5.0 &
 
