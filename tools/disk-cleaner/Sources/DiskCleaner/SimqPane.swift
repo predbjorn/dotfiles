@@ -17,17 +17,47 @@ final class SimqModel: ObservableObject {
     private let home: String
     private var source: DispatchSourceFileSystemObject?
     private var poll: Timer?
+    /// Booting isn't in simq's files: poll simctl/adb so a pool device booted with no lease
+    /// shows as such instead of "free".
+    private var bootPoll: Timer?
+    private var booted: Set<String> = []
 
-    init(home: String = Simq.home) {
+    init(home: String = Simq.home, pollBooted: Bool = true) {
         self.home = home
         reload()
         watch()
+        guard pollBooted else { return }
+        Task { await refreshBooted() }
+        bootPoll = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
+            Task { await self?.refreshBooted() }
+        }
     }
 
     deinit {
         source?.cancel()
         poll?.invalidate()
         retry?.invalidate()
+        bootPoll?.invalidate()
+    }
+
+    func refreshBooted() async {
+        guard let s = simq else { return }
+        var names: Set<String> = []
+        if !s.iosPool.isEmpty {
+            let r = await Shell.run("/usr/bin/xcrun", ["simctl", "list", "devices", "booted", "-j"])
+            names.formUnion(Simq.bootedSims(simctlJSON: Data(r.out.utf8), iosPool: s.iosPool))
+        }
+        if !s.androidPool.isEmpty {
+            let adb = "\(Paths.androidSDK)/platform-tools/adb"
+            let listing = await Shell.run(adb, ["devices"]).out
+            for serial in Simq.runningEmulators(adbDevices: listing) {
+                let avd = await Shell.run(adb, ["-s", serial, "emu", "avd", "name"]).out
+                    .split(separator: "\n").first.map { $0.trimmingCharacters(in: .whitespaces) }
+                if let avd, s.androidPool.contains(avd) { names.insert(avd) }
+            }
+        }
+        booted = names
+        simq?.booted = names
     }
 
     /// Not set up (nil) only when policy.json doesn't exist. A policy or state.json that exists but
@@ -46,7 +76,8 @@ final class SimqModel: ObservableObject {
         let stateBad = fm.fileExists(atPath: statePath)
             && (state.map { (try? JSONSerialization.jsonObject(with: $0)) as? [String: Any] == nil } ?? true)
 
-        if let parsed, !stateBad {
+        if var parsed, !stateBad {
+            parsed.booted = booted
             simq = parsed
         } else if simq != nil {
             scheduleRetry()                 // keep the last good state
@@ -308,6 +339,16 @@ struct SimqPoolSection: View {
                 }
                 if state == .free || idle {
                     Button("Take") { Task { await model.act(key, ["acquire", kind, "--device", device]) } }
+                }
+                if case .booted = state {
+                    // simq lets the human release a booted, unleased device: it shuts it down
+                    Button("Shut down") {
+                        Task {
+                            await model.act(key, ["release", device])
+                            await model.refreshBooted()
+                        }
+                    }
+                    .help("Shut \(device) down so sessions can take it")
                 }
             }
             .disabled(model.running)
