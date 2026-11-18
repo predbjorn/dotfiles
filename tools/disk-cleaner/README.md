@@ -47,7 +47,7 @@ When simq (`~/Hacking/simq`) is set up, the Devices pane reads its
 and shows:
 
 - a summary line: sims/emulators held, sessions queued, pending requests;
-- pool sims/AVDs as `simq Sim-A · held|free|reserved`, with who holds it and how
+- pool sims/AVDs as `simq Sim-A · held|free|reserved|booted outside simq`, with who holds it and how
   long it has been idle. Delete is disabled while a session holds one, and
   otherwise warns that removing it breaks the pool;
 - running sims/AVDs outside the pool as `Running · outside simq pool`;
@@ -71,6 +71,10 @@ switch panes; they never run an action.
   yours) and **Take** (`simq acquire <kind> --device X`, free or idle devices
   only).
 - **Queues:** sessions waiting per kind, with position and wait time.
+- **Pool:** booted state comes from `simctl`/`adb` every 15 s. A pool device that is
+  booted with no lease shows **booted outside simq** (sessions can't take it) and a
+  **Shut down** button (`simq release <device>`); if a session's process ended while
+  holding it, the row says simq keeps it for that session when it resumes.
 - **Health:** **Run doctor** shows `simq doctor` output. **Create missing devices**
   runs `simq repair`, which recreates pool simulators and emulators that no longer
   exist (same names; **Force** appears when disk space is short).

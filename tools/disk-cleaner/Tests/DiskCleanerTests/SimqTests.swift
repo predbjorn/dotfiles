@@ -37,6 +37,38 @@ final class SimqTests: XCTestCase {
         XCTAssertEqual(s.summary(now: now), "simq: 1/2 sims held · 0/1 emulators held · 1 queued · 2 pending requests")
     }
 
+    func testBootedWithoutLeaseIsNotFree() throws {
+        var s = try XCTUnwrap(Simq.load(home: fixture))
+        let now = Date(timeIntervalSince1970: 1600 + 7 * 60)
+        s.booted = ["Sim-B"]
+        XCTAssertEqual(s.state(of: "Sim-B", now: now), .booted(leftoverOf: nil))
+        XCTAssertEqual(s.state(of: "Sim-B", now: now).text,
+                       "booted outside simq · sessions can't take it until it's shut down")
+        XCTAssertEqual(s.badge(pool: "Sim-B", running: true)?.0, "simq Sim-B · booted outside simq")
+        s.lastHolders = ["Sim-B": "cb1ff49c-deee"]
+        XCTAssertEqual(s.state(of: "Sim-B", now: now).text,
+                       "booted, no lease · kept for session cb1f… if it resumes")
+        s.booted = ["Sim-A"]  // a held device stays held, booted or not
+        XCTAssertEqual(s.state(of: "Sim-A", now: now), .held(project: "loving-cray", idleMinutes: 7))
+    }
+
+    func testLastHoldersDecoded() throws {
+        let policy = try XCTUnwrap(FileManager.default.contents(atPath: fixture + "/policy.json"))
+        let s = try XCTUnwrap(Simq.parse(policy: policy, state: Data(#"{"last_holders": {"Sim-B": "s9"}}"#.utf8)))
+        XCTAssertEqual(s.lastHolders, ["Sim-B": "s9"])
+    }
+
+    func testBootedSimsFromSimctl() {
+        let json = #"{"devices": {"rt": [{"udid": "U2", "name": "Sim-B", "state": "Booted"}, {"udid": "X", "name": "Other"}]}}"#
+        XCTAssertEqual(Simq.bootedSims(simctlJSON: Data(json.utf8), iosPool: ["Sim-A": "U1", "Sim-B": "U2"]), ["Sim-B"])
+        XCTAssertEqual(Simq.bootedSims(simctlJSON: Data("nope".utf8), iosPool: ["Sim-A": "U1"]), [])
+    }
+
+    func testRunningEmulatorsFromAdb() {
+        let listing = "List of devices attached\nemulator-5554\tdevice\nemulator-5556\toffline\nR58M\tdevice\n"
+        XCTAssertEqual(Simq.runningEmulators(adbDevices: listing), ["emulator-5554"])
+    }
+
     func testBadges() throws {
         let s = try XCTUnwrap(Simq.load(home: fixture))
         XCTAssertEqual(s.badge(pool: nil, running: true)?.0, "Running · outside simq pool")
@@ -163,7 +195,7 @@ final class SimqTests: XCTestCase {
         defer { if let old { setenv("SIMQ_BIN", old, 1) } else { unsetenv("SIMQ_BIN") } }
 
         setenv("SIMQ_BIN", "/bin/echo", 1)
-        let model = SimqModel(home: fixture)
+        let model = SimqModel(home: fixture, pollBooted: false)
         XCTAssertEqual(model.simq?.pendingRequests, 2)
         await model.act("req-3", ["approve", "3"])
         XCTAssertEqual(model.rowMessage, ["req-3": "approve 3"])
@@ -182,7 +214,7 @@ final class SimqTests: XCTestCase {
 
     @MainActor
     func testModelWithoutHomeIsNotSetUp() {
-        XCTAssertNil(SimqModel(home: "/nonexistent/simq-\(UUID())").simq)
+        XCTAssertNil(SimqModel(home: "/nonexistent/simq-\(UUID())", pollBooted: false).simq)
     }
 
     @MainActor
@@ -192,7 +224,7 @@ final class SimqTests: XCTestCase {
         try fm.copyItem(atPath: fixture, toPath: home)
         defer { try? fm.removeItem(atPath: home) }
 
-        let model = SimqModel(home: home)
+        let model = SimqModel(home: home, pollBooted: false)
         XCTAssertEqual(model.simq?.requests.map(\.id), [5, 3, 1])
 
         try Data("{partial".utf8).write(to: URL(fileURLWithPath: home + "/state.json"))
@@ -215,7 +247,7 @@ final class SimqTests: XCTestCase {
         try fm.createDirectory(atPath: home, withIntermediateDirectories: true)
         defer { try? fm.removeItem(atPath: home) }
         try fm.copyItem(atPath: fixture + "/policy.json", toPath: home + "/policy.json")
-        let model = SimqModel(home: home)
+        let model = SimqModel(home: home, pollBooted: false)
         XCTAssertEqual(model.simq?.requests.count, 0)
         XCTAssertEqual(model.simq?.state(of: "Sim-A"), .free)
     }

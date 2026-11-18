@@ -48,12 +48,17 @@ struct Simq {
     enum DeviceState: Equatable {
         case held(project: String, idleMinutes: Int?)
         case reserved
+        /// Booted with no lease. `leftoverOf`: the session whose process ended while holding it
+        /// (simq gives it back when that session resumes); nil means someone booted it outside simq.
+        case booted(leftoverOf: String?)
         case free
 
         var text: String {
             switch self {
             case .held(let p, let idle): "held by \(p)" + (idle.map { " (idle \(Simq.minutes($0)))" } ?? "")
             case .reserved: "reserved"
+            case .booted(let sid?): "booted, no lease · kept for session \(sid.prefix(4))… if it resumes"
+            case .booted(nil): "booted outside simq · sessions can't take it until it's shut down"
             case .free: "free"
             }
         }
@@ -68,6 +73,9 @@ struct Simq {
     var leases: [Lease] = []
     var queues: [String: [Waiter]] = [:]     // kind → sessions waiting
     var reservations: [String: Date] = [:]   // device → reserved until
+    var lastHolders: [String: String] = [:]  // device → session whose process ended holding it
+    /// Pool names booted right now; not in simq's files, so SimqModel fills it in from simctl/adb.
+    var booted: Set<String> = []
     var requests: [Request] = []             // pending and approving, newest first
     var idleMinutesLimit = 45
 
@@ -107,6 +115,7 @@ struct Simq {
             }
         }
         s.reservations = (st["reservations"] as? [String: Any] ?? [:]).compactMapValues { ($0 as? [String: Any]).flatMap { date($0["until"]) } }
+        s.lastHolders = (st["last_holders"] as? [String: Any] ?? [:]).compactMapValues { $0 as? String }
         s.requests = (st["requests"] as? [Any] ?? []).compactMap { any -> Request? in
             guard let r = any as? [String: Any], let status = r["status"] as? String,
                   status == "pending" || status == "approving",
@@ -121,6 +130,26 @@ struct Simq {
 
     // MARK: lookups
 
+    /// Emulator serials that are up, per `adb devices`.
+    static func runningEmulators(adbDevices: String) -> [String] {
+        var out: [String] = []
+        for line in adbDevices.split(separator: "\n") {
+            let parts = line.split(separator: "\t")
+            if parts.count == 2, parts[0].hasPrefix("emulator-"), parts[1] == "device" {
+                out.append(String(parts[0]))
+            }
+        }
+        return out
+    }
+
+    /// Pool sim names booted per `xcrun simctl list devices booted -j`.
+    static func bootedSims(simctlJSON: Data, iosPool: [String: String]) -> Set<String> {
+        guard let j = (try? JSONSerialization.jsonObject(with: simctlJSON)) as? [String: Any],
+              let devs = j["devices"] as? [String: Any] else { return [] }
+        let udids = devs.values.flatMap { ($0 as? [[String: Any]] ?? []).compactMap { $0["udid"] as? String } }
+        return Set(iosPool.filter { udids.contains($0.value) }.keys)
+    }
+
     /// Pool name for a simulator UDID or AVD name.
     func poolName(udid: String) -> String? { iosPool.first { $0.value == udid }?.key }
     func poolName(avd: String) -> String? { androidPool.contains(avd) ? avd : nil }
@@ -131,6 +160,7 @@ struct Simq {
                          idleMinutes: l.lastActivity.map { max(0, Int(now.timeIntervalSince($0)) / 60) })
         }
         if let until = reservations[device], until > now { return .reserved }
+        if booted.contains(device) { return .booted(leftoverOf: lastHolders[device]) }
         return .free
     }
 
@@ -172,6 +202,7 @@ struct Simq {
         return switch state(of: pool) {
         case .held: ("simq \(pool) · held", .green)
         case .reserved: ("simq \(pool) · reserved", .blue)
+        case .booted: ("simq \(pool) · booted outside simq", .orange)
         case .free: ("simq \(pool) · free", .blue)
         }
     }
