@@ -80,6 +80,35 @@ final class SimqTests: XCTestCase {
         XCTAssertFalse(DeleteTarget.image(plain).message.contains("simq"))
     }
 
+    func testGradleRulesFromPolicy() throws {
+        let policy = #"""
+        {"ios_runtime": "rt", "android_image": "img", "ios_pool": {}, "android_pool": [],
+         "gradle_versions": ["9.3.1", "'9.3.1'", "8.11.1", "9.0.0"],
+         "android_paths": {"/h/Hacking/NorsCare/nors": ["android/", "*js*"],
+                           "/h/Hacking/projects/tren": ["tren_android/"]}}
+        """#
+        let s = try XCTUnwrap(Simq.parse(policy: Data(policy.utf8), state: nil))
+        XCTAssertEqual(s.allowedGradle, ["9.3.1", "9.0.0", "8.11.1"])
+        XCTAssertEqual(s.invalidGradleEntries, ["'9.3.1'"])
+        XCTAssertEqual(s.androidPathRows.map(\.repo), ["nors", "tren"])
+        XCTAssertEqual(s.androidPathRows[0].paths,
+                       "android/, tren_android/, native-android/ + JS changes (src/, app/, *.ts, *.tsx, package.json, app.json, app.config.*)")
+        XCTAssertEqual(s.androidPathRows[1].paths, "tren_android/")
+        XCTAssertTrue(s.allowsGradle("8.11.1"))
+        XCTAssertFalse(s.allowsGradle("9.2.0"))
+    }
+
+    func testWrapperRows() throws {
+        let s = try XCTUnwrap(Simq.load(home: fixture))
+        let c = Checkout(repo: "tren", repoPath: "/h/tren", worktree: nil, path: "/h/tren")
+        var scan = ProjectScan()
+        scan.gradle = ["8.11.1": [c], "8.11.1-bin": [c], "9.2.0": [c], "10.0": [c]]
+        let rows = s.wrapperRows(scan)
+        XCTAssertEqual(rows.map(\.version), ["10.0", "9.2.0", "8.11.1"])
+        XCTAssertEqual(rows.map(\.allowed), [false, false, true])
+        XCTAssertEqual(rows[2].who, "pinned by tren")
+    }
+
     func testBadges() throws {
         let s = try XCTUnwrap(Simq.load(home: fixture))
         XCTAssertEqual(s.badge(pool: nil, running: true)?.0, "Running · outside simq pool")

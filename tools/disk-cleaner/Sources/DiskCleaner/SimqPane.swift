@@ -175,6 +175,7 @@ struct SimqView: View {
                         SimqRequestsSection(simq: simq, now: context.date)
                         SimqPoolSection(simq: simq, now: context.date)
                         SimqQueuesSection(simq: simq, now: context.date)
+                        SimqGradleSection(simq: simq)
                         SimqHealthSection()
                     }
                     .padding()
@@ -400,6 +401,94 @@ struct SimqQueuesSection: View {
                 }
                 .padding(.vertical, 4).padding(.horizontal, 8)
             }
+        }
+    }
+}
+
+// MARK: Gradle
+
+/// What simq's hook allows for Gradle (simq/gradle.py), read from policy.json, plus the wrapper
+/// versions the repos under ~/Hacking pin today.
+struct SimqGradleSection: View {
+    @EnvironmentObject var devices: DevicesModel
+    let simq: Simq
+    @State private var ownScan: ProjectScan?
+    @State private var scanning = false
+
+    private var scan: ProjectScan? { devices.scan ?? ownScan }
+
+    var body: some View {
+        DeviceSection(title: "Gradle", systemImage: "hammer", total: 0, empty: false, loading: false) {
+            EmptyView()
+        } content: {
+            VStack(alignment: .leading, spacing: 14) {
+                block("Rules for Claude sessions") {
+                    rule("Every `gradlew` build needs `--no-daemon`.")
+                    rule("A build or `expo run:android` runs only when the branch or working tree changes Android files (below). `SIMQ_ANDROID_OK=1` overrides.")
+                    rule("Changing a wrapper's `distributionUrl` to a version not allowed below files a request for your approval; approving adds the version.")
+                }
+                block("Wrapper versions sessions may pin") {
+                    Text(verbatim: simq.allowedGradle.isEmpty ? "none" : simq.allowedGradle.joined(separator: "  ·  "))
+                        .font(.body.monospaced())
+                    if !simq.invalidGradleEntries.isEmpty {
+                        Text(verbatim: "Ignored entries in policy.json (not a version, match nothing): "
+                             + simq.invalidGradleEntries.joined(separator: ", "))
+                            .font(.callout).foregroundStyle(.orange)
+                    }
+                }
+                block("What counts as an Android change") {
+                    ForEach(simq.androidPathRows, id: \.path) { r in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(verbatim: r.repo).font(.body.weight(.medium)).frame(minWidth: 70, alignment: .leading)
+                            Text(verbatim: r.paths).foregroundStyle(.secondary).textSelection(.enabled)
+                        }
+                    }
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("other repos").font(.body.weight(.medium)).frame(minWidth: 70, alignment: .leading)
+                        Text(verbatim: Simq.defaultAndroidPaths.joined(separator: ", ")).foregroundStyle(.secondary)
+                    }
+                }
+                block("Wrappers in ~/Hacking") {
+                    if let scan {
+                        let rows = simq.wrapperRows(scan)
+                        if rows.isEmpty { Text("No gradle-wrapper.properties found.").foregroundStyle(.tertiary) }
+                        ForEach(rows, id: \.version) { r in
+                            HStack(alignment: .firstTextBaseline) {
+                                Image(systemName: r.allowed ? "checkmark.circle.fill" : "exclamationmark.circle")
+                                    .foregroundStyle(r.allowed ? .green : .orange)
+                                Text(verbatim: r.version).font(.body.monospaced().weight(.medium))
+                                Text(verbatim: r.allowed ? "allowed" : "not allowed: switching a wrapper to it needs approval")
+                                    .foregroundStyle(r.allowed ? Color.secondary : Color.orange)
+                                Spacer()
+                            }
+                            Text(verbatim: r.who).font(.callout).foregroundStyle(.secondary).padding(.leading, 22)
+                        }
+                    } else {
+                        Text(scanning ? "Scanning ~/Hacking…" : "Not scanned yet.").foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            .padding(.vertical, 6).padding(.horizontal, 8)
+        }
+        .task {
+            guard devices.scan == nil, ownScan == nil, !scanning else { return }
+            scanning = true
+            ownScan = await ProjectScan.load()
+            scanning = false
+        }
+    }
+
+    private func block<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+            content()
+        }
+    }
+
+    private func rule(_ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("•").foregroundStyle(.secondary)
+            Text(text)
         }
     }
 }
