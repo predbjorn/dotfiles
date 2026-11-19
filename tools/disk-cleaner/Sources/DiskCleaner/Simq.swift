@@ -207,6 +207,13 @@ struct Simq {
         }
     }
 
+    /// simq creates and repairs its pool from the pinned runtime/image: deleting it leaves the pool
+    /// unrepairable (and pool emulators on that image unbootable) until it's reinstalled.
+    static func pinnedDeleteWarning(pool: String) -> String {
+        "simq pins this in ~/.simq/policy.json: its pool \(pool) run on it, and `simq repair` recreates them from it. "
+            + "Deleting it breaks the pool for every Claude session until it's reinstalled or simq pins another one."
+    }
+
     static let poolDeleteWarning = "This device is in the simq pool. Removing it breaks the pool for every Claude session. "
         + "Remove it from ~/.simq/policy.json first (simq has no command for that)."
 }

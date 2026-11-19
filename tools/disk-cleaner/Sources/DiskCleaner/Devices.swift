@@ -48,6 +48,8 @@ struct SystemImage: Identifiable {
     let relative: String   // system-images/android-35/google_apis_playstore/arm64-v8a
     var size: Int64?
     var usedBy: [String]
+    /// simq builds and repairs its pool emulators from this image (policy.json android_image).
+    var simqPinned = false
     var id: String { path }
     var label: String {
         relative.split(separator: "/").dropFirst().joined(separator: " · ")
@@ -73,7 +75,7 @@ struct CacheItem: Identifiable {
 }
 
 enum DeleteTarget: Identifiable {
-    case sim(SimDevice), simCaches(SimDevice), unavailableSims(Int), runtime(SimRuntime, usedBy: Int), avd(AndroidAVD), image(SystemImage)
+    case sim(SimDevice), simCaches(SimDevice), unavailableSims(Int), runtime(SimRuntime, usedBy: Int, simqPinned: Bool = false), avd(AndroidAVD), image(SystemImage)
     case cache(CacheItem), cacheGroup([CacheItem], label: String)
 
     var id: String {
@@ -81,7 +83,7 @@ enum DeleteTarget: Identifiable {
         case .sim(let d): "sim-\(d.udid)"
         case .simCaches(let d): "simcache-\(d.udid)"
         case .unavailableSims: "unavailable"
-        case .runtime(let r, _): "rt-\(r.identifier)"
+        case .runtime(let r, _, _): "rt-\(r.identifier)"
         case .avd(let a): "avd-\(a.name)"
         case .image(let i): "img-\(i.path)"
         case .cache(let c): "cache-\(c.path)"
@@ -95,9 +97,11 @@ enum DeleteTarget: Identifiable {
         case .sim(let d): "Delete simulator “\(d.name)”?"
         case .simCaches(let d): "Clear caches of “\(d.name)”?"
         case .unavailableSims(let n): "Delete \(n) unavailable simulator\(n == 1 ? "" : "s")?"
-        case .runtime(let r, _): "Delete runtime \(r.name)?"
+        case .runtime(let r, _, true): "Delete simq's pinned runtime \(r.name)?"
+        case .runtime(let r, _, _): "Delete runtime \(r.name)?"
         case .avd(let a) where a.simqPool != nil: "Remove simq pool emulator “\(a.displayName)”?"
         case .avd(let a): "Delete emulator “\(a.displayName)”?"
+        case .image(let i) where i.simqPinned: "Delete simq's pinned system image \(i.label)?"
         case .image(let i): "Delete system image \(i.label)?"
         case .cache(let c): "Delete \(c.title)?"
         case .cacheGroup(let items, let label): "Delete \(items.count) \(label)?"
@@ -114,13 +118,13 @@ enum DeleteTarget: Identifiable {
                 + "Installed apps, their data and settings stay."
         case .unavailableSims:
             "These simulators belong to runtimes that are no longer installed. Runs `xcrun simctl delete unavailable`."
-        case .runtime(let r, let used):
-            "Frees \(formatBytes(r.size)). Xcode can download it again."
+        case .runtime(let r, let used, let pinned):
+            (pinned ? Simq.pinnedDeleteWarning(pool: "simulators") + "\n\n" : "") + "Frees \(formatBytes(r.size)). Xcode can download it again."
                 + (used > 0 ? " \(used) simulator\(used == 1 ? "" : "s") use this runtime and will become unavailable." : "")
         case .avd(let a):
             (a.simqPool != nil ? Simq.poolDeleteWarning + "\n\n" : "") + "\(a.size.map(formatBytes) ?? "unknown size"). The emulator's data and snapshots are removed permanently."
         case .image(let i):
-            "Frees \(i.size.map(formatBytes) ?? "space"). Android Studio's SDK Manager can download it again."
+            (i.simqPinned ? Simq.pinnedDeleteWarning(pool: "emulators") + "\n\n" : "") + "Frees \(i.size.map(formatBytes) ?? "space"). Android Studio's SDK Manager can download it again."
                 + (i.usedBy.isEmpty ? "" : " Used by: \(i.usedBy.joined(separator: ", ")) — they won't boot until it's reinstalled.")
         case .cache(let c):
             "Frees \(c.size.map(formatBytes) ?? "space"). It is rebuilt or re-downloaded on the next build."
@@ -199,7 +203,7 @@ final class DevicesModel: ObservableObject {
             case .sim(let d): await Self.deleteSim(d)
             case .simCaches(let d): await Self.clearSimCaches(d)
             case .unavailableSims: Self.errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "delete", "unavailable"]))
-            case .runtime(let r, _):
+            case .runtime(let r, _, _):
                 Self.errorText(await Shell.run("/usr/bin/xcrun", ["simctl", "runtime", "delete", r.identifier]))
             case .avd(let a): await Self.removeAsync([a.dir, a.ini])
             case .image(let i): await Self.removeAsync([i.path])
@@ -310,8 +314,8 @@ final class DevicesModel: ObservableObject {
                 for abi in (try? fm.contentsOfDirectory(atPath: "\(root)/\(api)/\(tag)")) ?? [] where !abi.hasPrefix(".") {
                     let rel = "system-images/\(api)/\(tag)/\(abi)"
                     let users = avds.filter { $0.systemImage == rel }.map(\.displayName)
-                        + (simq?.androidImage == rel ? ["simq pin"] : [])
-                    out.append(SystemImage(path: "\(root)/\(api)/\(tag)/\(abi)", relative: rel, size: nil, usedBy: users))
+                    out.append(SystemImage(path: "\(root)/\(api)/\(tag)/\(abi)", relative: rel, size: nil, usedBy: users,
+                                           simqPinned: simq?.androidImage == rel))
                 }
             }
         }
@@ -623,7 +627,7 @@ struct DevicesView: View {
                             busy: model.busy.contains("rt-\(r.identifier)"),
                             reveal: nil,
                             canDelete: r.deletable
-                        ) { pending = .runtime(r, usedBy: users) }
+                        ) { pending = .runtime(r, usedBy: users, simqPinned: simq?.iosRuntime == r.runtimeID) }
                     }
                 }
 

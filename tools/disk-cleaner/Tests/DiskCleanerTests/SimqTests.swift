@@ -69,6 +69,17 @@ final class SimqTests: XCTestCase {
         XCTAssertEqual(Simq.runningEmulators(adbDevices: listing), ["emulator-5554"])
     }
 
+    func testDeletingPinnedImageWarns() {
+        let pinned = SystemImage(path: "/sdk/x", relative: "system-images/android-35/google_apis_playstore/arm64-v8a",
+                                 size: 2_000_000_000, usedBy: ["Emu-B"], simqPinned: true)
+        let t = DeleteTarget.image(pinned)
+        XCTAssertEqual(t.title, "Delete simq's pinned system image android-35 · google_apis_playstore · arm64-v8a?")
+        XCTAssertTrue(t.message.hasPrefix(Simq.pinnedDeleteWarning(pool: "emulators")))
+        var plain = pinned
+        plain.simqPinned = false
+        XCTAssertFalse(DeleteTarget.image(plain).message.contains("simq"))
+    }
+
     func testBadges() throws {
         let s = try XCTUnwrap(Simq.load(home: fixture))
         XCTAssertEqual(s.badge(pool: nil, running: true)?.0, "Running · outside simq pool")

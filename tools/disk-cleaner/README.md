@@ -51,7 +51,8 @@ and shows:
   long it has been idle. Delete is disabled while a session holds one, and
   otherwise warns that removing it breaks the pool;
 - running sims/AVDs outside the pool as `Running · outside simq pool`;
-- `Pinned by simq` on the pinned iOS runtime and Android system image, and a
+- `Pinned by simq` on the pinned iOS runtime and Android system image (deleting
+  one asks with a warning that it breaks the pool and `simq repair`), and a
   `simq pin` suffix on pinned Gradle versions. Gradle versions simq doesn't pin
   get **Delete N not pinned by simq**.
 
