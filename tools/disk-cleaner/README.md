@@ -76,6 +76,11 @@ switch panes; they never run an action.
   booted with no lease shows **booted outside simq** (sessions can't take it) and a
   **Shut down** button (`simq release <device>`); if a session's process ended while
   holding it, the row says simq keeps it for that session when it resumes.
+- **Gradle:** what simq's hook allows: the rules (`--no-daemon`, builds only when the
+  branch touches Android, wrapper changes need approval), the wrapper versions
+  sessions may pin (and `policy.json` entries that aren't versions), which paths
+  count as Android per repo (`android_paths`, else simq's defaults), and every
+  wrapper version the repos in `~/Hacking` pin, marked allowed or not.
 - **Health:** **Run doctor** shows `simq doctor` output. **Create missing devices**
   runs `simq repair`, which recreates pool simulators and emulators that no longer
   exist (same names; **Force** appears when disk space is short).

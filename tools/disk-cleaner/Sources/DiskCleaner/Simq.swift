@@ -69,6 +69,8 @@ struct Simq {
     var iosPool: [String: String] = [:] // pool name → UDID
     var androidPool: [String] = []      // AVD names
     var gradleVersions: Set<String> = []
+    /// Repo path → path prefixes whose changes count as "touches Android" (`*js*` adds JS files).
+    var androidPaths: [String: [String]] = [:]
 
     var leases: [Lease] = []
     var queues: [String: [Waiter]] = [:]     // kind → sessions waiting
@@ -99,6 +101,7 @@ struct Simq {
         s.androidPool = (p["android_pool"] as? [Any] ?? []).compactMap { $0 as? String }
         s.gradleVersions = Set((p["gradle_versions"] as? [Any] ?? []).compactMap { $0 as? String })
 
+        s.androidPaths = (p["android_paths"] as? [String: Any] ?? [:]).mapValues { ($0 as? [Any] ?? []).compactMap { $0 as? String } }
         s.idleMinutesLimit = (p["idle_minutes"] as? NSNumber)?.intValue ?? 45
 
         guard let state, let st = (try? JSONSerialization.jsonObject(with: state)) as? [String: Any] else { return s }
@@ -126,6 +129,42 @@ struct Simq {
                            reason: r["reason"] as? String, cwd: r["cwd"] as? String, created: date(r["created"]))
         }.sorted { ($0.created ?? .distantPast, $0.id) > ($1.created ?? .distantPast, $1.id) }
         return s
+    }
+
+    // MARK: Gradle rules (simq/gradle.py)
+
+    /// simq's default "Android" paths for repos without an `android_paths` entry.
+    static let defaultAndroidPaths = ["android/", "tren_android/", "native-android/"]
+    static let jsChanges = "JS changes (src/, app/, *.ts, *.tsx, package.json, app.json, app.config.*)"
+
+    private static func isVersion(_ v: String) -> Bool { v.range(of: #"^\d+(\.\d+)+$"#, options: .regularExpression) != nil }
+    private static func newestFirst(_ a: String, _ b: String) -> Bool { a.compare(b, options: .numeric) == .orderedDescending }
+
+    /// Wrapper versions sessions may pin without asking, newest first.
+    var allowedGradle: [String] { gradleVersions.filter(Self.isVersion).sorted(by: Self.newestFirst) }
+    /// `gradle_versions` entries that aren't versions (e.g. `'9.3.1'` with quotes): they match nothing.
+    var invalidGradleEntries: [String] { gradleVersions.filter { !Self.isVersion($0) }.sorted() }
+    func allowsGradle(_ version: String) -> Bool { gradleVersions.contains(version) }
+
+    /// One row per repo with its own Android paths, by repo name.
+    var androidPathRows: [(repo: String, path: String, paths: String)] {
+        androidPaths.map { path, entries in
+            let js = entries.contains("*js*")
+            var prefixes = entries.filter { $0 != "*js*" }
+            if js || prefixes.isEmpty { prefixes = Self.defaultAndroidPaths + prefixes.filter { !Self.defaultAndroidPaths.contains($0) } }
+            let text = prefixes.joined(separator: ", ") + (js ? " + \(Self.jsChanges)" : "")
+            return ((path as NSString).lastPathComponent, path, text)
+        }
+        .sorted { $0.repo < $1.repo }
+    }
+
+    /// Gradle versions the repos' wrappers pin (from the ~/Hacking scan), newest first.
+    func wrapperRows(_ scan: ProjectScan) -> [(version: String, allowed: Bool, who: String)] {
+        scan.gradle.keys.filter { !$0.contains("-") }.sorted(by: Self.newestFirst).map { v in
+            var usage = scan.gradleUsage(v)
+            usage.pinnedBy = nil  // "allowed" says it already
+            return (v, allowsGradle(v), usage.summary)
+        }
     }
 
     // MARK: lookups
